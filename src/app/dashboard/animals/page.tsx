@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { Search, Filter, Plus, RefreshCw } from 'lucide-react';
+import { Search, Plus, RefreshCw } from 'lucide-react';
 import { mockStorage, type Animal } from '@/lib/mockStorage';
 
 // Kategória színek
