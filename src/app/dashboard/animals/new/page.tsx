@@ -802,44 +802,8 @@ export default function NewAnimalPage() {
                     <span className="ml-2 text-gray-900">{formData.kplsz}</span>
                   </div>
                 )}
-              </div>
-
-              {/* Szülők összefoglaló */}
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <h4 className="font-medium text-gray-700 mb-2">👨‍👩‍👧‍👦 Szülők:</h4>
-                <div className="space-y-1 text-sm">
-                  {formData.szuletesi_tipus === 'nalunk_szuletett' ? (
-                    <>
-                      <div>
-                        <span className="text-gray-600">👩 Anya:</span>
-                        <span className="ml-2 text-gray-900">
-                          {formData.anya_tipus === 'valasztas' && formData.anya_enar ? formData.anya_enar :
-                           formData.anya_tipus === 'nincs' ? 'Ismeretlen' : 'Nincs megadva'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">👨 Apa:</span>
-                        <span className="ml-2 text-gray-900">
-                          {formData.apa_tipus === 'valasztas' && formData.apa_enar ? formData.apa_enar :
-                           formData.apa_tipus === 'mesterseges' ? `🧪 Mesterséges termékenyítés${formData.mesterseges_info ? ` (${formData.mesterseges_info})` : ''}` :
-                           formData.apa_tipus === 'nincs' ? 'Ismeretlen' : 'Nincs megadva'}
-                        </span>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div>
-                        <span className="text-gray-600">👩 Anya:</span>
-                        <span className="ml-2 text-gray-900">{formData.anya_kezzel || 'Ismeretlen'}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">👨 Apa:</span>
-                        <span className="ml-2 text-gray-900">{formData.apa_kezzel || 'Ismeretlen'}</span>
-                      </div>
-                    </>
-                  )}
                 </div>
-              </div>
+              )}
             </div>
 
             {errors.submit && (
