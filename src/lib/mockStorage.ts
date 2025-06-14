@@ -3,18 +3,7 @@
 
 const STORAGE_KEY = 'mootracker_animals';
 
-// Alapértelmezett mock adatok
-const defaultAnimals = [
-  { enar: 'HU004001', szuletesi_datum: '2023-04-15', ivar: 'hímivar', kategoria: 'hízóbika', jelenlegi_karam: 'Karám #1', statusz: 'aktív', anya_enar: 'HU001234', apa_enar: 'HU001111' },
-  { enar: 'HU002004', szuletesi_datum: '2022-12-10', ivar: 'nőivar', kategoria: 'vemhes_üsző', jelenlegi_karam: 'Hárem #2', statusz: 'aktív', anya_enar: 'HU001235', apa_enar: 'HU001112' },
-  { enar: 'HU003021', szuletesi_datum: '2020-03-22', ivar: 'nőivar', kategoria: 'tehén', jelenlegi_karam: 'Karám #4', statusz: 'aktív', anya_enar: 'HU001236', apa_enar: 'HU001113' },
-  { enar: 'HU005012', szuletesi_datum: '2023-08-05', ivar: 'nőivar', kategoria: 'növarú_borjú', jelenlegi_karam: 'Bölcsi #1', statusz: 'aktív', anya_enar: 'HU002004', apa_enar: 'HU001114' },
-  { enar: 'HU006033', szuletesi_datum: '2022-06-18', ivar: 'nőivar', kategoria: 'szűz_üsző', jelenlegi_karam: 'Óvi #2', statusz: 'aktív', anya_enar: 'HU001237', apa_enar: 'HU001115' },
-  { enar: 'HU007044', szuletesi_datum: '2021-01-30', ivar: 'hímivar', kategoria: 'tenyészbika', jelenlegi_karam: 'Hárem #1', statusz: 'aktív', anya_enar: 'HU001238', apa_enar: 'HU001116' },
-  { enar: 'HU008055', szuletesi_datum: '2023-05-12', ivar: 'hímivar', kategoria: 'hízóbika', jelenlegi_karam: 'Karám #3', statusz: 'aktív', anya_enar: 'HU001239', apa_enar: 'HU001117' },
-  { enar: 'HU009066', szuletesi_datum: '2022-11-25', ivar: 'nőivar', kategoria: 'vemhesülés_alatt', jelenlegi_karam: 'Hárem #3', statusz: 'aktív', anya_enar: 'HU001240', apa_enar: 'HU001118' },
-];
-
+// Animal interface
 export interface Animal {
   enar: string;
   szuletesi_datum: string;
@@ -31,6 +20,18 @@ export interface Animal {
   utolso_modositas?: string;
   létrehozva?: string;
 }
+
+// Alapértelmezett mock adatok (explicit typing)
+const defaultAnimals: Animal[] = [
+  { enar: 'HU004001', szuletesi_datum: '2023-04-15', ivar: 'hímivar', kategoria: 'hízóbika', jelenlegi_karam: 'Karám #1', statusz: 'aktív', anya_enar: 'HU001234', apa_enar: 'HU001111' },
+  { enar: 'HU002004', szuletesi_datum: '2022-12-10', ivar: 'nőivar', kategoria: 'vemhes_üsző', jelenlegi_karam: 'Hárem #2', statusz: 'aktív', anya_enar: 'HU001235', apa_enar: 'HU001112' },
+  { enar: 'HU003021', szuletesi_datum: '2020-03-22', ivar: 'nőivar', kategoria: 'tehén', jelenlegi_karam: 'Karám #4', statusz: 'aktív', anya_enar: 'HU001236', apa_enar: 'HU001113' },
+  { enar: 'HU005012', szuletesi_datum: '2023-08-05', ivar: 'nőivar', kategoria: 'növarú_borjú', jelenlegi_karam: 'Bölcsi #1', statusz: 'aktív', anya_enar: 'HU002004', apa_enar: 'HU001114' },
+  { enar: 'HU006033', szuletesi_datum: '2022-06-18', ivar: 'nőivar', kategoria: 'szűz_üsző', jelenlegi_karam: 'Óvi #2', statusz: 'aktív', anya_enar: 'HU001237', apa_enar: 'HU001115' },
+  { enar: 'HU007044', szuletesi_datum: '2021-01-30', ivar: 'hímivar', kategoria: 'tenyészbika', jelenlegi_karam: 'Hárem #1', statusz: 'aktív', anya_enar: 'HU001238', apa_enar: 'HU001116' },
+  { enar: 'HU008055', szuletesi_datum: '2023-05-12', ivar: 'hímivar', kategoria: 'hízóbika', jelenlegi_karam: 'Karám #3', statusz: 'aktív', anya_enar: 'HU001239', apa_enar: 'HU001117' },
+  { enar: 'HU009066', szuletesi_datum: '2022-11-25', ivar: 'nőivar', kategoria: 'vemhesülés_alatt', jelenlegi_karam: 'Hárem #3', statusz: 'aktív', anya_enar: 'HU001240', apa_enar: 'HU001118' },
+];
 
 // Mock adatbázis műveletek
 export const mockStorage = {
