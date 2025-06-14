@@ -62,6 +62,177 @@ const mockAnimalData: { [key: string]: any } = {
       { tipus: 'vakcina', esedekesseg: '2024-07-15', leiras: 'IBR ismétlő vakcina', prioritas: 'közepes' },
       { tipus: 'suly_meres', esedekesseg: '2024-07-01', leiras: 'Havi súlymérés', prioritas: 'alacsony' }
     ]
+  },
+  'HU002004': {
+    enar: 'HU002004',
+    szuletesi_datum: '2022-12-10',
+    ivar: 'nőivar',
+    kategoria: 'vemhes_üsző',
+    jelenlegi_karam: 'Hárem #2',
+    statusz: 'aktív',
+    anya_enar: 'HU001235',
+    apa_enar: 'HU001112',
+    kplsz: 'KPLSZ234567',
+    bekerules_datum: '2022-12-10',
+    fotok: [],
+    utolso_modositas: '2025-06-13',
+    létrehozva: '2022-12-10',
+    
+    szuletesi_suly: 38,
+    jelenlegi_suly: 520,
+    
+    anya: {
+      enar: 'HU001235',
+      nev: 'Klára',
+      kategoria: 'tehén'
+    },
+    apa: {
+      enar: 'HU001112', 
+      nev: 'Béla',
+      kategoria: 'tenyészbika'
+    },
+    
+    karam_tortenet: [
+      { datum: '2022-12-10', karam: 'Ellető istálló - Fogadó #2', esemeny: 'Születés' },
+      { datum: '2023-02-15', karam: 'Bölcsi #2', esemeny: 'Átmozgatás' },
+      { datum: '2023-12-10', karam: 'Óvi #1', esemeny: 'Leválasztás' },
+      { datum: '2024-12-10', karam: 'Hárem #2', esemeny: 'Hárembe kerülés (24 hónapos)' }
+    ],
+    
+    egeszsegugyi_tortenet: [
+      { datum: '2022-12-25', esemeny: 'Fülszám + BoviPast + szarvtalanítás', kezelo: 'Dr. Nagy Péter' },
+      { datum: '2023-06-10', esemeny: 'Leválasztás vakcinák', kezelo: 'Dr. Nagy Péter' },
+      { datum: '2024-01-10', esemeny: 'IBR + BVD vakcina', kezelo: 'Dr. Nagy Péter' },
+      { datum: '2024-12-10', esemeny: 'Hárembe kerülés vizsgálat', kezelo: 'Dr. Nagy Péter' }
+    ],
+    
+    suly_fejlodes: [
+      { datum: '2022-12-10', suly: 38, esemeny: 'Születési súly' },
+      { datum: '2023-03-10', suly: 85, esemeny: '3 hónapos mérés' },
+      { datum: '2023-06-10', suly: 150, esemeny: 'Leválasztáskor' },
+      { datum: '2023-12-10', suly: 280, esemeny: '12 hónapos' },
+      { datum: '2024-06-10', suly: 420, esemeny: '18 hónapos' },
+      { datum: '2024-12-10', suly: 520, esemeny: 'Hárembe kerüléskor' }
+    ],
+    
+    aktualis_feladatok: [
+      { tipus: 'vemhesseg_vizsgalat', esedekesseg: '2025-03-10', leiras: 'Vemhességvizsgálat - hárem után 3 hónap', prioritas: 'magas' },
+      { tipus: 'vakcina', esedekesseg: '2025-07-10', leiras: 'IBR ismétlő vakcina', prioritas: 'közepes' }
+    ]
+  },
+  'HU003021': {
+    enar: 'HU003021',
+    szuletesi_datum: '2020-03-22',
+    ivar: 'nőivar',
+    kategoria: 'tehén',
+    jelenlegi_karam: 'Karám #4',
+    statusz: 'aktív',
+    anya_enar: 'HU001236',
+    apa_enar: 'HU001113',
+    kplsz: 'KPLSZ345678',
+    bekerules_datum: '2020-03-22',
+    fotok: [],
+    utolso_modositas: '2025-06-13',
+    létrehozva: '2020-03-22',
+    
+    szuletesi_suly: 40,
+    jelenlegi_suly: 650,
+    
+    anya: {
+      enar: 'HU001236',
+      nev: 'Erzsébet',
+      kategoria: 'tehén'
+    },
+    apa: {
+      enar: 'HU001113', 
+      nev: 'Károly',
+      kategoria: 'tenyészbika'
+    },
+    
+    karam_tortenet: [
+      { datum: '2020-03-22', karam: 'Ellető istálló - Fogadó #3', esemeny: 'Születés' },
+      { datum: '2020-09-22', karam: 'Bölcsi #1', esemeny: 'Leválasztás' },
+      { datum: '2021-03-22', karam: 'Óvi #1', esemeny: '12 hónapos' },
+      { datum: '2022-03-22', karam: 'Hárem #1', esemeny: 'Első hárembe kerülés' },
+      { datum: '2023-01-15', karam: 'Ellető istálló - Belső #1', esemeny: 'Első ellés' },
+      { datum: '2023-10-15', karam: 'Karám #4', esemeny: 'Borjú leválasztás után' }
+    ],
+    
+    egeszsegugyi_tortenet: [
+      { datum: '2020-04-06', esemeny: 'Fülszám + BoviPast + szarvtalanítás', kezelo: 'Dr. Nagy Péter' },
+      { datum: '2020-09-22', esemeny: 'Leválasztás vakcinák', kezelo: 'Dr. Nagy Péter' },
+      { datum: '2022-03-22', esemeny: 'Hárembe kerülés vizsgálat', kezelo: 'Dr. Nagy Péter' },
+      { datum: '2023-01-15', esemeny: 'Ellés utáni vizsgálat', kezelo: 'Dr. Nagy Péter' },
+      { datum: '2024-06-01', esemeny: 'IBR + BVD + Ivermectin', kezelo: 'Dr. Nagy Péter' }
+    ],
+    
+    suly_fejlodes: [
+      { datum: '2020-03-22', suly: 40, esemeny: 'Születési súly' },
+      { datum: '2020-06-22', suly: 95, esemeny: '3 hónapos' },
+      { datum: '2020-09-22', suly: 170, esemeny: 'Leválasztáskor' },
+      { datum: '2021-03-22', suly: 320, esemeny: '12 hónapos' },
+      { datum: '2022-03-22', suly: 480, esemeny: 'Hárembe kerüléskor' },
+      { datum: '2023-01-15', suly: 580, esemeny: 'Elléskor' },
+      { datum: '2025-06-13', suly: 650, esemeny: 'Jelenlegi súly' }
+    ],
+    
+    aktualis_feladatok: [
+      { tipus: 'harem_elokeszites', esedekesseg: '2025-08-15', leiras: 'Következő hárembe kerülés előkészítés', prioritas: 'közepes' },
+      { tipus: 'vakcina', esedekesseg: '2025-12-01', leiras: 'Éves IBR + BVD vakcina', prioritas: 'alacsony' }
+    ]
+  },
+  'HU005012': {
+    enar: 'HU005012',
+    szuletesi_datum: '2023-08-05',
+    ivar: 'nőivar',
+    kategoria: 'növarú_borjú',
+    jelenlegi_karam: 'Bölcsi #1',
+    statusz: 'aktív',
+    anya_enar: 'HU002004',
+    apa_enar: 'HU001114',
+    kplsz: 'KPLSZ456789',
+    bekerules_datum: '2023-08-05',
+    fotok: [],
+    utolso_modositas: '2025-06-13',
+    létrehozva: '2023-08-05',
+    
+    szuletesi_suly: 35,
+    jelenlegi_suly: 180,
+    
+    anya: {
+      enar: 'HU002004',
+      nev: 'Vemhes üsző',
+      kategoria: 'vemhes_üsző'
+    },
+    apa: {
+      enar: 'HU001114', 
+      nev: 'Dániel',
+      kategoria: 'tenyészbika'
+    },
+    
+    karam_tortenet: [
+      { datum: '2023-08-05', karam: 'Ellető istálló - Fogadó #1', esemeny: 'Születés' },
+      { datum: '2023-10-05', karam: 'Ellető istálló - Belső #1', esemeny: 'Anyával együtt' },
+      { datum: '2024-02-05', karam: 'Bölcsi #1', esemeny: 'Leválasztás (6 hónapos)' }
+    ],
+    
+    egeszsegugyi_tortenet: [
+      { datum: '2023-08-20', esemeny: 'Fülszám + BoviPast + szarvtalanítás', kezelo: 'Dr. Nagy Péter' },
+      { datum: '2024-02-05', esemeny: 'Leválasztás vakcinák', kezelo: 'Dr. Nagy Péter' },
+      { datum: '2024-08-05', esemeny: '12 hónapos vizsgálat', kezelo: 'Dr. Nagy Péter' }
+    ],
+    
+    suly_fejlodes: [
+      { datum: '2023-08-05', suly: 35, esemeny: 'Születési súly' },
+      { datum: '2023-11-05', suly: 75, esemeny: '3 hónapos mérés' },
+      { datum: '2024-02-05', suly: 120, esemeny: 'Leválasztáskor' },
+      { datum: '2024-08-05', suly: 180, esemeny: '12 hónapos súly' }
+    ],
+    
+    aktualis_feladatok: [
+      { tipus: 'ovi_atmozgatas', esedekesseg: '2024-08-05', leiras: '12 hónapos - Óviba átmozgatás', prioritas: 'magas' },
+      { tipus: 'suly_meres', esedekesseg: '2025-07-01', leiras: 'Havi súlymérés', prioritas: 'alacsony' }
+    ]
   }
 };
 
@@ -445,4 +616,4 @@ export default function AnimalDetailsPage() {
       </div>
     </div>
   );
-} 
+}
