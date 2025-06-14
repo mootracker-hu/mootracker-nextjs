@@ -229,7 +229,7 @@ export default function NewAnimalPage() {
         }
       }
 
-      await mockStorage.createAnimal(newAnimal);
+      await mockStorage.addAnimal(newAnimal);
       router.push(`/dashboard/animals/${newAnimal.enar}`);
     } catch (error) {
       console.error('Mentési hiba:', error);
