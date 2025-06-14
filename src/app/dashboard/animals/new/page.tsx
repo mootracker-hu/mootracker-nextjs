@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, Check, AlertCircle } from 'lucide-react';
+import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { mockStorage } from '@/lib/mockStorage';
 
 interface AnimalFormData {
@@ -192,7 +192,7 @@ export default function NewAnimalPage() {
       <div className="mb-8">
         <div className="flex items-center mb-4">
           <Link href="/dashboard/animals" className="text-blue-600 hover:text-blue-800 flex items-center">
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ArrowLeftIcon className="h-4 w-4 mr-2" />
             Vissza az állományhoz
           </Link>
         </div>
@@ -212,7 +212,7 @@ export default function NewAnimalPage() {
                   : 'bg-gray-200 text-gray-600'
                 }
               `}>
-                {currentStep > step ? <Check className="h-4 w-4" /> : step}
+                {currentStep > step ? <CheckIcon className="h-4 w-4" /> : step}
               </div>
               {step < 3 && (
                 <div className={`
@@ -253,7 +253,7 @@ export default function NewAnimalPage() {
               />
               {errors.enar && (
                 <p className="mt-1 text-sm text-red-600 flex items-center">
-                  <AlertCircle className="h-4 w-4 mr-1" />
+                  <ExclamationTriangleIcon className="h-4 w-4 mr-1" />
                   {errors.enar}
                 </p>
               )}
@@ -277,7 +277,7 @@ export default function NewAnimalPage() {
               />
               {errors.szuletesi_datum && (
                 <p className="mt-1 text-sm text-red-600 flex items-center">
-                  <AlertCircle className="h-4 w-4 mr-1" />
+                  <ExclamationTriangleIcon className="h-4 w-4 mr-1" />
                   {errors.szuletesi_datum}
                 </p>
               )}
@@ -413,7 +413,7 @@ export default function NewAnimalPage() {
               </select>
               {errors.jelenlegi_karam && (
                 <p className="mt-1 text-sm text-red-600 flex items-center">
-                  <AlertCircle className="h-4 w-4 mr-1" />
+                  <ExclamationTriangleIcon className="h-4 w-4 mr-1" />
                   {errors.jelenlegi_karam}
                 </p>
               )}
@@ -439,7 +439,7 @@ export default function NewAnimalPage() {
               />
               {errors.bekerules_datum && (
                 <p className="mt-1 text-sm text-red-600 flex items-center">
-                  <AlertCircle className="h-4 w-4 mr-1" />
+                  <ExclamationTriangleIcon className="h-4 w-4 mr-1" />
                   {errors.bekerules_datum}
                 </p>
               )}
@@ -540,7 +540,7 @@ export default function NewAnimalPage() {
             {errors.submit && (
               <div className="bg-red-50 p-4 rounded-md">
                 <p className="text-red-600 flex items-center">
-                  <AlertCircle className="h-4 w-4 mr-2" />
+                  <ExclamationTriangleIcon className="h-4 w-4 mr-2" />
                   {errors.submit}
                 </p>
               </div>
@@ -555,7 +555,7 @@ export default function NewAnimalPage() {
             disabled={currentStep === 1}
             className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ArrowLeftIcon className="h-4 w-4 mr-2" />
             Előző
           </button>
 
@@ -565,7 +565,7 @@ export default function NewAnimalPage() {
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
             >
               Következő
-              <ArrowRight className="h-4 w-4 ml-2" />
+              <ArrowRightIcon className="h-4 w-4 ml-2" />
             </button>
           ) : (
             <button
@@ -580,7 +580,7 @@ export default function NewAnimalPage() {
                 </>
               ) : (
                 <>
-                  <Check className="h-4 w-4 mr-2" />
+                  <CheckIcon className="h-4 w-4 mr-2" />
                   Állat hozzáadása
                 </>
               )}
@@ -590,4 +590,4 @@ export default function NewAnimalPage() {
       </div>
     </div>
   );
-} 
+}
