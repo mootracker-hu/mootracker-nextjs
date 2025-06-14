@@ -1,9 +1,4 @@
-{/* Navigation Buttons */}
-      <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-4 md:p-6 rounded-lg border gap-4">
-        <button
-          onClick={handlePrevStep}
-          disabled={step === 1}
-          className="w-full sm:w-auto px-6 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -601,7 +596,6 @@ export default function NewAnimalPage() {
                     <option value="Hárem #2">Hárem #2</option>
                     <option value="Bölcsi #1">Bölcsi #1</option>
                     <option value="Bölcsi #2">Bölcsi #2</option>
-                    <option value="Óvi #1">Óvi #1</option>
                     <option value="Óvi #2">Óvi #2</option>
                     <option value="Óvi #3">Óvi #3</option>
                     <option value="Hízóbika karám #1">Hízóbika karám #1</option>
