@@ -1,4 +1,9 @@
-'use client';
+{/* Navigation Buttons */}
+      <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-4 md:p-6 rounded-lg border gap-4">
+        <button
+          onClick={handlePrevStep}
+          disabled={step === 1}
+          className="w-full sm:w-auto px-6 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -240,11 +245,11 @@ export default function NewAnimalPage() {
   const karamSuggestions = previewCategory ? getKaramSuggestions(previewCategory) : [];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto px-4 md:px-6 lg:px-8 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-2">
             ➕ Új állat hozzáadása
           </h1>
           <p className="text-gray-600 mt-1">
@@ -253,29 +258,29 @@ export default function NewAnimalPage() {
         </div>
         <button
           onClick={() => router.back()}
-          className="px-4 py-2 text-gray-600 hover:text-gray-800 flex items-center gap-2"
+          className="px-4 py-2 text-gray-600 hover:text-gray-800 flex items-center gap-2 self-start md:self-auto"
         >
           ← Vissza
         </button>
       </div>
 
       {/* Progress Bar */}
-      <div className="bg-white p-6 rounded-lg border">
+      <div className="bg-white p-4 md:p-6 rounded-lg border">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-4">
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
+          <div className="flex items-center space-x-2 md:space-x-4 w-full">
+            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm ${
               step >= 1 ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
             }`}>
               {step > 1 ? '✅' : '1'}
             </div>
-            <div className={`h-1 w-16 ${step >= 2 ? 'bg-green-500' : 'bg-gray-200'}`}></div>
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
+            <div className={`h-1 flex-1 max-w-16 ${step >= 2 ? 'bg-green-500' : 'bg-gray-200'}`}></div>
+            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm ${
               step >= 2 ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
             }`}>
               {step > 2 ? '✅' : '2'}
             </div>
-            <div className={`h-1 w-16 ${step >= 3 ? 'bg-green-500' : 'bg-gray-200'}`}></div>
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
+            <div className={`h-1 flex-1 max-w-16 ${step >= 3 ? 'bg-green-500' : 'bg-gray-200'}`}></div>
+            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm ${
               step >= 3 ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
             }`}>
               {step > 3 ? '✅' : '3'}
@@ -283,7 +288,7 @@ export default function NewAnimalPage() {
           </div>
         </div>
         
-        <div className="flex justify-between text-sm text-gray-600">
+        <div className="flex justify-between text-xs md:text-sm text-gray-600">
           <span className={step >= 1 ? 'text-green-600 font-medium' : ''}>
             🐄 Alapadatok
           </span>
@@ -297,7 +302,7 @@ export default function NewAnimalPage() {
       </div>
 
       {/* Step Content */}
-      <div className="bg-white rounded-lg border p-6">
+      <div className="bg-white rounded-lg border p-4 md:p-6">
         {/* STEP 1: Alapadatok */}
         {step === 1 && (
           <div className="space-y-6">
@@ -762,30 +767,30 @@ export default function NewAnimalPage() {
       </div>
 
       {/* Navigation Buttons */}
-      <div className="flex justify-between items-center bg-white p-6 rounded-lg border">
+      <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-4 md:p-6 rounded-lg border gap-4">
         <button
           onClick={handlePrevStep}
           disabled={step === 1}
-          className="px-6 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          className="w-full sm:w-auto px-6 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 justify-center"
         >
           ← Vissza
         </button>
 
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-gray-500 order-first sm:order-none">
           {step}. lépés / 3
         </div>
 
         {step < 3 ? (
           <button
             onClick={handleNextStep}
-            className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2"
+            className="w-full sm:w-auto px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2 justify-center"
           >
             Következő →
           </button>
         ) : (
           <button
             onClick={handleSave}
-            className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2 font-medium"
+            className="w-full sm:w-auto px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2 font-medium justify-center"
           >
             ✅ Állat mentése
           </button>
