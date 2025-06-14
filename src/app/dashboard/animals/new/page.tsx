@@ -13,8 +13,6 @@ interface AnimalFormData {
   jelenlegi_karam: string;
   statusz: 'aktív' | 'selejtezés' | 'elhullott' | 'kikerült' | 'eladott' | 'házi vágás';
   kplsz: string;
-  
-  // Szülő kezelés
   szuletesi_tipus: 'nalunk_szuletett' | 'vasarolt';
   anya_tipus: 'valasztas' | 'kezzel' | 'nincs';
   apa_tipus: 'valasztas' | 'kezzel' | 'mesterseges' | 'nincs';
@@ -25,7 +23,6 @@ interface AnimalFormData {
   mesterseges_info: string;
 }
 
-// Kategória automatikus kalkuláció
 const calculateCategory = (birthDate: string, gender: string): string => {
   const birth = new Date(birthDate);
   const now = new Date();
@@ -43,14 +40,12 @@ const calculateCategory = (birthDate: string, gender: string): string => {
   }
 };
 
-// ENAR validáció
 const validateEnar = (enar: string): string | null => {
   if (!enar) return 'ENAR megadása kötelező';
   if (!/^HU\d{10}$/.test(enar)) return 'ENAR formátuma: HU + 10 számjegy (pl. HU1234567890)';
   return null;
 };
 
-// Karám javaslatok
 const getKaramSuggestions = (category: string): string[] => {
   switch (category) {
     case 'növarú_borjú':
@@ -79,7 +74,6 @@ export default function NewAnimalPage() {
     jelenlegi_karam: '',
     statusz: 'aktív',
     kplsz: '',
-    
     szuletesi_tipus: 'nalunk_szuletett',
     anya_tipus: 'valasztas',
     apa_tipus: 'valasztas',
@@ -92,12 +86,10 @@ export default function NewAnimalPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Meglévő állatok lekérése
   const existingAnimals = mockStorage.getAllAnimals();
   const potentialMothers = existingAnimals.filter(a => a.ivar === 'nőivar' && ['tehén', 'szűz_üsző', 'vemhes_üsző'].includes(a.kategoria));
   const potentialFathers = existingAnimals.filter(a => a.ivar === 'hímivar' && a.kategoria === 'tenyészbika');
 
-  // Form változás kezelése
   const handleInputChange = (field: keyof AnimalFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
@@ -105,7 +97,6 @@ export default function NewAnimalPage() {
     }
   };
 
-  // Születési típus váltás
   const handleSzuletesiTipusChange = (tipus: 'nalunk_szuletett' | 'vasarolt') => {
     setFormData(prev => ({
       ...prev,
@@ -121,16 +112,13 @@ export default function NewAnimalPage() {
     }));
   };
 
-  // Születési dátum változás
   const handleBirthDateChange = (date: string) => {
     const updates: Partial<AnimalFormData> = { szuletesi_datum: date };
     
-    // Ha nálunk született, bekerülés = születés
     if (formData.szuletesi_tipus === 'nalunk_szuletett') {
       updates.bekerules_datum = date;
     }
     
-    // Karám javaslat
     if (date && formData.ivar) {
       const category = calculateCategory(date, formData.ivar);
       const suggestions = getKaramSuggestions(category);
@@ -145,7 +133,6 @@ export default function NewAnimalPage() {
     }
   };
 
-  // Ivar változás
   const handleGenderChange = (gender: 'hímivar' | 'nőivar') => {
     setFormData(prev => ({ ...prev, ivar: gender }));
     if (formData.szuletesi_datum) {
@@ -157,7 +144,6 @@ export default function NewAnimalPage() {
     }
   };
 
-  // Validáció
   const validateStep = (step: number): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -181,7 +167,6 @@ export default function NewAnimalPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Lépés váltás
   const nextStep = () => {
     if (validateStep(currentStep)) {
       setCurrentStep(prev => Math.min(prev + 1, 3));
@@ -192,7 +177,6 @@ export default function NewAnimalPage() {
     setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
-  // Form beküldése
   const handleSubmit = async () => {
     if (!validateStep(2)) return;
 
@@ -200,7 +184,6 @@ export default function NewAnimalPage() {
     try {
       const kategoria = calculateCategory(formData.szuletesi_datum, formData.ivar);
 
-      // Szülők meghatározása
       let anya_enar = '';
       let apa_enar = '';
 
@@ -248,7 +231,6 @@ export default function NewAnimalPage() {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      {/* Header */}
       <div className="mb-8">
         <div className="flex items-center mb-4">
           <Link href="/dashboard/animals" className="text-blue-600 hover:text-blue-800 flex items-center">
@@ -259,7 +241,6 @@ export default function NewAnimalPage() {
         <p className="text-gray-600 mt-2">✨ 3 lépéses wizard a pontos adatrögzítésért</p>
       </div>
 
-      {/* Progress bar */}
       <div className="mb-8">
         <div className="flex items-center">
           {[1, 2, 3].map((step) => (
@@ -290,14 +271,219 @@ export default function NewAnimalPage() {
       </div>
 
       <div className="bg-white shadow rounded-lg p-6">
-        {/* LÉPÉS 1: Alapadatok */}
         {currentStep === 1 && (
           <div className="space-y-6">
             <h2 className="text-xl font-semibold text-gray-900">📋 Alapadatok</h2>
             
-            {/* Születési típus választás */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                🏠 Jelenlegi karám <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.jelenlegi_karam}
+                onChange={(e) => handleInputChange('jelenlegi_karam', e.target.value)}
+                className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                  errors.jelenlegi_karam ? 'border-red-300' : ''
+                }`}
+              >
+                <option value="">Válassz karámot...</option>
+                {karamSuggestions.map(karam => (
+                  <option key={karam} value={karam}>✨ {karam} (ajánlott)</option>
+                ))}
+                <optgroup label="🏗️ Egyéb karámok">
+                  <option value="Karám #1">Karám #1</option>
+                  <option value="Karám #2">Karám #2</option>
+                  <option value="Karám #3">Karám #3</option>
+                  <option value="Hárem #1">Hárem #1</option>
+                  <option value="Hárem #2">Hárem #2</option>
+                  <option value="Ellető istálló - Fogadó #1">Ellető istálló - Fogadó #1</option>
+                  <option value="Ellető istálló - Fogadó #2">Ellető istálló - Fogadó #2</option>
+                </optgroup>
+              </select>
+              {errors.jelenlegi_karam && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  ⚠️ {errors.jelenlegi_karam}
+                </p>
+              )}
+              {currentCategory && (
+                <p className="mt-1 text-sm text-blue-600">
+                  💡 Ajánlott karámok {currentCategory} kategóriához
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                📊 Státusz
+              </label>
+              <select
+                value={formData.statusz}
+                onChange={(e) => handleInputChange('statusz', e.target.value as any)}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              >
+                <option value="aktív">✅ Aktív</option>
+                <option value="selejtezés">⚠️ Selejtezés</option>
+                <option value="elhullott">💀 Elhullott</option>
+                <option value="kikerült">🚪 Kikerült</option>
+                <option value="eladott">💰 Eladott</option>
+                <option value="házi vágás">🔪 Házi vágás</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {currentStep === 3 && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold text-gray-900">✅ Adatok ellenőrzése</h2>
+            
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">📋 Összefoglaló</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium text-gray-700">🎯 Eredet:</span>
+                  <span className="ml-2 text-gray-900">
+                    {formData.szuletesi_tipus === 'nalunk_szuletett' ? '🏠 Nálunk született' : '🛒 Vásárolt állat'}
+                  </span>
+                </div>
+                
+                <div>
+                  <span className="font-medium text-gray-700">🏷️ ENAR:</span>
+                  <span className="ml-2 text-gray-900">{formData.enar}</span>
+                </div>
+                
+                <div>
+                  <span className="font-medium text-gray-700">📅 Születési dátum:</span>
+                  <span className="ml-2 text-gray-900">
+                    {new Date(formData.szuletesi_datum).toLocaleDateString('hu-HU')}
+                  </span>
+                </div>
+                
+                <div>
+                  <span className="font-medium text-gray-700">🚪 Bekerülés dátuma:</span>
+                  <span className="ml-2 text-gray-900">
+                    {new Date(formData.bekerules_datum).toLocaleDateString('hu-HU')}
+                  </span>
+                </div>
+                
+                <div>
+                  <span className="font-medium text-gray-700">⚥ Ivar:</span>
+                  <span className="ml-2 text-gray-900">
+                    {formData.ivar === 'hímivar' ? '♂️' : '♀️'} {formData.ivar}
+                  </span>
+                </div>
+                
+                <div>
+                  <span className="font-medium text-gray-700">🎯 Kategória:</span>
+                  <span className="ml-2 text-gray-900 font-semibold text-blue-700">✨ {currentCategory}</span>
+                </div>
+                
+                <div>
+                  <span className="font-medium text-gray-700">🏠 Karám:</span>
+                  <span className="ml-2 text-gray-900">{formData.jelenlegi_karam}</span>
+                </div>
+                
+                <div>
+                  <span className="font-medium text-gray-700">📊 Státusz:</span>
+                  <span className="ml-2 text-gray-900">
+                    {formData.statusz === 'aktív' ? '✅' : '⚠️'} {formData.statusz}
+                  </span>
+                </div>
+                
+                {formData.kplsz && (
+                  <div>
+                    <span className="font-medium text-gray-700">📄 KPLSz:</span>
+                    <span className="ml-2 text-gray-900">{formData.kplsz}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <h4 className="font-medium text-gray-700 mb-2">👨‍👩‍👧‍👦 Szülők:</h4>
+                <div className="space-y-1 text-sm">
+                  {formData.szuletesi_tipus === 'nalunk_szuletett' ? (
+                    <>
+                      <div>
+                        <span className="text-gray-600">👩 Anya:</span>
+                        <span className="ml-2 text-gray-900">
+                          {formData.anya_tipus === 'valasztas' && formData.anya_enar ? formData.anya_enar :
+                           formData.anya_tipus === 'nincs' ? 'Ismeretlen' : 'Nincs megadva'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">👨 Apa:</span>
+                        <span className="ml-2 text-gray-900">
+                          {formData.apa_tipus === 'valasztas' && formData.apa_enar ? formData.apa_enar :
+                           formData.apa_tipus === 'mesterseges' ? `🧪 Mesterséges termékenyítés${formData.mesterseges_info ? ` (${formData.mesterseges_info})` : ''}` :
+                           formData.apa_tipus === 'nincs' ? 'Ismeretlen' : 'Nincs megadva'}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <span className="text-gray-600">👩 Anya:</span>
+                        <span className="ml-2 text-gray-900">{formData.anya_kezzel || 'Ismeretlen'}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">👨 Apa:</span>
+                        <span className="ml-2 text-gray-900">{formData.apa_kezzel || 'Ismeretlen'}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {errors.submit && (
+              <div className="bg-red-50 p-4 rounded-md">
+                <p className="text-red-600 flex items-center">
+                  ⚠️ {errors.submit}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex justify-between pt-6 border-t border-gray-200">
+          <button
+            onClick={prevStep}
+            disabled={currentStep === 1}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            ← Előző
+          </button>
+
+          {currentStep < 3 ? (
+            <button
+              onClick={nextStep}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+            >
+              Következő →
+            </button>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="inline-flex items-center px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  💾 Mentés...
+                </>
+              ) : (
+                <>
+                  ✅ Állat hozzáadása
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+} className="block text-sm font-medium text-gray-700 mb-3">
                 🎯 Állat eredete
               </label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -347,7 +533,6 @@ export default function NewAnimalPage() {
               </div>
             </div>
 
-            {/* ENAR */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 🏷️ ENAR <span className="text-red-500">*</span>
@@ -371,7 +556,6 @@ export default function NewAnimalPage() {
               </p>
             </div>
 
-            {/* Dátumok */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -416,7 +600,6 @@ export default function NewAnimalPage() {
               </div>
             </div>
 
-            {/* Ivar */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 ⚥ Ivar <span className="text-red-500">*</span>
@@ -447,7 +630,6 @@ export default function NewAnimalPage() {
               </div>
             </div>
 
-            {/* Kategória előnézet */}
             {currentCategory && (
               <div className="bg-blue-50 p-4 rounded-md">
                 <h3 className="text-sm font-medium text-blue-900">🎯 Automatikusan kalkulált kategória:</h3>
@@ -455,12 +637,10 @@ export default function NewAnimalPage() {
               </div>
             )}
 
-            {/* Szülők - Nálunk született */}
             {formData.szuletesi_tipus === 'nalunk_szuletett' && (
               <div className="space-y-4">
                 <h3 className="text-lg font-medium text-gray-900">👨‍👩‍👧‍👦 Szülők</h3>
                 
-                {/* Anya */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">👩 Anya</label>
                   <div className="space-y-2">
@@ -505,7 +685,6 @@ export default function NewAnimalPage() {
                   </div>
                 </div>
 
-                {/* Apa */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">👨 Apa</label>
                   <div className="space-y-2">
@@ -574,7 +753,6 @@ export default function NewAnimalPage() {
               </div>
             )}
 
-            {/* Szülők - Vásárolt állat */}
             {formData.szuletesi_tipus === 'vasarolt' && (
               <div className="space-y-4">
                 <h3 className="text-lg font-medium text-gray-900">👨‍👩‍👧‍👦 Szülők (opcionális)</h3>
@@ -612,7 +790,6 @@ export default function NewAnimalPage() {
               </div>
             )}
 
-            {/* KPLSz */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 📄 KPLSz (ha van)
@@ -631,228 +808,9 @@ export default function NewAnimalPage() {
           </div>
         )}
 
-        {/* LÉPÉS 2: Elhelyezés */}
         {currentStep === 2 && (
           <div className="space-y-6">
             <h2 className="text-xl font-semibold text-gray-900">🏠 Elhelyezés és státusz</h2>
             
-            {/* Karám választás */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                🏠 Jelenlegi karám <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={formData.jelenlegi_karam}
-                onChange={(e) => handleInputChange('jelenlegi_karam', e.target.value)}
-                className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
-                  errors.jelenlegi_karam ? 'border-red-300' : ''
-                }`}
-              >
-                <option value="">Válassz karámot...</option>
-                {karamSuggestions.map(karam => (
-                  <option key={karam} value={karam}>✨ {karam} (ajánlott)</option>
-                ))}
-                <optgroup label="🏗️ Egyéb karámok">
-                  <option value="Karám #1">Karám #1</option>
-                  <option value="Karám #2">Karám #2</option>
-                  <option value="Karám #3">Karám #3</option>
-                  <option value="Hárem #1">Hárem #1</option>
-                  <option value="Hárem #2">Hárem #2</option>
-                  <option value="Ellető istálló - Fogadó #1">Ellető istálló - Fogadó #1</option>
-                  <option value="Ellető istálló - Fogadó #2">Ellető istálló - Fogadó #2</option>
-                </optgroup>
-              </select>
-              {errors.jelenlegi_karam && (
-                <p className="mt-1 text-sm text-red-600 flex items-center">
-                  ⚠️ {errors.jelenlegi_karam}
-                </p>
-              )}
-              {currentCategory && (
-                <p className="mt-1 text-sm text-blue-600">
-                  💡 Ajánlott karámok {currentCategory} kategóriához
-                </p>
-              )}
-            </div>
-
-            {/* Státusz */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                📊 Státusz
-              </label>
-              <select
-                value={formData.statusz}
-                onChange={(e) => handleInputChange('statusz', e.target.value as any)}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              >
-                <option value="aktív">✅ Aktív</option>
-                <option value="selejtezés">⚠️ Selejtezés</option>
-                <option value="elhullott">💀 Elhullott</option>
-                <option value="kikerült">🚪 Kikerült</option>
-                <option value="eladott">💰 Eladott</option>
-                <option value="házi vágás">🔪 Házi vágás</option>
-              </select>
-            </div>
-          </div>
-        )}
-
-        {/* LÉPÉS 3: Ellenőrzés */}
-        {currentStep === 3 && (
-          <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-gray-900">✅ Adatok ellenőrzése</h2>
-            
-            <div className="bg-gray-50 p-6 rounded-lg">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">📋 Összefoglaló</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="font-medium text-gray-700">🎯 Eredet:</span>
-                  <span className="ml-2 text-gray-900">
-                    {formData.szuletesi_tipus === 'nalunk_szuletett' ? '🏠 Nálunk született' : '🛒 Vásárolt állat'}
-                  </span>
-                </div>
-                
-                <div>
-                  <span className="font-medium text-gray-700">🏷️ ENAR:</span>
-                  <span className="ml-2 text-gray-900">{formData.enar}</span>
-                </div>
-                
-                <div>
-                  <span className="font-medium text-gray-700">📅 Születési dátum:</span>
-                  <span className="ml-2 text-gray-900">
-                    {new Date(formData.szuletesi_datum).toLocaleDateString('hu-HU')}
-                  </span>
-                </div>
-                
-                <div>
-                  <span className="font-medium text-gray-700">🚪 Bekerülés dátuma:</span>
-                  <span className="ml-2 text-gray-900">
-                    {new Date(formData.bekerules_datum).toLocaleDateString('hu-HU')}
-                  </span>
-                </div>
-                
-                <div>
-                  <span className="font-medium text-gray-700">⚥ Ivar:</span>
-                  <span className="ml-2 text-gray-900">
-                    {formData.ivar === 'hímivar' ? '♂️' : '♀️'} {formData.ivar}
-                  </span>
-                </div>
-                
-                <div>
-                  <span className="font-medium text-gray-700">🎯 Kategória:</span>
-                  <span className="ml-2 text-gray-900 font-semibold text-blue-700">✨ {currentCategory}</span>
-                </div>
-                
-                <div>
-                  <span className="font-medium text-gray-700">🏠 Karám:</span>
-                  <span className="ml-2 text-gray-900">{formData.jelenlegi_karam}</span>
-                </div>
-                
-                <div>
-                  <span className="font-medium text-gray-700">📊 Státusz:</span>
-                  <span className="ml-2 text-gray-900">
-                    {formData.statusz === 'aktív' ? '✅' : '⚠️'} {formData.statusz}
-                  </span>
-                </div>
-                
-                {formData.kplsz && (
-                  <div>
-                    <span className="font-medium text-gray-700">📄 KPLSz:</span>
-                    <span className="ml-2 text-gray-900">{formData.kplsz}</span>
-                  </div>
-                )}</span>
-                </div>
-                
-                <div>
-                  <span className="font-medium text-gray-700">Születési dátum:</span>
-                  <span className="ml-2 text-gray-900">
-                    {new Date(formData.szuletesi_datum).toLocaleDateString('hu-HU')}
-                  </span>
-                </div>
-                
-                <div>
-                  <span className="font-medium text-gray-700">Bekerülés dátuma:</span>
-                  <span className="ml-2 text-gray-900">
-                    {new Date(formData.bekerules_datum).toLocaleDateString('hu-HU')}
-                  </span>
-                </div>
-                
-                <div>
-                  <span className="font-medium text-gray-700">Ivar:</span>
-                  <span className="ml-2 text-gray-900">{formData.ivar}</span>
-                </div>
-                
-                <div>
-                  <span className="font-medium text-gray-700">Kategória:</span>
-                  <span className="ml-2 text-gray-900 font-semibold text-blue-700">{currentCategory}</span>
-                </div>
-                
-                <div>
-                  <span className="font-medium text-gray-700">Karám:</span>
-                  <span className="ml-2 text-gray-900">{formData.jelenlegi_karam}</span>
-                </div>
-                
-                <div>
-                  <span className="font-medium text-gray-700">Státusz:</span>
-                  <span className="ml-2 text-gray-900">{formData.statusz}</span>
-                </div>
-                
-                {formData.kplsz && (
-                  <div>
-                    <span className="font-medium text-gray-700">KPLSz:</span>
-                    <span className="ml-2 text-gray-900">{formData.kplsz}</span>
-                  </div>
-                )}
-                </div>
-              )}
-            </div>
-
-            {errors.submit && (
-              <div className="bg-red-50 p-4 rounded-md">
-                <p className="text-red-600 flex items-center">
-                  ⚠️ {errors.submit}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Navigation buttons */}
-        <div className="flex justify-between pt-6 border-t border-gray-200">
-          <button
-            onClick={prevStep}
-            disabled={currentStep === 1}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            ← Előző
-          </button>
-
-          {currentStep < 3 ? (
-            <button
-              onClick={nextStep}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-            >
-              Következő →
-            </button>
-          ) : (
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              className="inline-flex items-center px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  💾 Mentés...
-                </>
-              ) : (
-                <>
-                  ✅ Állat hozzáadása
-                </>
-              )}
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+              <label
