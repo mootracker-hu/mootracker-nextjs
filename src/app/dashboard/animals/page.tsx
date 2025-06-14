@@ -15,14 +15,17 @@ const mockAnimals = [
   { enar: 'HU009066', szuletesi_datum: '2022-11-25', ivar: 'nőivar', kategoria: 'vemhesülés_alatt', jelenlegi_karam: 'Hárem #3', statusz: 'aktív', anya_enar: 'HU001240', apa_enar: 'HU001118' },
 ];
 
+type Animal = typeof mockAnimals[0];
+type SortField = keyof Animal;
+
 export default function AnimalsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
+  const [searchTerm, setSearchTerm] = useState(searchParams?.get('search') || '');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedPen, setSelectedPen] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
-  const [sortField, setSortField] = useState<string>('enar');
+  const [sortField, setSortField] = useState<SortField>('enar');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
@@ -59,8 +62,8 @@ export default function AnimalsPage() {
 
     // Rendezés
     filtered.sort((a, b) => {
-      let aValue = a[sortField as keyof typeof a] || '';
-      let bValue = b[sortField as keyof typeof b] || '';
+      let aValue: string | number = a[sortField] || '';
+      let bValue: string | number = b[sortField] || '';
       
       if (sortField === 'szuletesi_datum') {
         aValue = new Date(aValue as string).getTime();
@@ -80,7 +83,7 @@ export default function AnimalsPage() {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentAnimals = filteredAndSortedAnimals.slice(startIndex, startIndex + itemsPerPage);
 
-  const handleSort = (field: string) => {
+  const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -89,7 +92,7 @@ export default function AnimalsPage() {
     }
   };
 
-  const getSortIcon = (field: string) => {
+  const getSortIcon = (field: SortField) => {
     if (sortField !== field) return '↕️';
     return sortDirection === 'asc' ? '⬆️' : '⬇️';
   };
