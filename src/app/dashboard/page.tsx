@@ -60,10 +60,6 @@ export default function Dashboard() {
     }
   };
 
-  const handleLogout = () => {
-    router.push('/');
-  };
-
   // ✅ Navigation handlers - most ezek működnek!
   const navigateToAnimals = () => {
     router.push('/dashboard/animals');
@@ -90,218 +86,192 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Top Navigation */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <div className="bg-green-600 p-2 rounded-lg mr-3">
-                <span className="text-white text-xl">🐄</span>
-              </div>
-              <h1 className="text-xl font-bold text-gray-900">MooTracker</h1>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Header */}
+      <div className="mb-8">
+        <h2 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h2>
+        <p className="text-gray-600">Telep áttekintés és sürgős feladatok</p>
+      </div>
+
+      {/* Stats Grid - most ezek kattinthatóak! */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div 
+          onClick={navigateToAnimals}
+          className="bg-white p-6 rounded-lg shadow-lg cursor-pointer hover:shadow-xl transition-shadow"
+        >
+          <div className="flex items-center">
+            <div className="p-3 bg-green-100 rounded-lg">
+              <span className="text-2xl">🐄</span>
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">Demo Felhasználó</span>
-              <button
-                onClick={handleLogout}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm"
-              >
-                Kijelentkezés
-              </button>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Összes állat</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.totalAnimals}</p>
+            </div>
+          </div>
+        </div>
+
+        <div 
+          onClick={() => router.push('/dashboard/pens')}
+          className="bg-white p-6 rounded-lg shadow-lg cursor-pointer hover:shadow-xl transition-shadow"
+        >
+          <div className="flex items-center">
+            <div className="p-3 bg-blue-100 rounded-lg">
+              <span className="text-2xl">🏠</span>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Aktív karámok</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.activePens}</p>
+            </div>
+          </div>
+        </div>
+
+        <div 
+          onClick={navigateToTasks}
+          className="bg-white p-6 rounded-lg shadow-lg cursor-pointer hover:shadow-xl transition-shadow"
+        >
+          <div className="flex items-center">
+            <div className="p-3 bg-red-100 rounded-lg">
+              <span className="text-2xl">⚠️</span>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Sürgős feladatok</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.urgentTasks}</p>
+            </div>
+          </div>
+        </div>
+
+        <div 
+          onClick={() => router.push('/dashboard/health')}
+          className="bg-white p-6 rounded-lg shadow-lg cursor-pointer hover:shadow-xl transition-shadow"
+        >
+          <div className="flex items-center">
+            <div className="p-3 bg-green-100 rounded-lg">
+              <span className="text-2xl">💊</span>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Egészségügyi</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.healthChecks}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h2>
-          <p className="text-gray-600">Telep áttekintés és sürgős feladatok</p>
+      {/* Two Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Urgent Tasks - most kattinthatóak! */}
+        <div className="bg-white rounded-lg shadow-lg">
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-xl font-semibold text-gray-900 flex items-center">
+              <span className="mr-2">⏰</span>
+              Sürgős Feladatok
+            </h3>
+          </div>
+          <div className="p-6">
+            <div className="space-y-4">
+              {urgentTasks.map((task) => (
+                <div 
+                  key={task.id} 
+                  onClick={() => handleTaskClick(task.id)}
+                  className="border rounded-lg p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-900 mb-1">
+                        {task.title}
+                      </h4>
+                      <p className="text-sm text-gray-600 mb-2">
+                        {task.description}
+                      </p>
+                      <div className="flex items-center text-sm text-gray-500">
+                        <span>📅 {task.dueDate}</span>
+                      </div>
+                    </div>
+                    <span className={`px-2 py-1 text-xs font-medium rounded-md border ${getPriorityColor(task.priority)}`}>
+                      {task.priority === 'high' ? 'Sürgős' : 
+                       task.priority === 'medium' ? 'Közepes' : 'Alacsony'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* Stats Grid - most ezek kattinthatóak! */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div 
-            onClick={navigateToAnimals}
-            className="bg-white p-6 rounded-lg shadow-lg cursor-pointer hover:shadow-xl transition-shadow"
-          >
-            <div className="flex items-center">
-              <div className="p-3 bg-green-100 rounded-lg">
-                <span className="text-2xl">🐄</span>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Összes állat</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalAnimals}</p>
-              </div>
-            </div>
+        {/* Recent Animals - most kattinthatóak! */}
+        <div className="bg-white rounded-lg shadow-lg">
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-xl font-semibold text-gray-900 flex items-center">
+              <span className="mr-2">🐄</span>
+              Legutóbb Módosított Állatok
+            </h3>
           </div>
-
-          <div 
-            onClick={() => router.push('/dashboard/pens')}
-            className="bg-white p-6 rounded-lg shadow-lg cursor-pointer hover:shadow-xl transition-shadow"
-          >
-            <div className="flex items-center">
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <span className="text-2xl">🏠</span>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Aktív karámok</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.activePens}</p>
-              </div>
+          <div className="p-6">
+            <div className="space-y-4">
+              {recentAnimals.map((animal) => (
+                <div 
+                  key={animal.enar} 
+                  onClick={() => navigateToAnimalDetails(animal.enar)}
+                  className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium text-gray-900">
+                        {animal.enar}
+                      </h4>
+                      <p className="text-sm text-gray-600">
+                        {animal.category} • {animal.age}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        📍 {animal.pen}
+                      </p>
+                    </div>
+                    <span className={`px-2 py-1 text-xs font-medium rounded-md ${getStatusColor(animal.status)}`}>
+                      {animal.status === 'active' ? 'Aktív' : 
+                       animal.status === 'pregnant' ? 'Vemhes' : 'Beteg'}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
+            <button 
+              onClick={navigateToAnimals}
+              className="w-full mt-4 text-sm text-green-600 hover:text-green-700 font-medium hover:bg-green-50 py-2 rounded transition-colors"
+            >
+              Összes állat megtekintése →
+            </button>
           </div>
+        </div>
+      </div>
 
-          <div 
+      {/* Quick Actions - most működnek! */}
+      <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
+        <h3 className="text-xl font-semibold text-gray-900 mb-4">
+          Gyors Műveletek
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <button 
+            onClick={navigateToNewAnimal}
+            className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors text-center"
+          >
+            <span className="text-2xl block mb-2">➕</span>
+            <p className="text-sm font-medium text-gray-600">Új állat hozzáadása</p>
+          </button>
+          
+          <button 
+            onClick={navigateToSearch}
+            className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors text-center"
+          >
+            <span className="text-2xl block mb-2">🔍</span>
+            <p className="text-sm font-medium text-gray-600">Állat keresése</p>
+          </button>
+          
+          <button 
             onClick={navigateToTasks}
-            className="bg-white p-6 rounded-lg shadow-lg cursor-pointer hover:shadow-xl transition-shadow"
+            className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors text-center"
           >
-            <div className="flex items-center">
-              <div className="p-3 bg-red-100 rounded-lg">
-                <span className="text-2xl">⚠️</span>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Sürgős feladatok</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.urgentTasks}</p>
-              </div>
-            </div>
-          </div>
-
-          <div 
-            onClick={() => router.push('/dashboard/health')}
-            className="bg-white p-6 rounded-lg shadow-lg cursor-pointer hover:shadow-xl transition-shadow"
-          >
-            <div className="flex items-center">
-              <div className="p-3 bg-green-100 rounded-lg">
-                <span className="text-2xl">💊</span>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Egészségügyi</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.healthChecks}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Two Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Urgent Tasks - most kattinthatóak! */}
-          <div className="bg-white rounded-lg shadow-lg">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-900 flex items-center">
-                <span className="mr-2">⏰</span>
-                Sürgős Feladatok
-              </h3>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                {urgentTasks.map((task) => (
-                  <div 
-                    key={task.id} 
-                    onClick={() => handleTaskClick(task.id)}
-                    className="border rounded-lg p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900 mb-1">
-                          {task.title}
-                        </h4>
-                        <p className="text-sm text-gray-600 mb-2">
-                          {task.description}
-                        </p>
-                        <div className="flex items-center text-sm text-gray-500">
-                          <span>📅 {task.dueDate}</span>
-                        </div>
-                      </div>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-md border ${getPriorityColor(task.priority)}`}>
-                        {task.priority === 'high' ? 'Sürgős' : 
-                         task.priority === 'medium' ? 'Közepes' : 'Alacsony'}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Animals - most kattinthatóak! */}
-          <div className="bg-white rounded-lg shadow-lg">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-900 flex items-center">
-                <span className="mr-2">🐄</span>
-                Legutóbb Módosított Állatok
-              </h3>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                {recentAnimals.map((animal) => (
-                  <div 
-                    key={animal.enar} 
-                    onClick={() => navigateToAnimalDetails(animal.enar)}
-                    className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-medium text-gray-900">
-                          {animal.enar}
-                        </h4>
-                        <p className="text-sm text-gray-600">
-                          {animal.category} • {animal.age}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          📍 {animal.pen}
-                        </p>
-                      </div>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-md ${getStatusColor(animal.status)}`}>
-                        {animal.status === 'active' ? 'Aktív' : 
-                         animal.status === 'pregnant' ? 'Vemhes' : 'Beteg'}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button 
-                onClick={navigateToAnimals}
-                className="w-full mt-4 text-sm text-green-600 hover:text-green-700 font-medium hover:bg-green-50 py-2 rounded transition-colors"
-              >
-                Összes állat megtekintése →
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Actions - most működnek! */}
-        <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">
-            Gyors Műveletek
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button 
-              onClick={navigateToNewAnimal}
-              className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors text-center"
-            >
-              <span className="text-2xl block mb-2">➕</span>
-              <p className="text-sm font-medium text-gray-600">Új állat hozzáadása</p>
-            </button>
-            
-            <button 
-              onClick={navigateToSearch}
-              className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors text-center"
-            >
-              <span className="text-2xl block mb-2">🔍</span>
-              <p className="text-sm font-medium text-gray-600">Állat keresése</p>
-            </button>
-            
-            <button 
-              onClick={navigateToTasks}
-              className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors text-center"
-            >
-              <span className="text-2xl block mb-2">✅</span>
-              <p className="text-sm font-medium text-gray-600">Feladat elvégzése</p>
-            </button>
-          </div>
+            <span className="text-2xl block mb-2">✅</span>
+            <p className="text-sm font-medium text-gray-600">Feladat elvégzése</p>
+          </button>
         </div>
       </div>
     </div>
