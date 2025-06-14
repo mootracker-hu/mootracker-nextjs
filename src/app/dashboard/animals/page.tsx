@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 // Mock adatok - később ezek az adatbázisból jönnek
 const mockAnimals = [
@@ -20,8 +20,7 @@ type SortField = keyof Animal;
 
 export default function AnimalsPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const [searchTerm, setSearchTerm] = useState(searchParams?.get('search') || '');
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedPen, setSelectedPen] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
