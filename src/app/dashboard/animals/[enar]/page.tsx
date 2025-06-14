@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 
 // Mock adat - később ezt az adatbázisból töltjük
-const mockAnimalData = {
+const mockAnimalData: { [key: string]: any } = {
   'HU004001': {
     enar: 'HU004001',
     szuletesi_datum: '2023-04-15',
@@ -74,7 +74,7 @@ const mockAnimalData = {
 export default function AnimalDetailsPage() {
   const router = useRouter();
   const params = useParams();
-  const enar = params.enar as string;
+  const enar = params?.enar as string;
   
   const [animal, setAnimal] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -87,7 +87,7 @@ export default function AnimalDetailsPage() {
       // Szimuláljunk egy API hívást
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      const animalData = mockAnimalData[enar as keyof typeof mockAnimalData];
+      const animalData = mockAnimalData[enar];
       if (animalData) {
         setAnimal(animalData);
       }
@@ -232,6 +232,32 @@ export default function AnimalDetailsPage() {
               <h3 className="text-lg font-medium text-gray-900 mb-4">Alapadatok</h3>
               <dl className="space-y-3">
                 <div className="flex justify-between">
+                  <dt className="text-sm font-medium text-gray-500">ENAR:</dt>
+                  <dd className="text-sm text-gray-900 font-mono">{animal.enar}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-sm font-medium text-gray-500">Születési dátum:</dt>
+                  <dd className="text-sm text-gray-900">{new Date(animal.szuletesi_datum).toLocaleDateString('hu-HU')}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-sm font-medium text-gray-500">Életkor:</dt>
+                  <dd className="text-sm text-gray-900">{calculateAge(animal.szuletesi_datum)}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-sm font-medium text-gray-500">Ivar:</dt>
+                  <dd className="text-sm text-gray-900">
+                    {animal.ivar === 'hímivar' ? '♂️ Hímivar' : '♀️ Nőivar'}
+                  </dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-sm font-medium text-gray-500">Kategória:</dt>
+                  <dd className="text-sm text-gray-900">{getCategoryDisplay(animal.kategoria)}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-sm font-medium text-gray-500">Jelenlegi karám:</dt>
+                  <dd className="text-sm text-gray-900">📍 {animal.jelenlegi_karam}</dd>
+                </div>
+                <div className="flex justify-between">
                   <dt className="text-sm font-medium text-gray-500">Státusz:</dt>
                   <dd className="text-sm text-gray-900">
                     <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
@@ -311,7 +337,7 @@ export default function AnimalDetailsPage() {
                   <dd className="text-sm text-gray-900">
                     {animal.jelenlegi_suly - animal.szuletesi_suly} kg
                     <span className="text-xs text-gray-500 ml-1">
-                      ({Math.round((animal.jelenlegi_suly - animal.szuletesi_suly) / calculateAge(animal.szuletesi_datum).split(' ')[0] * 30)} kg/hó átlag)
+                      (átlag növekedés)
                     </span>
                   </dd>
                 </div>
@@ -451,30 +477,4 @@ export default function AnimalDetailsPage() {
       </div>
     </div>
   );
-} className="text-sm font-medium text-gray-500">ENAR:</dt>
-                  <dd className="text-sm text-gray-900 font-mono">{animal.enar}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-sm font-medium text-gray-500">Születési dátum:</dt>
-                  <dd className="text-sm text-gray-900">{new Date(animal.szuletesi_datum).toLocaleDateString('hu-HU')}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-sm font-medium text-gray-500">Életkor:</dt>
-                  <dd className="text-sm text-gray-900">{calculateAge(animal.szuletesi_datum)}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-sm font-medium text-gray-500">Ivar:</dt>
-                  <dd className="text-sm text-gray-900">
-                    {animal.ivar === 'hímivar' ? '♂️ Hímivar' : '♀️ Nőivar'}
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-sm font-medium text-gray-500">Kategória:</dt>
-                  <dd className="text-sm text-gray-900">{getCategoryDisplay(animal.kategoria)}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-sm font-medium text-gray-500">Jelenlegi karám:</dt>
-                  <dd className="text-sm text-gray-900">📍 {animal.jelenlegi_karam}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt
+}
