@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { MagnifyingGlassIcon, PlusIcon, ArrowPathIcon, ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { mockStorage, type Animal } from '@/lib/mockStorage';
 
 // Kategória színek
@@ -152,7 +151,7 @@ export default function AnimalsPage() {
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Állomány</h1>
+          <h1 className="text-3xl font-bold text-gray-900">🐄 Állomány</h1>
           <p className="text-gray-600 mt-2">
             {filteredAndSortedAnimals.length} állat / {animals.length} összesen
           </p>
@@ -162,15 +161,13 @@ export default function AnimalsPage() {
             onClick={loadAnimals}
             className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
           >
-            <ArrowPathIcon className="h-4 w-4 mr-2" />
-            Frissítés
+            🔄 Frissítés
           </button>
           <Link
             href="/dashboard/animals/new"
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
           >
-            <PlusIcon className="h-4 w-4 mr-2" />
-            Új állat
+            ➕ Új állat
           </Link>
         </div>
       </div>
@@ -181,23 +178,20 @@ export default function AnimalsPage() {
           {/* Keresés */}
           <div className="lg:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Keresés (ENAR, szülők)
+              🔍 Keresés (ENAR, szülők)
             </label>
-            <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                placeholder="HU004001, HU002001..."
-              />
-            </div>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              placeholder="HU004001, HU002001..."
+            />
           </div>
 
           {/* Kategória szűrő */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Kategória</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">🏷️ Kategória</label>
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
@@ -212,7 +206,7 @@ export default function AnimalsPage() {
 
           {/* Karám szűrő */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Karám</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">🏠 Karám</label>
             <select
               value={karamFilter}
               onChange={(e) => setKaramFilter(e.target.value)}
@@ -227,7 +221,7 @@ export default function AnimalsPage() {
 
           {/* Státusz szűrő */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Státusz</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">📊 Státusz</label>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -254,10 +248,10 @@ export default function AnimalsPage() {
                   onClick={() => handleSort('enar')}
                 >
                   <div className="flex items-center">
-                    ENAR 
-                    {sortField === 'enar' && (
-                      sortDirection === 'asc' ? <ChevronUpIcon className="ml-1 h-4 w-4" /> : <ChevronDownIcon className="ml-1 h-4 w-4" />
-                    )}
+                    🏷️ ENAR 
+                    <span className="ml-1 text-lg">
+                      {sortField === 'enar' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </span>
                   </div>
                 </th>
                 <th 
@@ -266,14 +260,14 @@ export default function AnimalsPage() {
                   onClick={() => handleSort('szuletesi_datum')}
                 >
                   <div className="flex items-center">
-                    Születés / Életkor
-                    {sortField === 'szuletesi_datum' && (
-                      sortDirection === 'asc' ? <ChevronUpIcon className="ml-1 h-4 w-4" /> : <ChevronDownIcon className="ml-1 h-4 w-4" />
-                    )}
+                    📅 Születés / Életkor
+                    <span className="ml-1 text-lg">
+                      {sortField === 'szuletesi_datum' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </span>
                   </div>
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Szülők
+                  👨‍👩‍👧‍👦 Szülők
                 </th>
                 <th 
                   scope="col" 
@@ -281,10 +275,10 @@ export default function AnimalsPage() {
                   onClick={() => handleSort('kategoria')}
                 >
                   <div className="flex items-center">
-                    Kategória
-                    {sortField === 'kategoria' && (
-                      sortDirection === 'asc' ? <ChevronUpIcon className="ml-1 h-4 w-4" /> : <ChevronDownIcon className="ml-1 h-4 w-4" />
-                    )}
+                    🎯 Kategória
+                    <span className="ml-1 text-lg">
+                      {sortField === 'kategoria' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </span>
                   </div>
                 </th>
                 <th 
@@ -293,10 +287,10 @@ export default function AnimalsPage() {
                   onClick={() => handleSort('jelenlegi_karam')}
                 >
                   <div className="flex items-center">
-                    Karám
-                    {sortField === 'jelenlegi_karam' && (
-                      sortDirection === 'asc' ? <ChevronUpIcon className="ml-1 h-4 w-4" /> : <ChevronDownIcon className="ml-1 h-4 w-4" />
-                    )}
+                    🏠 Karám
+                    <span className="ml-1 text-lg">
+                      {sortField === 'jelenlegi_karam' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </span>
                   </div>
                 </th>
                 <th 
@@ -305,33 +299,35 @@ export default function AnimalsPage() {
                   onClick={() => handleSort('statusz')}
                 >
                   <div className="flex items-center">
-                    Státusz
-                    {sortField === 'statusz' && (
-                      sortDirection === 'asc' ? <ChevronUpIcon className="ml-1 h-4 w-4" /> : <ChevronDownIcon className="ml-1 h-4 w-4" />
-                    )}
+                    📊 Státusz
+                    <span className="ml-1 text-lg">
+                      {sortField === 'statusz' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </span>
                   </div>
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {paginatedAnimals.map((animal) => (
-                <tr key={animal.enar} className="hover:bg-gray-50 cursor-pointer">
+                <tr key={animal.enar} className="hover:bg-gray-50 cursor-pointer transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <Link href={`/dashboard/animals/${animal.enar}`} className="text-blue-600 hover:text-blue-900 font-medium">
                       {animal.enar}
                     </Link>
-                    <div className="text-sm text-gray-500">{animal.ivar}</div>
+                    <div className="text-sm text-gray-500">
+                      {animal.ivar === 'hímivar' ? '♂️' : '♀️'} {animal.ivar}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <div>{new Date(animal.szuletesi_datum).toLocaleDateString('hu-HU')}</div>
-                    <div className="text-gray-500">{calculateAge(animal.szuletesi_datum)}</div>
+                    <div className="text-gray-500">🎂 {calculateAge(animal.szuletesi_datum)}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {animal.anya_enar && (
-                      <div>Anya: <Link href={`/dashboard/animals/${animal.anya_enar}`} className="text-blue-600 hover:text-blue-900">{animal.anya_enar}</Link></div>
+                      <div>👩 Anya: <Link href={`/dashboard/animals/${animal.anya_enar}`} className="text-blue-600 hover:text-blue-900">{animal.anya_enar}</Link></div>
                     )}
                     {animal.apa_enar && (
-                      <div>Apa: <Link href={`/dashboard/animals/${animal.apa_enar}`} className="text-blue-600 hover:text-blue-900">{animal.apa_enar}</Link></div>
+                      <div>👨 Apa: <Link href={`/dashboard/animals/${animal.apa_enar}`} className="text-blue-600 hover:text-blue-900">{animal.apa_enar}</Link></div>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -340,11 +336,11 @@ export default function AnimalsPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {animal.jelenlegi_karam}
+                    🏠 {animal.jelenlegi_karam}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(animal.statusz)}`}>
-                      {animal.statusz}
+                      {animal.statusz === 'aktív' ? '✅' : animal.statusz === 'elhullott' ? '💀' : '⚠️'} {animal.statusz}
                     </span>
                   </td>
                 </tr>
@@ -362,14 +358,14 @@ export default function AnimalsPage() {
                 disabled={currentPage === 1}
                 className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
               >
-                Előző
+                ← Előző
               </button>
               <button
                 onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages}
                 className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
               >
-                Következő
+                Következő →
               </button>
             </div>
             <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
@@ -390,7 +386,7 @@ export default function AnimalsPage() {
                     disabled={currentPage === 1}
                     className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
                   >
-                    Előző
+                    ← Előző
                   </button>
                   {[...Array(totalPages)].map((_, i) => {
                     const page = i + 1;
@@ -422,7 +418,7 @@ export default function AnimalsPage() {
                     disabled={currentPage === totalPages}
                     className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
                   >
-                    Következő
+                    Következő →
                   </button>
                 </nav>
               </div>
