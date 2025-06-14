@@ -20,11 +20,9 @@ const mockAnimalData: { [key: string]: any } = {
     utolso_modositas: '2025-06-13',
     létrehozva: '2023-04-15',
     
-    // Kiegészítő adatok
     szuletesi_suly: 42,
     jelenlegi_suly: 380,
     
-    // Szülők adatai
     anya: {
       enar: 'HU001234',
       nev: 'Margit',
@@ -36,7 +34,6 @@ const mockAnimalData: { [key: string]: any } = {
       kategoria: 'tenyészbika'
     },
     
-    // Karám történet
     karam_tortenet: [
       { datum: '2023-04-15', karam: 'Ellető istálló - Fogadó #1', esemeny: 'Születés' },
       { datum: '2023-06-01', karam: 'Ellető istálló - Belső karám #1', esemeny: 'Átmozgatás' },
@@ -44,7 +41,6 @@ const mockAnimalData: { [key: string]: any } = {
       { datum: '2024-04-15', karam: 'Karám #1', esemeny: 'Hízóbika karámba (12 hónapos)' }
     ],
     
-    // Egészségügyi történet
     egeszsegugyi_tortenet: [
       { datum: '2023-04-30', esemeny: 'Fülszám + BoviPast + szarvtalanítás', kezelo: 'Dr. Nagy Péter' },
       { datum: '2023-10-15', esemeny: 'Leválasztás vakcinák', kezelo: 'Dr. Nagy Péter' },
@@ -52,7 +48,6 @@ const mockAnimalData: { [key: string]: any } = {
       { datum: '2024-06-01', esemeny: 'Ivermectin + körmölés', kezelo: 'Dr. Nagy Péter' }
     ],
     
-    // Súly fejlődés
     suly_fejlodes: [
       { datum: '2023-04-15', suly: 42, esemeny: 'Születési súly' },
       { datum: '2023-07-15', suly: 95, esemeny: '3 hónapos mérés' },
@@ -62,7 +57,6 @@ const mockAnimalData: { [key: string]: any } = {
       { datum: '2024-06-13', suly: 380, esemeny: 'Jelenlegi súly' }
     ],
     
-    // Feladatok
     aktualis_feladatok: [
       { tipus: 'értékelés', esedekesseg: '2024-06-15', leiras: '14 hónapos hízóbika értékelés', prioritas: 'magas' },
       { tipus: 'vakcina', esedekesseg: '2024-07-15', leiras: 'IBR ismétlő vakcina', prioritas: 'közepes' },
@@ -81,10 +75,8 @@ export default function AnimalDetailsPage() {
   const [activeTab, setActiveTab] = useState('details');
 
   useEffect(() => {
-    // Mock adatbetöltés - később API hívás lesz
     const loadAnimal = async () => {
       setLoading(true);
-      // Szimuláljunk egy API hívást
       await new Promise(resolve => setTimeout(resolve, 500));
       
       const animalData = mockAnimalData[enar];
@@ -159,7 +151,6 @@ export default function AnimalDetailsPage() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="py-6">
@@ -191,7 +182,6 @@ export default function AnimalDetailsPage() {
               </div>
             </div>
 
-            {/* Tab navigation */}
             <div className="mt-6">
               <div className="border-b border-gray-200">
                 <nav className="-mb-px flex space-x-8">
@@ -223,11 +213,9 @@ export default function AnimalDetailsPage() {
         </div>
       </div>
 
-      {/* Tab content */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
         {activeTab === 'details' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Alapadatok */}
             <div className="bg-white shadow rounded-lg p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Alapadatok</h3>
               <dl className="space-y-3">
@@ -265,20 +253,9 @@ export default function AnimalDetailsPage() {
                     </span>
                   </dd>
                 </div>
-                {animal.kplsz && (
-                  <div className="flex justify-between">
-                    <dt className="text-sm font-medium text-gray-500">KPLSZ:</dt>
-                    <dd className="text-sm text-gray-900 font-mono">{animal.kplsz}</dd>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <dt className="text-sm font-medium text-gray-500">Bekerülés:</dt>
-                  <dd className="text-sm text-gray-900">{new Date(animal.bekerules_datum).toLocaleDateString('hu-HU')}</dd>
-                </div>
               </dl>
             </div>
 
-            {/* Szülők */}
             <div className="bg-white shadow rounded-lg p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Szülők</h3>
               <div className="space-y-4">
@@ -320,7 +297,6 @@ export default function AnimalDetailsPage() {
               </div>
             </div>
 
-            {/* Jelenlegi adatok */}
             <div className="bg-white shadow rounded-lg p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Jelenlegi Adatok</h3>
               <dl className="space-y-3">
@@ -336,15 +312,11 @@ export default function AnimalDetailsPage() {
                   <dt className="text-sm font-medium text-gray-500">Súlygyarapodás:</dt>
                   <dd className="text-sm text-gray-900">
                     {animal.jelenlegi_suly - animal.szuletesi_suly} kg
-                    <span className="text-xs text-gray-500 ml-1">
-                      (átlag növekedés)
-                    </span>
                   </dd>
                 </div>
               </dl>
             </div>
 
-            {/* Sürgős feladatok */}
             <div className="bg-white shadow rounded-lg p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Sürgős Feladatok</h3>
               <div className="space-y-3">
@@ -374,13 +346,11 @@ export default function AnimalDetailsPage() {
             <div className="space-y-4">
               {animal.egeszsegugyi_tortenet.map((record: any, index: number) => (
                 <div key={index} className="border-l-4 border-green-400 pl-4 py-2">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900">{record.esemeny}</h4>
-                      <p className="text-xs text-gray-500 mt-1">
-                        👨‍⚕️ {record.kezelo} • 📅 {new Date(record.datum).toLocaleDateString('hu-HU')}
-                      </p>
-                    </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900">{record.esemeny}</h4>
+                    <p className="text-xs text-gray-500 mt-1">
+                      👨‍⚕️ {record.kezelo} • 📅 {new Date(record.datum).toLocaleDateString('hu-HU')}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -418,14 +388,12 @@ export default function AnimalDetailsPage() {
             <div className="space-y-4">
               {animal.karam_tortenet.map((record: any, index: number) => (
                 <div key={index} className="border-l-4 border-blue-400 pl-4 py-2">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900">{record.esemeny}</h4>
-                      <p className="text-sm text-gray-600">📍 {record.karam}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        📅 {new Date(record.datum).toLocaleDateString('hu-HU')}
-                      </p>
-                    </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900">{record.esemeny}</h4>
+                    <p className="text-sm text-gray-600">📍 {record.karam}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      📅 {new Date(record.datum).toLocaleDateString('hu-HU')}
+                    </p>
                   </div>
                 </div>
               ))}
