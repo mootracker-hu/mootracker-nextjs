@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { Search, Plus, RefreshCw } from 'lucide-react';
+import { Search, Plus, RefreshCw, ChevronUp, ChevronDown } from 'lucide-react';
 import { mockStorage, type Animal } from '@/lib/mockStorage';
 
 // Kategória színek
@@ -253,14 +253,24 @@ export default function AnimalsPage() {
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('enar')}
                 >
-                  ENAR {sortField === 'enar' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  <div className="flex items-center">
+                    ENAR 
+                    {sortField === 'enar' && (
+                      sortDirection === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
+                    )}
+                  </div>
                 </th>
                 <th 
                   scope="col" 
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('szuletesi_datum')}
                 >
-                  Születés / Életkor {sortField === 'szuletesi_datum' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  <div className="flex items-center">
+                    Születés / Életkor
+                    {sortField === 'szuletesi_datum' && (
+                      sortDirection === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
+                    )}
+                  </div>
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Szülők
@@ -270,21 +280,36 @@ export default function AnimalsPage() {
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('kategoria')}
                 >
-                  Kategória {sortField === 'kategoria' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  <div className="flex items-center">
+                    Kategória
+                    {sortField === 'kategoria' && (
+                      sortDirection === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
+                    )}
+                  </div>
                 </th>
                 <th 
                   scope="col" 
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('jelenlegi_karam')}
                 >
-                  Karám {sortField === 'jelenlegi_karam' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  <div className="flex items-center">
+                    Karám
+                    {sortField === 'jelenlegi_karam' && (
+                      sortDirection === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
+                    )}
+                  </div>
                 </th>
                 <th 
                   scope="col" 
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('statusz')}
                 >
-                  Státusz {sortField === 'statusz' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  <div className="flex items-center">
+                    Státusz
+                    {sortField === 'statusz' && (
+                      sortDirection === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
+                    )}
+                  </div>
                 </th>
               </tr>
             </thead>
