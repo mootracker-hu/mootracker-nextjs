@@ -142,27 +142,27 @@ export default function AnimalsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 md:px-6 lg:px-8">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-2">
             🐄 Állomány
           </h1>
           <p className="text-gray-600 mt-1">
             Összesen {filteredAnimals.length} állat ({animals.length} teljes állomány)
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <button
             onClick={loadAnimals}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2 justify-center"
           >
             🔄 Frissítés
           </button>
           <Link
             href="/dashboard/animals/new"
-            className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2 font-medium"
+            className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2 font-medium justify-center"
           >
             ➕ Új állat
           </Link>
@@ -170,8 +170,8 @@ export default function AnimalsPage() {
       </div>
 
       {/* Keresés és szűrők */}
-      <div className="bg-white p-6 rounded-lg border space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="bg-white p-4 md:p-6 rounded-lg border space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               🔍 Keresés
@@ -252,46 +252,46 @@ export default function AnimalsPage() {
       {/* Állatlista táblázat */}
       <div className="bg-white rounded-lg border overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-full">
             <thead className="bg-gray-50">
               <tr>
                 <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('enar')}
                 >
                   🏷️ ENAR {getSortIcon('enar')}
                 </th>
                 <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('szuletesi_datum')}
                 >
                   📅 Születés / Életkor {getSortIcon('szuletesi_datum')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   ⚧️ Ivar
                 </th>
                 <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('kategoria')}
                 >
                   🏷️ Kategória {getSortIcon('kategoria')}
                 </th>
                 <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('jelenlegi_karam')}
                 >
                   🏠 Jelenlegi karám {getSortIcon('jelenlegi_karam')}
                 </th>
                 <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('statusz')}
                 >
                   📊 Státusz {getSortIcon('statusz')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   🐮❤️🐂 Szülők
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   🔗 Műveletek
                 </th>
               </tr>
@@ -299,57 +299,65 @@ export default function AnimalsPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {displayedAnimals.map((animal) => (
                 <tr key={animal.enar} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-3 md:px-6 py-4 whitespace-nowrap">
                     <Link 
                       href={`/dashboard/animals/${animal.enar}`}
-                      className="text-green-600 hover:text-green-800 font-medium"
+                      className="text-green-600 hover:text-green-800 font-medium text-sm"
                     >
                       {animal.enar}
                     </Link>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-3 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <div>
-                      <div>{animal.szuletesi_datum}</div>
+                      <div className="text-xs md:text-sm">{animal.szuletesi_datum}</div>
                       <div className="text-gray-500 text-xs">
                         {calculateAge(animal.szuletesi_datum)}
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {animal.ivar === 'hímivar' ? '♂️ Hím' : '♀️ Nő'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getCategoryColor(animal.kategoria)}`}>
-                      {animal.kategoria}
+                  <td className="px-3 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <span className="hidden md:inline">
+                      {animal.ivar === 'hímivar' ? '♂️ Hímivar' : '♀️ Nőivar'}
+                    </span>
+                    <span className="md:hidden">
+                      {animal.ivar === 'hímivar' ? '♂️' : '♀️'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-3 md:px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getCategoryColor(animal.kategoria)}`}>
+                      <span className="hidden md:inline">{animal.kategoria}</span>
+                      <span className="md:hidden">{animal.kategoria.split('_')[0]}</span>
+                    </span>
+                  </td>
+                  <td className="px-3 md:px-6 py-4 whitespace-nowrap text-xs md:text-sm text-gray-900">
                     {animal.jelenlegi_karam}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-3 md:px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(animal.statusz)}`}>
                       {animal.statusz}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-3 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <div className="space-y-1">
                       {animal.anya_enar && (
-                        <div>
+                        <div className="flex items-center gap-1">
                           🐮 <Link 
                             href={`/dashboard/animals/${animal.anya_enar}`}
-                            className="text-green-600 hover:text-green-800"
+                            className="text-green-600 hover:text-green-800 text-xs md:text-sm"
                           >
-                            {animal.anya_enar}
+                            <span className="hidden md:inline">{animal.anya_enar}</span>
+                            <span className="md:hidden">{animal.anya_enar.slice(-4)}</span>
                           </Link>
                         </div>
                       )}
                       {animal.apa_enar && (
-                        <div>
+                        <div className="flex items-center gap-1">
                           🐂 <Link 
                             href={`/dashboard/animals/${animal.apa_enar}`}
-                            className="text-green-600 hover:text-green-800"
+                            className="text-green-600 hover:text-green-800 text-xs md:text-sm"
                           >
-                            {animal.apa_enar}
+                            <span className="hidden md:inline">{animal.apa_enar}</span>
+                            <span className="md:hidden">{animal.apa_enar.slice(-4)}</span>
                           </Link>
                         </div>
                       )}
@@ -360,12 +368,13 @@ export default function AnimalsPage() {
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-3 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <Link 
                       href={`/dashboard/animals/${animal.enar}`}
-                      className="text-green-600 hover:text-green-800 font-medium"
+                      className="text-green-600 hover:text-green-800 font-medium text-xs md:text-sm"
                     >
-                      👁️ Megtekintés
+                      <span className="hidden md:inline">👁️ Megtekintés</span>
+                      <span className="md:hidden">👁️</span>
                     </Link>
                   </td>
                 </tr>
