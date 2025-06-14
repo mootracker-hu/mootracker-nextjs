@@ -188,7 +188,13 @@ export default function NewAnimalPage() {
     if (!validateStep2()) return;
 
     try {
-      const category = calculateCategory(formData.szuletesi_datum, formData.ivar);
+      // TypeScript típus ellenőrzés
+      if (!formData.ivar || !formData.szuletesi_datum) {
+        setErrors({ general: 'Hiányos adatok. Kérjük töltse ki az összes kötelező mezőt.' });
+        return;
+      }
+
+      const category = calculateCategory(formData.szuletesi_datum, formData.ivar as 'hímivar' | 'nőivar');
       
       const newAnimal: Animal = {
         enar: formData.enar,
@@ -232,8 +238,8 @@ export default function NewAnimalPage() {
   };
 
   // Kategória előnézet
-  const previewCategory = formData.szuletesi_datum && formData.ivar 
-    ? calculateCategory(formData.szuletesi_datum, formData.ivar)
+  const previewCategory = formData.szuletesi_datum && formData.ivar && formData.ivar !== ''
+    ? calculateCategory(formData.szuletesi_datum, formData.ivar as 'hímivar' | 'nőivar')
     : '';
 
   // Karám javaslatok
