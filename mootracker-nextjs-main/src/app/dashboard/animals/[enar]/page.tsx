@@ -472,26 +472,51 @@ useEffect(() => {
                 )}
               </div>
             </div>
-
+<div className="bg-white shadow rounded-lg p-6">
+  <h3 className="text-lg font-medium text-gray-900 mb-4">Szülők</h3>
+  <div className="space-y-4">
+    {animal.anya && (
+      // ... meglévő anya kód ...
+    )}
+    {animal.apa && (
+      // ... meglévő apa kód ...
+    )}
+    
+    {/* ÚJ: Ha nincs sem anya, sem apa */}
+    {!animal.anya && !animal.apa && (
+      <div className="text-center text-gray-500 py-8">
+        <p>👨‍👩‍👧‍👦 Szülők nem ismertek</p>
+        <p className="text-sm">Vásárolt állat vagy hiányos nyilvántartás</p>
+      </div>
+    )}
+  </div>
+</div>
             <div className="bg-white shadow rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Jelenlegi Adatok</h3>
-              <dl className="space-y-3">
-                <div className="flex justify-between">
-                  <dt className="text-sm font-medium text-gray-500">Születési súly:</dt>
-                  <dd className="text-sm text-gray-900">{animal.szuletesi_suly} kg</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-sm font-medium text-gray-500">Jelenlegi súly:</dt>
-                  <dd className="text-sm text-gray-900 font-medium">{animal.jelenlegi_suly} kg</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-sm font-medium text-gray-500">Súlygyarapodás:</dt>
-                  <dd className="text-sm text-gray-900">
-                    {animal.jelenlegi_suly - animal.szuletesi_suly} kg
-                  </dd>
-                </div>
-              </dl>
-            </div>
+  <h3 className="text-lg font-medium text-gray-900 mb-4">Jelenlegi Adatok</h3>
+  <dl className="space-y-3">
+    <div className="flex justify-between">
+      <dt className="text-sm font-medium text-gray-500">Születési súly:</dt>
+      <dd className="text-sm text-gray-900">
+        {animal.szuletesi_suly ? `${animal.szuletesi_suly} kg` : 'Nem mért'}
+      </dd>
+    </div>
+    <div className="flex justify-between">
+      <dt className="text-sm font-medium text-gray-500">Jelenlegi súly:</dt>
+      <dd className="text-sm text-gray-900 font-medium">
+        {animal.jelenlegi_suly ? `${animal.jelenlegi_suly} kg` : 'Nem mért'}
+      </dd>
+    </div>
+    <div className="flex justify-between">
+      <dt className="text-sm font-medium text-gray-500">Súlygyarapodás:</dt>
+      <dd className="text-sm text-gray-900">
+        {animal.szuletesi_suly && animal.jelenlegi_suly 
+          ? `${animal.jelenlegi_suly - animal.szuletesi_suly} kg`
+          : 'Számíthatatlan'
+        }
+      </dd>
+    </div>
+  </dl>
+</div>
 
             <div className="bg-white shadow rounded-lg p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Sürgős Feladatok</h3>
@@ -516,95 +541,122 @@ useEffect(() => {
           </div>
         )}
 
-        {activeTab === 'health' && (
-          <div className="bg-white shadow rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Egészségügyi Történet</h3>
-            <div className="space-y-4">
-              {animal.egeszsegugyi_tortenet.map((record: any, index: number) => (
-                <div key={index} className="border-l-4 border-green-400 pl-4 py-2">
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-900">{record.esemeny}</h4>
-                    <p className="text-xs text-gray-500 mt-1">
-                      👨‍⚕️ {record.kezelo} • 📅 {new Date(record.datum).toLocaleDateString('hu-HU')}
-                    </p>
-                  </div>
-                </div>
-              ))}
+       {activeTab === 'health' && (
+  <div className="bg-white shadow rounded-lg p-6">
+    <h3 className="text-lg font-medium text-gray-900 mb-4">Egészségügyi Történet</h3>
+    <div className="space-y-4">
+      {animal.egeszsegugyi_tortenet && animal.egeszsegugyi_tortenet.length > 0 ? (
+        animal.egeszsegugyi_tortenet.map((record: any, index: number) => (
+          <div key={index} className="border-l-4 border-green-400 pl-4 py-2">
+            <div>
+              <h4 className="text-sm font-medium text-gray-900">{record.esemeny}</h4>
+              <p className="text-xs text-gray-500 mt-1">
+                👨‍⚕️ {record.kezelo} • 📅 {new Date(record.datum).toLocaleDateString('hu-HU')}
+              </p>
             </div>
           </div>
-        )}
-
-        {activeTab === 'weight' && (
-          <div className="bg-white shadow rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Súly Fejlődés</h3>
-            <div className="space-y-4">
-              {animal.suly_fejlodes.map((record: any, index: number) => (
-                <div key={index} className="flex items-center justify-between border-b border-gray-200 pb-2">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{record.esemeny}</p>
-                    <p className="text-xs text-gray-500">{new Date(record.datum).toLocaleDateString('hu-HU')}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-gray-900">{record.suly} kg</p>
-                    {index > 0 && (
-                      <p className="text-xs text-gray-500">
-                        +{record.suly - animal.suly_fejlodes[index - 1].suly} kg
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
+        ))
+      ) : (
+        <div className="text-center text-gray-500 py-8">
+          <p>🏥 Még nincs kezelési előzmény</p>
+          <p className="text-sm">Az első kezelés után itt jelennek meg az adatok</p>
+        </div>
+      )}
+    </div>
+  </div>
+)}
+       {activeTab === 'weight' && (
+  <div className="bg-white shadow rounded-lg p-6">
+    <h3 className="text-lg font-medium text-gray-900 mb-4">Súly Fejlődés</h3>
+    <div className="space-y-4">
+      {animal.suly_fejlodes && animal.suly_fejlodes.length > 0 ? (
+        animal.suly_fejlodes.map((record: any, index: number) => (
+          <div key={index} className="flex items-center justify-between border-b border-gray-200 pb-2">
+            <div>
+              <p className="text-sm font-medium text-gray-900">{record.esemeny}</p>
+              <p className="text-xs text-gray-500">{new Date(record.datum).toLocaleDateString('hu-HU')}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-lg font-bold text-gray-900">{record.suly} kg</p>
+              {index > 0 && (
+                <p className="text-xs text-gray-500">
+                  +{record.suly - animal.suly_fejlodes[index - 1].suly} kg
+                </p>
+              )}
             </div>
           </div>
-        )}
+        ))
+      ) : (
+        <div className="text-center text-gray-500 py-8">
+          <p>📊 Még nincs súlymérési adat</p>
+          <p className="text-sm">Az első mérés után itt jelennek meg az adatok</p>
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
         {activeTab === 'pens' && (
-          <div className="bg-white shadow rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Karám Történet</h3>
-            <div className="space-y-4">
-              {animal.karam_tortenet.map((record: any, index: number) => (
-                <div key={index} className="border-l-4 border-blue-400 pl-4 py-2">
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-900">{record.esemeny}</h4>
-                    <p className="text-sm text-gray-600">📍 {record.karam}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      📅 {new Date(record.datum).toLocaleDateString('hu-HU')}
-                    </p>
-                  </div>
-                </div>
-              ))}
+  <div className="bg-white shadow rounded-lg p-6">
+    <h3 className="text-lg font-medium text-gray-900 mb-4">Karám Történet</h3>
+    <div className="space-y-4">
+      {animal.karam_tortenet && animal.karam_tortenet.length > 0 ? (
+        animal.karam_tortenet.map((record: any, index: number) => (
+          <div key={index} className="border-l-4 border-blue-400 pl-4 py-2">
+            <div>
+              <h4 className="text-sm font-medium text-gray-900">{record.esemeny}</h4>
+              <p className="text-sm text-gray-600">📍 {record.karam}</p>
+              <p className="text-xs text-gray-500 mt-1">
+                📅 {new Date(record.datum).toLocaleDateString('hu-HU')}
+              </p>
             </div>
           </div>
-        )}
+        ))
+      ) : (
+        <div className="text-center text-gray-500 py-8">
+          <p>🏠 Születés óta: {animal.jelenlegi_karam}</p>
+          <p className="text-sm">Mozgatások után itt jelenik meg a történet</p>
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
         {activeTab === 'tasks' && (
-          <div className="bg-white shadow rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Feladatok</h3>
-            <div className="space-y-4">
-              {animal.aktualis_feladatok.map((task: any, index: number) => (
-                <div key={index} className="border rounded-lg p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h4 className="text-sm font-medium text-gray-900">{task.leiras}</h4>
-                      <p className="text-sm text-gray-600 mt-1">Típus: {task.tipus}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        📅 Esedékesség: {new Date(task.esedekesseg).toLocaleDateString('hu-HU')}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end space-y-2">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-md border ${getPriorityColor(task.prioritas)}`}>
-                        {task.prioritas}
-                      </span>
-                      <button className="text-green-600 hover:text-green-800 text-sm">
-                        ✅ Elvégezve
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+  <div className="bg-white shadow rounded-lg p-6">
+    <h3 className="text-lg font-medium text-gray-900 mb-4">Feladatok</h3>
+    <div className="space-y-4">
+      {animal.aktualis_feladatok && animal.aktualis_feladatok.length > 0 ? (
+        animal.aktualis_feladatok.map((task: any, index: number) => (
+          <div key={index} className="border rounded-lg p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h4 className="text-sm font-medium text-gray-900">{task.leiras}</h4>
+                <p className="text-sm text-gray-600 mt-1">Típus: {task.tipus}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  📅 Esedékesség: {new Date(task.esedekesseg).toLocaleDateString('hu-HU')}
+                </p>
+              </div>
+              <div className="flex flex-col items-end space-y-2">
+                <span className={`px-2 py-1 text-xs font-medium rounded-md border ${getPriorityColor(task.prioritas)}`}>
+                  {task.prioritas}
+                </span>
+                <button className="text-green-600 hover:text-green-800 text-sm">
+                  ✅ Elvégezve
+                </button>
+              </div>
             </div>
           </div>
-        )}
+        ))
+      ) : (
+        <div className="text-center text-gray-500 py-8">
+          <p>✅ Nincsenek sürgős feladatok</p>
+          <p className="text-sm">Új feladatok itt fognak megjelenni</p>
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
         {activeTab === 'photos' && (
           <div className="bg-white shadow rounded-lg p-6">
