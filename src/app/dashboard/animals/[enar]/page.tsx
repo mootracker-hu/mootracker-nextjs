@@ -306,10 +306,19 @@ export default function AnimalDetailsPage() {
     );
   }
 
-if (!animal) {
+// IDEIGLENES FIX - Skip the React state problem
+const manualAnimal = (() => {
+  if (typeof window !== 'undefined') {
+    const animals = JSON.parse(localStorage.getItem('mootracker_animals') || '[]');
+    return animals.find(a => a.enar === enar) || null;
+  }
+  return null;
+})();
+
+if (!animal && !manualAnimal) {
   return (
     <div className="flex flex-col items-center justify-center h-64">
-     <div className="text-lg text-gray-600 mb-4">DEFENSIVE RENDERING TESZT - localStorage állat betöltődött</div>
+      <div className="text-lg text-gray-600 mb-4">Az állat nem található</div>
       <button
         onClick={() => router.back()}
         className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
@@ -319,6 +328,9 @@ if (!animal) {
     </div>
   );
 }
+
+// Use manual data if React state fails
+const displayAnimal = animal || manualAnimal;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
