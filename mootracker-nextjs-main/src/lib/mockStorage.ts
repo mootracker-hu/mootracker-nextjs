@@ -122,7 +122,11 @@ export const mockStorage = {
       utolso_modositas: now,
       letrehozva: now
     };
+// Mentés localStorage-ba
+animals.push(newAnimal);
+localStorage.setItem('animals', JSON.stringify(animals));
 
+return newAnimal;
     animals.push(newAnimal);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(animals));
     
