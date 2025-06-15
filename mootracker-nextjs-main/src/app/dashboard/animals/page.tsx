@@ -41,11 +41,20 @@ export default function AnimalsPage() {
   }, []);
 
   const loadAnimals = () => {
-  const data = JSON.parse(localStorage.getItem('animals') || '[]');
-  setAnimals(data);
-  setFilteredAnimals(data);
+  // Mock adatok (eredeti állatok megtartása)
+  const mockData = [
+    { enar: "HU002004", szuletesi_datum: "2022-08-22", ivar: "nőivar", kategoria: "tehén", jelenlegi_karam: "Hárem #1", statusz: "aktív" },
+    // ... további mock állatok
+  ];
+  
+  // localStorage adatok
+  const localData = JSON.parse(localStorage.getItem('animals') || '[]');
+  
+  // Egyesítés
+  const allData = [...mockData, ...localData];
+  setAnimals(allData);
+  setFilteredAnimals(allData);
 };
-
   // Keresés és szűrés
   useEffect(() => {
     let filtered = animals.filter(animal => {
