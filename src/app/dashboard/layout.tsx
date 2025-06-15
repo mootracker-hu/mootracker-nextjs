@@ -1,0 +1,171 @@
+'use client';
+
+import { useRouter, usePathname } from 'next/navigation';
+import { ReactNode, useState } from 'react';
+
+interface DashboardLayoutProps {
+  children: ReactNode;
+}
+
+export default function DashboardLayout({ children }: DashboardLayoutProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const navigation = [
+    { name: 'Dashboard', href: '/dashboard', icon: '📊' },
+    { name: 'Állatok', href: '/dashboard/animals', icon: '🐄' },
+    { name: 'Karámok', href: '/dashboard/pens', icon: '🏠' },
+    { name: 'Feladatok', href: '/dashboard/tasks', icon: '⏰' },
+    { name: 'Egészségügy', href: '/dashboard/health', icon: '💊' },
+    { name: 'Takarmányozás', href: '/dashboard/feeding', icon: '🌾' },
+    { name: 'Megfigyelések', href: '/dashboard/observations', icon: '👁️' },
+    { name: 'Vemhesség', href: '/dashboard/breeding', icon: '🤱' },
+    { name: 'Import/Export', href: '/dashboard/import-export', icon: '📋' },
+  ];
+
+  const handleLogout = () => {
+    router.push('/');
+  };
+
+  const isActive = (href: string) => {
+    if (href === '/dashboard') {
+      return pathname === '/dashboard';
+    }
+    return pathname.startsWith(href);
+  };
+
+  return (
+    <div className="h-screen flex overflow-hidden bg-gray-100">
+      {/* Mobile sidebar */}
+      <div className={`fixed inset-0 flex z-40 lg:hidden ${sidebarOpen ? '' : 'hidden'}`}>
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
+        <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white">
+          <div className="absolute top-0 right-0 -mr-12 pt-2">
+            <button
+              className="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <span className="sr-only">Close sidebar</span>
+              <span className="text-white text-xl">✕</span>
+            </button>
+          </div>
+          <div className="flex-1 h-0 pt-5 pb-4 overflow-y-auto">
+            <div className="flex-shrink-0 flex items-center px-4">
+              <div className="bg-green-600 p-2 rounded-lg mr-3">
+                <span className="text-white text-xl">🐄</span>
+              </div>
+              <h1 className="text-xl font-bold text-gray-900">MooTracker</h1>
+            </div>
+            <nav className="mt-5 px-2 space-y-1">
+              {navigation.map((item) => (
+                <button
+                  key={item.name}
+                  onClick={() => {
+                    router.push(item.href);
+                    setSidebarOpen(false);
+                  }}
+                  className={`w-full text-left group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
+                    isActive(item.href)
+                      ? 'bg-green-100 text-green-900'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  <span className="mr-3 text-lg">{item.icon}</span>
+                  {item.name}
+                </button>
+              ))}
+            </nav>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop sidebar */}
+      <div className="hidden lg:flex lg:flex-shrink-0">
+        <div className="flex flex-col w-64">
+          <div className="flex flex-col h-0 flex-1 bg-white border-r border-gray-200">
+            <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
+              <div className="flex items-center flex-shrink-0 px-4">
+                <div className="bg-green-600 p-2 rounded-lg mr-3">
+                  <span className="text-white text-xl">🐄</span>
+                </div>
+                <h1 className="text-xl font-bold text-gray-900">MooTracker</h1>
+              </div>
+              <nav className="mt-5 flex-1 px-2 space-y-1">
+                {navigation.map((item) => (
+                  <button
+                    key={item.name}
+                    onClick={() => router.push(item.href)}
+                    className={`w-full text-left group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
+                      isActive(item.href)
+                        ? 'bg-green-100 text-green-900'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                  >
+                    <span className="mr-3 text-lg">{item.icon}</span>
+                    {item.name}
+                  </button>
+                ))}
+              </nav>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="flex flex-col w-0 flex-1 overflow-hidden">
+        {/* Top bar */}
+        <div className="relative z-10 flex-shrink-0 flex h-16 bg-white shadow-sm border-b border-gray-200">
+          <button
+            className="px-4 border-r border-gray-200 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-green-500 lg:hidden"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <span className="sr-only">Open sidebar</span>
+            <span className="text-xl">☰</span>
+          </button>
+          <div className="flex-1 px-4 flex justify-between items-center">
+            <div className="flex-1">
+              {/* Breadcrumb navigation */}
+              <nav className="flex" aria-label="Breadcrumb">
+                <ol className="flex items-center space-x-4">
+                  <li>
+                    <button
+                      onClick={() => router.push('/dashboard')}
+                      className="text-gray-400 hover:text-gray-500"
+                    >
+                      🏠 Dashboard
+                    </button>
+                  </li>
+                  {pathname !== '/dashboard' && (
+                    <>
+                      <span className="text-gray-400">/</span>
+                      <li className="text-sm">
+                        <span className="text-gray-500 font-medium">
+                          {navigation.find(item => pathname.startsWith(item.href) && item.href !== '/dashboard')?.name || 'Oldal'}
+                        </span>
+                      </li>
+                    </>
+                  )}
+                </ol>
+              </nav>
+            </div>
+            <div className="ml-4 flex items-center md:ml-6">
+              <span className="text-sm text-gray-600 mr-4">Demo Felhasználó</span>
+              <button
+                onClick={handleLogout}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm"
+              >
+                Kijelentkezés
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Page content */}
+        <main className="flex-1 relative overflow-y-auto focus:outline-none">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+}
