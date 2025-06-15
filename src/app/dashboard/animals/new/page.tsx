@@ -239,6 +239,8 @@ export default function NewAnimalPage() {
 
   // Kategória előnézet
   const previewCategory = (formData.szuletesi_datum && formData.ivar && formData.ivar.length > 0)
+  ? calculateCategory(formData.szuletesi_datum, formData.ivar)
+  : '';
 
   // Karám javaslatok
  const karamSuggestions = (previewCategory && typeof previewCategory === 'string') 
