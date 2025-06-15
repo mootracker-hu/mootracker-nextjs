@@ -31,6 +31,7 @@ export default function NewAnimalPage() {
     enar: '',
     szuletesi_datum: '',
     ivar: '' as '' | 'hímivar' | 'nőivar',
+    kategoria: '',
     eredet: '' as '' | 'nalunk_szuletett' | 'vasarolt',
     
     // Szülők (nálunk született)
@@ -55,7 +56,13 @@ export default function NewAnimalPage() {
     const animals = mockStorage.getAllAnimals();
     setExistingAnimals(animals);
   }, []);
-
+// Kategória automatikus frissítése
+useEffect(() => {
+  if (formData.szuletesi_datum && formData.ivar) {
+    const category = calculateCategory(formData.szuletesi_datum, formData.ivar);
+    setFormData(prev => ({ ...prev, kategoria: category }));
+  }
+}, [formData.szuletesi_datum, formData.ivar]);
   // Kategória automatikus kalkuláció
   const calculateCategory = (birthDate: string, gender: 'hímivar' | 'nőivar'): string => {
     const birth = new Date(birthDate);
