@@ -245,22 +245,27 @@ export default function AnimalDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('details');
 
-  useEffect(() => {
-    const loadAnimal = async () => {
-      setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const animalData = mockAnimalData[enar];
-      if (animalData) {
-        setAnimal(animalData);
-      }
-      setLoading(false);
-    };
-
-    if (enar) {
-      loadAnimal();
+ useEffect(() => {
+  const loadAnimal = async () => {
+    setLoading(true);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // localStorage-ból olvasás
+    const animals = JSON.parse(localStorage.getItem('animals') || '[]');
+    const animalData = animals.find(a => a.enar === enar);
+    
+    // Ha nincs localStorage-ban, próbáljuk mockAnimalData-ból
+    const finalAnimalData = animalData || mockAnimalData[enar];
+    
+    if (finalAnimalData) {
+      setAnimal(finalAnimalData);
     }
-  }, [enar]);
+    setLoading(false);
+  };
+  if (enar) {
+    loadAnimal();
+  }
+}, [enar]);
 
   const calculateAge = (birthDate: string) => {
     const birth = new Date(birthDate);
