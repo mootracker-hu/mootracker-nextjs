@@ -41,10 +41,10 @@ export default function AnimalsPage() {
   }, []);
 
   const loadAnimals = () => {
-   const data = JSON.parse(localStorage.getItem('animals') || '[]');
-    setAnimals(data);
-    setFilteredAnimals(data);
-  };
+  const data = JSON.parse(localStorage.getItem('animals') || '[]');
+  setAnimals(data);
+  setFilteredAnimals(data);
+};
 
   // Keresés és szűrés
   useEffect(() => {
