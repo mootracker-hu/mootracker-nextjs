@@ -238,7 +238,7 @@ export default function NewAnimalPage() {
   };
 
   // Kategória előnézet
-  const previewCategory = (formData.szuletesi_datum && formData.ivar && formData.ivar !== '')
+  const previewCategory = (formData.szuletesi_datum && formData.ivar)
     ? calculateCategory(formData.szuletesi_datum, formData.ivar as 'hímivar' | 'nőivar')
     : '';
 
@@ -323,6 +323,223 @@ export default function NewAnimalPage() {
                   onChange={(e) => setFormData(prev => ({ ...prev, enar: e.target.value.toUpperCase() }))}
                   placeholder="HU1234567890"
                   className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                    errors.jelenlegi_karam ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">Válasszon karámot...</option>
+                  {karamSuggestions.length > 0 && (
+                    <optgroup label="🎯 Ajánlott kategória alapján">
+                      {karamSuggestions.map(karam => (
+                        <option key={karam} value={karam}>{karam}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                  <optgroup label="🏠 Összes karám">
+                    <option value="Karám #1">Karám #1</option>
+                    <option value="Karám #2">Karám #2</option>
+                    <option value="Karám #3">Karám #3</option>
+                    <option value="Hárem #1">Hárem #1</option>
+                    <option value="Hárem #2">Hárem #2</option>
+                    <option value="Bölcsi #1">Bölcsi #1</option>
+                    <option value="Bölcsi #2">Bölcsi #2</option>
+                    <option value="Óvi #1">Óvi #1</option>
+                    <option value="Óvi #2">Óvi #2</option>
+                    <option value="Óvi #3">Óvi #3</option>
+                    <option value="Hízóbika karám #1">Hízóbika karám #1</option>
+                    <option value="Hízóbika karám #2">Hízóbika karám #2</option>
+                    <option value="Tenyészbika karám">Tenyészbika karám</option>
+                    <option value="Vemhes karám #1">Vemhes karám #1</option>
+                    <option value="Ellető istálló - Fogadó #1">Ellető istálló - Fogadó #1</option>
+                    <option value="Ellető istálló - Fogadó #2">Ellető istálló - Fogadó #2</option>
+                  </optgroup>
+                </select>
+                {errors.jelenlegi_karam && <p className="text-red-500 text-sm mt-1">{errors.jelenlegi_karam}</p>}
+              </div>
+
+              {/* Bekerülés dátuma */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  📅 Bekerülés dátuma *
+                </label>
+                <input
+                  type="date"
+                  value={formData.bekerules_datum}
+                  onChange={(e) => setFormData(prev => ({ ...prev, bekerules_datum: e.target.value }))}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                    errors.bekerules_datum ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {errors.bekerules_datum && <p className="text-red-500 text-sm mt-1">{errors.bekerules_datum}</p>}
+                {formData.eredet === 'nalunk_szuletett' && (
+                  <p className="text-sm text-green-600 mt-1">
+                    💡 Nálunk születettnél alapértelmezett: születési dátum
+                  </p>
+                )}
+              </div>
+
+              {/* Státusz */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  📊 Egészségügyi státusz
+                </label>
+                <select
+                  value={formData.statusz}
+                  onChange={(e) => setFormData(prev => ({ ...prev, statusz: e.target.value }))}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                >
+                  <option value="egészséges">✅ Egészséges</option>
+                  <option value="megfigyelés_alatt">🔍 Megfigyelés alatt</option>
+                  <option value="kezelés_alatt">⚕️ Kezelés alatt</option>
+                  <option value="karantén">🚫 Karantén</option>
+                </select>
+              </div>
+
+              {/* Kategória ismétlés */}
+              {previewCategory && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    🎯 Kategória
+                  </label>
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-green-800 font-medium">
+                    {previewCategory}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Karám javaslatok */}
+            {karamSuggestions.length > 0 && (
+              <div className="bg-green-50 p-4 rounded-lg">
+                <h4 className="font-medium text-green-800 mb-2 flex items-center gap-2">
+                  🎯 Ajánlott karámok a "{previewCategory}" kategóriához:
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {karamSuggestions.map(karam => (
+                    <button
+                      key={karam}
+                      onClick={() => setFormData(prev => ({ ...prev, jelenlegi_karam: karam }))}
+                      className={`px-3 py-1 text-sm rounded-full border transition-colors ${
+                        formData.jelenlegi_karam === karam
+                          ? 'bg-green-500 text-white border-green-500'
+                          : 'bg-white text-green-700 border-green-300 hover:bg-green-100'
+                      }`}
+                    >
+                      {karam}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* STEP 3: Ellenőrzés */}
+        {step === 3 && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+              ✅ Adatok ellenőrzése
+            </h2>
+
+            <div className="bg-gray-50 p-6 rounded-lg space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="font-medium text-gray-800 mb-3">🐄 Alapadatok</h3>
+                  <div className="space-y-2 text-sm">
+                    <div><span className="text-gray-600">ENAR:</span> <span className="font-medium">{formData.enar}</span></div>
+                    <div><span className="text-gray-600">Születés:</span> <span className="font-medium">{formData.szuletesi_datum}</span></div>
+                    <div><span className="text-gray-600">Ivar:</span> <span className="font-medium">{formData.ivar === 'hímivar' ? '♂️ Hímivar' : '♀️ Nőivar'}</span></div>
+                    <div><span className="text-gray-600">Kategória:</span> <span className="font-medium text-green-600">{previewCategory}</span></div>
+                    <div><span className="text-gray-600">Eredet:</span> <span className="font-medium">{formData.eredet === 'nalunk_szuletett' ? '🏠 Nálunk született' : '🛒 Vásárolt'}</span></div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-medium text-gray-800 mb-3">🏠 Elhelyezés</h3>
+                  <div className="space-y-2 text-sm">
+                    <div><span className="text-gray-600">Karám:</span> <span className="font-medium">{formData.jelenlegi_karam}</span></div>
+                    <div><span className="text-gray-600">Bekerülés:</span> <span className="font-medium">{formData.bekerules_datum}</span></div>
+                    <div><span className="text-gray-600">Státusz:</span> <span className="font-medium">{formData.statusz}</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-medium text-gray-800 mb-3">🐮❤️🐂 Szülők</h3>
+                <div className="space-y-2 text-sm">
+                  {formData.eredet === 'nalunk_szuletett' ? (
+                    <>
+                      <div>
+                        <span className="text-gray-600">🐮 Anya:</span> 
+                        <span className="font-medium ml-2">
+                          {formData.anya_enar === 'ismeretlen' ? 'Ismeretlen' : formData.anya_enar || 'Nincs megadva'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">🐂 Apa:</span> 
+                        <span className="font-medium ml-2">
+                          {formData.apa_tipus === 'termeszetes' ? formData.apa_enar || 'Nincs megadva' :
+                           formData.apa_tipus === 'mesterseges' ? `🧪 ${formData.kplsz}` : 'Ismeretlen'}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <span className="text-gray-600">🐮 Anya:</span> 
+                        <span className="font-medium ml-2">{formData.anya_enar_manual || 'Nincs megadva'}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">🐂 Apa:</span> 
+                        <span className="font-medium ml-2">{formData.apa_enar_manual || 'Nincs megadva'}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {errors.general && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-red-700">{errors.general}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Navigation Buttons */}
+      <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-4 md:p-6 rounded-lg border gap-4">
+        <button
+          onClick={handlePrevStep}
+          disabled={step === 1}
+          className="w-full sm:w-auto px-6 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 justify-center"
+        >
+          ← Vissza
+        </button>
+
+        <div className="text-sm text-gray-500 order-first sm:order-none">
+          {step}. lépés / 3
+        </div>
+
+        {step < 3 ? (
+          <button
+            onClick={handleNextStep}
+            className="w-full sm:w-auto px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2 justify-center"
+          >
+            Következő →
+          </button>
+        ) : (
+          <button
+            onClick={handleSave}
+            className="w-full sm:w-auto px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2 font-medium justify-center"
+          >
+            ✅ Állat mentése
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}500 focus:border-green-500 ${
                     errors.enar ? 'border-red-500' : 'border-gray-300'
                   }`}
                 />
@@ -582,220 +799,4 @@ export default function NewAnimalPage() {
                 <select
                   value={formData.jelenlegi_karam}
                   onChange={(e) => setFormData(prev => ({ ...prev, jelenlegi_karam: e.target.value }))}
-                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
-                    errors.jelenlegi_karam ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">Válasszon karámot...</option>
-                  {karamSuggestions.length > 0 && (
-                    <optgroup label="🎯 Ajánlott kategória alapján">
-                      {karamSuggestions.map(karam => (
-                        <option key={karam} value={karam}>{karam}</option>
-                      ))}
-                    </optgroup>
-                  )}
-                  <optgroup label="🏠 Összes karám">
-                    <option value="Karám #1">Karám #1</option>
-                    <option value="Karám #2">Karám #2</option>
-                    <option value="Karám #3">Karám #3</option>
-                    <option value="Hárem #1">Hárem #1</option>
-                    <option value="Hárem #2">Hárem #2</option>
-                    <option value="Bölcsi #1">Bölcsi #1</option>
-                    <option value="Bölcsi #2">Bölcsi #2</option>
-                    <option value="Óvi #2">Óvi #2</option>
-                    <option value="Óvi #3">Óvi #3</option>
-                    <option value="Hízóbika karám #1">Hízóbika karám #1</option>
-                    <option value="Hízóbika karám #2">Hízóbika karám #2</option>
-                    <option value="Tenyészbika karám">Tenyészbika karám</option>
-                    <option value="Vemhes karám #1">Vemhes karám #1</option>
-                    <option value="Ellető istálló - Fogadó #1">Ellető istálló - Fogadó #1</option>
-                    <option value="Ellető istálló - Fogadó #2">Ellető istálló - Fogadó #2</option>
-                  </optgroup>
-                </select>
-                {errors.jelenlegi_karam && <p className="text-red-500 text-sm mt-1">{errors.jelenlegi_karam}</p>}
-              </div>
-
-              {/* Bekerülés dátuma */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  📅 Bekerülés dátuma *
-                </label>
-                <input
-                  type="date"
-                  value={formData.bekerules_datum}
-                  onChange={(e) => setFormData(prev => ({ ...prev, bekerules_datum: e.target.value }))}
-                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
-                    errors.bekerules_datum ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {errors.bekerules_datum && <p className="text-red-500 text-sm mt-1">{errors.bekerules_datum}</p>}
-                {formData.eredet === 'nalunk_szuletett' && (
-                  <p className="text-sm text-green-600 mt-1">
-                    💡 Nálunk születettnél alapértelmezett: születési dátum
-                  </p>
-                )}
-              </div>
-
-              {/* Státusz */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  📊 Egészségügyi státusz
-                </label>
-                <select
-                  value={formData.statusz}
-                  onChange={(e) => setFormData(prev => ({ ...prev, statusz: e.target.value }))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                >
-                  <option value="egészséges">✅ Egészséges</option>
-                  <option value="megfigyelés_alatt">🔍 Megfigyelés alatt</option>
-                  <option value="kezelés_alatt">⚕️ Kezelés alatt</option>
-                  <option value="karantén">🚫 Karantén</option>
-                </select>
-              </div>
-
-              {/* Kategória ismétlés */}
-              {previewCategory && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    🎯 Kategória
-                  </label>
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-green-800 font-medium">
-                    {previewCategory}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Karám javaslatok */}
-            {karamSuggestions.length > 0 && (
-              <div className="bg-green-50 p-4 rounded-lg">
-                <h4 className="font-medium text-green-800 mb-2 flex items-center gap-2">
-                  🎯 Ajánlott karámok a "{previewCategory}" kategóriához:
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {karamSuggestions.map(karam => (
-                    <button
-                      key={karam}
-                      onClick={() => setFormData(prev => ({ ...prev, jelenlegi_karam: karam }))}
-                      className={`px-3 py-1 text-sm rounded-full border transition-colors ${
-                        formData.jelenlegi_karam === karam
-                          ? 'bg-green-500 text-white border-green-500'
-                          : 'bg-white text-green-700 border-green-300 hover:bg-green-100'
-                      }`}
-                    >
-                      {karam}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* STEP 3: Ellenőrzés */}
-        {step === 3 && (
-          <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-              ✅ Adatok ellenőrzése
-            </h2>
-
-            <div className="bg-gray-50 p-6 rounded-lg space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="font-medium text-gray-800 mb-3">🐄 Alapadatok</h3>
-                  <div className="space-y-2 text-sm">
-                    <div><span className="text-gray-600">ENAR:</span> <span className="font-medium">{formData.enar}</span></div>
-                    <div><span className="text-gray-600">Születés:</span> <span className="font-medium">{formData.szuletesi_datum}</span></div>
-                    <div><span className="text-gray-600">Ivar:</span> <span className="font-medium">{formData.ivar === 'hímivar' ? '♂️ Hímivar' : '♀️ Nőivar'}</span></div>
-                    <div><span className="text-gray-600">Kategória:</span> <span className="font-medium text-green-600">{previewCategory}</span></div>
-                    <div><span className="text-gray-600">Eredet:</span> <span className="font-medium">{formData.eredet === 'nalunk_szuletett' ? '🏠 Nálunk született' : '🛒 Vásárolt'}</span></div>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="font-medium text-gray-800 mb-3">🏠 Elhelyezés</h3>
-                  <div className="space-y-2 text-sm">
-                    <div><span className="text-gray-600">Karám:</span> <span className="font-medium">{formData.jelenlegi_karam}</span></div>
-                    <div><span className="text-gray-600">Bekerülés:</span> <span className="font-medium">{formData.bekerules_datum}</span></div>
-                    <div><span className="text-gray-600">Státusz:</span> <span className="font-medium">{formData.statusz}</span></div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="font-medium text-gray-800 mb-3">🐮❤️🐂 Szülők</h3>
-                <div className="space-y-2 text-sm">
-                  {formData.eredet === 'nalunk_szuletett' ? (
-                    <>
-                      <div>
-                        <span className="text-gray-600">🐮 Anya:</span> 
-                        <span className="font-medium ml-2">
-                          {formData.anya_enar === 'ismeretlen' ? 'Ismeretlen' : formData.anya_enar || 'Nincs megadva'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">🐂 Apa:</span> 
-                        <span className="font-medium ml-2">
-                          {formData.apa_tipus === 'termeszetes' ? formData.apa_enar || 'Nincs megadva' :
-                           formData.apa_tipus === 'mesterseges' ? `🧪 ${formData.kplsz}` : 'Ismeretlen'}
-                        </span>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div>
-                        <span className="text-gray-600">🐮 Anya:</span> 
-                        <span className="font-medium ml-2">{formData.anya_enar_manual || 'Nincs megadva'}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">🐂 Apa:</span> 
-                        <span className="font-medium ml-2">{formData.apa_enar_manual || 'Nincs megadva'}</span>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {errors.general && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-red-700">{errors.general}</p>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Navigation Buttons */}
-      <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-4 md:p-6 rounded-lg border gap-4">
-        <button
-          onClick={handlePrevStep}
-          disabled={step === 1}
-          className="w-full sm:w-auto px-6 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 justify-center"
-        >
-          ← Vissza
-        </button>
-
-        <div className="text-sm text-gray-500 order-first sm:order-none">
-          {step}. lépés / 3
-        </div>
-
-        {step < 3 ? (
-          <button
-            onClick={handleNextStep}
-            className="w-full sm:w-auto px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2 justify-center"
-          >
-            Következő →
-          </button>
-        ) : (
-          <button
-            onClick={handleSave}
-            className="w-full sm:w-auto px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2 font-medium justify-center"
-          >
-            ✅ Állat mentése
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-
