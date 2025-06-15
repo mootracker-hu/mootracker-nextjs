@@ -41,7 +41,7 @@ export default function AnimalsPage() {
   }, []);
 
   const loadAnimals = () => {
-    const data = mockStorage.getAllAnimals();
+   const data = JSON.parse(localStorage.getItem('animals') || '[]');
     setAnimals(data);
     setFilteredAnimals(data);
   };
