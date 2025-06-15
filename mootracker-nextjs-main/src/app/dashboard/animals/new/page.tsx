@@ -53,8 +53,8 @@ export default function NewAnimalPage() {
   const [errors, setErrors] = useState<{[key: string]: string}>({});
 
   useEffect(() => {
-    const animals = mockStorage.getAllAnimals();
-    setExistingAnimals(animals);
+   const animals = JSON.parse(localStorage.getItem('animals') || '[]');
+const animal = animals.find(a => a.enar === params.enar);
   }, []);
 // Kategória automatikus frissítése
 useEffect(() => {
