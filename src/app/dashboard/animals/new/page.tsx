@@ -798,4 +798,4 @@ export default function NewAnimalPage() {
       </div>
     </div>
   );
-} 
+}
