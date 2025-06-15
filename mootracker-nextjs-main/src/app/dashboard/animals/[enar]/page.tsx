@@ -245,13 +245,13 @@ export default function AnimalDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('details');
 
- useEffect(() => {
+useEffect(() => {
   const loadAnimal = async () => {
     setLoading(true);
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    // localStorage-ból olvasás
-    const animals = JSON.parse(localStorage.getItem('animals') || '[]');
+    // localStorage-ból olvasás (HELYES KULCS!)
+    const animals = JSON.parse(localStorage.getItem('mootracker_animals') || '[]');
     const animalData = animals.find(a => a.enar === enar);
     
     // Ha nincs localStorage-ban, próbáljuk mockAnimalData-ból
