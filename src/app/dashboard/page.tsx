@@ -1,5 +1,6 @@
 'use client';
-
+import { supabase } from '@/lib/supabase'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation';
 
 export default function Dashboard() {
@@ -84,7 +85,15 @@ export default function Dashboard() {
   const handleTaskClick = (taskId: number) => {
     router.push(`/dashboard/tasks?highlight=${taskId}`);
   };
-
+// Supabase connection test
+useEffect(() => {
+  const testConnection = async () => {
+    console.log('Testing Supabase connection...')
+    const { data, error } = await supabase.from('animals').select('*').limit(1)
+    console.log('Supabase result:', { data, error })
+  }
+  testConnection()
+}, [])
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
