@@ -238,8 +238,9 @@ const mockAnimalData: { [key: string]: any } = {
 
 export default function AnimalDetailsPage() {
   const router = useRouter();
-  const params = useParams();
-  const enar = params?.enar as string;
+  const enar = typeof window !== 'undefined' 
+  ? decodeURIComponent(window.location.pathname.split('/').pop() || '')
+  : '';
   
   const [animal, setAnimal] = useState<any>(null);
   const [loading, setLoading] = useState(true);
