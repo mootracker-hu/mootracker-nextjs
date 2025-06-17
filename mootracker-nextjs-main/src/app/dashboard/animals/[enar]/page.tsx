@@ -246,7 +246,7 @@ export default function AnimalDetailsPage() {
   const [activeTab, setActiveTab] = useState('details');
   // Hozzáadás a komponens tetejéhez (useState importok mellé):
 const [isEditing, setIsEditing] = useState(false);
-const [editedAnimal, setEditedAnimal] = useState(animal);
+const [editedAnimal, setEditedAnimal] = useState(null);
 
 // Kategória opciók definiálása
 const categoryOptions = [
@@ -258,7 +258,6 @@ const categoryOptions = [
   { value: 'üres_üsző', label: 'Üres üsző' },
   { value: 'hímivarú_borjú', label: 'Hímivarú borjú' },
   { value: 'nőivarú_borjú', label: 'Nőivarú borjú' },
-  { value: 'növarú_borjú', label: 'Növarú borjú' },
   { value: 'hízóbika', label: 'Hízóbika' },
   { value: 'tenyészbika', label: 'Tenyészbika' }
 ];
@@ -321,6 +320,9 @@ useEffect(() => {
     
     if (finalAnimalData) {
       setAnimal(finalAnimalData);
+      if (finalAnimalData) {
+  setAnimal(finalAnimalData);
+  setEditedAnimal(finalAnimalData);
     }
     setLoading(false);
   };
@@ -501,7 +503,43 @@ useEffect(() => {
                   <div className="border rounded-lg p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="text-sm font-medium text-gray-900">🤱 Anya</h4>
+                        <h4 className="text-sm font-medium text-gray-900">🐄 Anya</h4>
+                        <p className="text-sm text-gray-600">{animal.anya.enar}</p>
+                        <p className="text-xs text-gray-500">{getCategoryDisplay(animal.anya.kategoria)}</p>
+                      </div>
+                      <button
+                        onClick={() => router.push(`/dashboard/animals/${animal.anya.enar}`)}
+                        className="text-green-600 hover:text-green-800 text-sm"
+                      >
+                        Megtekintés →
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {animal.apa && (
+                  <div className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900">🐂 Apa</h4>
+                        <p className="text-sm text-gray-600">{animal.anya.enar}</p>
+                        <p className="text-xs text-gray-500">{getCategoryDisplay(animal.anya.kategoria)}</p>
+                      </div>
+                      <button
+                        onClick={() => router.push(`/dashboard/animals/${animal.anya.enar}`)}
+                        className="text-green-600 hover:text-green-800 text-sm"
+                      >
+                        Megtekintés →
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {animal.apa && (
+                  <div className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900">👨 Apa</h4>
                         <p className="text-sm text-gray-600">{animal.anya.enar}</p>
                         <p className="text-xs text-gray-500">{getCategoryDisplay(animal.anya.kategoria)}</p>
                       </div>
@@ -534,25 +572,7 @@ useEffect(() => {
                 )}
               </div>
             </div>
-<div className="bg-white shadow rounded-lg p-6">
-  <h3 className="text-lg font-medium text-gray-900 mb-4">Szülők</h3>
-  <div className="space-y-4">
-    {animal.anya && (
-      // ... meglévő anya kód ...
-    )}
-    {animal.apa && (
-      // ... meglévő apa kód ...
-    )}
-    
-    {/* ÚJ: Ha nincs sem anya, sem apa */}
-    {!animal.anya && !animal.apa && (
-      <div className="text-center text-gray-500 py-8">
-        <p>👨‍👩‍👧‍👦 Szülők nem ismertek</p>
-        <p className="text-sm">Vásárolt állat vagy hiányos nyilvántartás</p>
-      </div>
-    )}
-  </div>
-</div>
+
             <div className="bg-white shadow rounded-lg p-6">
   <h3 className="text-lg font-medium text-gray-900 mb-4">Jelenlegi Adatok</h3>
   <dl className="space-y-3">
