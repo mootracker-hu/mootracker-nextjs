@@ -353,7 +353,7 @@ useEffect(() => {
       'szűz_üsző': 'Szűz üsző',
       'vemhes_üsző': 'Vemhes üsző',
       'vemhesülés_alatt': 'Vemhesülés alatt',
-      'növarú_borjú': 'Növarú borjú'
+      'nöivarú_borjú': 'Nöivarú borjú'
     };
     return categoryMap[category] || category;
   };
@@ -479,7 +479,23 @@ useEffect(() => {
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-sm font-medium text-gray-500">Kategória:</dt>
-                  <dd className="text-sm text-gray-900">{getCategoryDisplay(animal.kategoria)}</dd>
+                  <dd className="text-sm text-gray-900"><dd className="text-sm text-gray-900">
+  {isEditing ? (
+    <select
+      value={editedAnimal?.kategoria || animal.kategoria}
+      onChange={(e) => handleCategoryChange(e.target.value)}
+      className="border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+    >
+      {categoryOptions.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  ) : (
+    getCategoryDisplay(animal.kategoria)
+  )}
+</dd></dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-sm font-medium text-gray-500">Jelenlegi karám:</dt>
