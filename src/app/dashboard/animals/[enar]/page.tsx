@@ -255,7 +255,6 @@ export default function AnimalDetailPage() {
         </div>
       </div>
     );
-  }
 
   const tabs = [
     { id: 'reszletek', name: '📋 Részletek', icon: FileText },
