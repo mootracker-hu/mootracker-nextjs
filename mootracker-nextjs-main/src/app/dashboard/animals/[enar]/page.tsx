@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-// Hozzáadás a komponens tetejéhez (useState importok mellé):
 const [isEditing, setIsEditing] = useState(false);
 const [editedAnimal, setEditedAnimal] = useState(animal);
 
