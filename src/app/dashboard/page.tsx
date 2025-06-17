@@ -42,12 +42,12 @@ export default function DashboardPage() {
       color: 'bg-purple-500 hover:bg-purple-600'
     },
     {
-      title: 'Karám Kezelés',
-      description: 'Karámok és állatok mozgatása (hamarosan)',
-      href: '/dashboard/pens',
-      icon: Home,
-      color: 'bg-gray-400'
-    }
+  title: 'Karám Kezelés',
+  description: 'Karámok és állatok áttekintése',
+  href: '/dashboard/pens',
+  icon: Home,
+  color: 'bg-orange-500 hover:bg-orange-600'  ← Narancs aktív!
+}
   ];
 
   const recentActivity = [
