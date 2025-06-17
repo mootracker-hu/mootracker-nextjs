@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { 
   ArrowLeft, 
@@ -32,7 +32,6 @@ interface Animal {
 }
 
 export default function AnimalDetailPage() {
-  const params = useParams();
   const router = useRouter();
   
   const [animal, setAnimal] = useState<Animal | null>(null);
@@ -42,26 +41,35 @@ export default function AnimalDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [enarFromUrl, setEnarFromUrl] = useState<string>('');
 
-  // 🔧 FIXED: Proper ENAR extraction from URL params
+  // 🔧 FIXED: Manual URL parsing instead of broken useParams()
   useEffect(() => {
     console.log('🔍 ENAR Extraction Starting...');
-    console.log('Raw params.enar:', params.enar);
     
-    if (params.enar) {
+    if (typeof window !== 'undefined') {
       try {
-        // Dekódoljuk az ENAR-t az URL-ből (pl. HU%2030223%2040224%209 → HU 30223 40224 9)
-        const decodedEnar = decodeURIComponent(params.enar as string);
-        console.log('✅ Decoded ENAR:', decodedEnar);
-        setEnarFromUrl(decodedEnar);
+        const pathname = window.location.pathname;
+        console.log('Current pathname:', pathname);
+        
+        const pathParts = pathname.split('/');
+        console.log('Path parts:', pathParts);
+        
+        const lastPart = pathParts[pathParts.length - 1];
+        console.log('Last part (raw):', lastPart);
+        
+        if (lastPart && lastPart !== 'undefined' && lastPart.length > 0) {
+          const decodedEnar = decodeURIComponent(lastPart);
+          console.log('✅ Decoded ENAR:', decodedEnar);
+          setEnarFromUrl(decodedEnar);
+        } else {
+          console.error('❌ No valid ENAR found in URL');
+          setError('ENAR nem található az URL-ben');
+        }
       } catch (err) {
         console.error('❌ ENAR decode error:', err);
         setError('Hibás ENAR formátum az URL-ben');
       }
-    } else {
-      console.error('❌ No ENAR in params');
-      setError('ENAR nem található az URL-ben');
     }
-  }, [params.enar]);
+  }, []);
 
   // 🐄 Adatok betöltése Supabase-ből amikor ENAR ready
   useEffect(() => {
