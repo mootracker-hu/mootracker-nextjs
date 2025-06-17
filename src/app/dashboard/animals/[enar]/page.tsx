@@ -34,56 +34,93 @@ interface Animal {
 export default function AnimalDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const enar = params.enar as string;
   
   const [animal, setAnimal] = useState<Animal | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('alapadatok');
   const [isEditing, setIsEditing] = useState(false);
+  const [enarFromUrl, setEnarFromUrl] = useState<string>('');
 
-  // Adatok betöltése Supabase-ből
+  // 🔧 FIXED: Proper ENAR extraction from URL params
   useEffect(() => {
+    console.log('🔍 ENAR Extraction Starting...');
+    console.log('Raw params.enar:', params.enar);
+    
+    if (params.enar) {
+      try {
+        // Dekódoljuk az ENAR-t az URL-ből (pl. HU%2030223%2040224%209 → HU 30223 40224 9)
+        const decodedEnar = decodeURIComponent(params.enar as string);
+        console.log('✅ Decoded ENAR:', decodedEnar);
+        setEnarFromUrl(decodedEnar);
+      } catch (err) {
+        console.error('❌ ENAR decode error:', err);
+        setError('Hibás ENAR formátum az URL-ben');
+      }
+    } else {
+      console.error('❌ No ENAR in params');
+      setError('ENAR nem található az URL-ben');
+    }
+  }, [params.enar]);
+
+  // 🐄 Adatok betöltése Supabase-ből amikor ENAR ready
+  useEffect(() => {
+    if (!enarFromUrl) {
+      console.log('❌ No ENAR available, skipping fetch');
+      return;
+    }
+
     const fetchAnimal = async () => {
       try {
         setLoading(true);
+        setError(null);
         
-        // Dekódoljuk az ENAR-t az URL-ből (pl. HU%2030223%2040224%209 → HU 30223 40224 9)
-        const decodedEnar = decodeURIComponent(enar);
-        
-        console.log('Keresett ENAR:', decodedEnar);
+        console.log('🔍 Searching for animal with ENAR:', enarFromUrl);
 
         const { data, error } = await supabase
           .from('animals')
           .select('*')
-          .eq('enar', decodedEnar)
+          .eq('enar', enarFromUrl)
           .single();
 
         if (error) {
-          console.error('Supabase hiba:', error);
-          setError('Nem sikerült betölteni az állat adatait');
+          console.error('❌ Supabase error:', error);
+          if (error.code === 'PGRST116') {
+            setError(`Állat nem található: ${enarFromUrl}`);
+          } else {
+            setError(`Adatbázis hiba: ${error.message}`);
+          }
           return;
         }
 
         if (!data) {
-          setError('Nem található ez az állat');
+          console.log('❌ No animal data returned');
+          setError(`Nincs állat ezzel az ENAR-ral: ${enarFromUrl}`);
           return;
         }
 
-        console.log('Betöltött állat:', data);
+        console.log('✅ Animal loaded successfully:', data);
         setAnimal(data);
       } catch (err) {
-        console.error('Fetch hiba:', err);
+        console.error('❌ Fetch error:', err);
         setError('Hiba történt az adatok betöltése során');
       } finally {
         setLoading(false);
       }
     };
 
-    if (enar) {
-      fetchAnimal();
-    }
-  }, [enar]);
+    fetchAnimal();
+  }, [enarFromUrl]);
+
+  // 📊 Debug info
+  useEffect(() => {
+    console.log('🚀 Debug Status:');
+    console.log('ENAR from URL:', enarFromUrl || 'Still undefined');
+    console.log('Animal loaded:', !!animal);
+    console.log('Loading state:', loading);
+    console.log('Error state:', error);
+    console.log('Tabs visible:', animal ? 6 : 0);
+  }, [enarFromUrl, animal, loading, error]);
 
   // Életkor kalkuláció
   const calculateAge = (birthDate: string) => {
@@ -125,6 +162,7 @@ export default function AnimalDetailPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Adatok betöltése...</p>
+          <p className="text-sm text-gray-500 mt-2">ENAR: {enarFromUrl || 'Feltöltés...'}</p>
         </div>
       </div>
     );
@@ -137,6 +175,7 @@ export default function AnimalDetailPage() {
           <div className="text-red-500 text-6xl mb-4">🐄</div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Hiba történt</h1>
           <p className="text-gray-600 mb-4">{error || 'Ismeretlen hiba'}</p>
+          <p className="text-sm text-gray-500 mb-4">ENAR keresve: {enarFromUrl || 'Nincs megadva'}</p>
           <button
             onClick={() => router.back()}
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
@@ -343,9 +382,14 @@ export default function AnimalDetailPage() {
           {/* Család Tab */}
           {activeTab === 'csalad' && (
             <div className="space-y-6">
+              <h3 className="flex items-center text-lg font-semibold text-gray-900 mb-4">
+                <span className="mr-2">🐄💕🐂</span>
+                Szülők és családfa
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
+                    <span className="mr-2">🐄</span>
                     Anya ENAR
                   </label>
                   <input
@@ -357,7 +401,8 @@ export default function AnimalDetailPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
+                    <span className="mr-2">🐂</span>
                     Apa ENAR
                   </label>
                   <input
@@ -370,7 +415,8 @@ export default function AnimalDetailPage() {
 
                 {animal.kplsz && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
+                      <span className="mr-2">📋</span>
                       KPLSZ szám
                     </label>
                     <input
