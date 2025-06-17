@@ -266,7 +266,7 @@ export default function AnimalDetailPage() {
     { id: 'esemenynaplo', name: '📊 Eseménynapló', icon: Activity }
   ];
 
-  return (
+return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
