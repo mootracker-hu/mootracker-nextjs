@@ -46,7 +46,7 @@ export default function DashboardPage() {
   description: 'Karámok és állatok áttekintése',
   href: '/dashboard/pens',
   icon: Home,
-  color: 'bg-orange-500 hover:bg-orange-600'  ← Narancs aktív!
+  color: 'bg-orange-500 hover:bg-orange-600'
 }
   ];
 
