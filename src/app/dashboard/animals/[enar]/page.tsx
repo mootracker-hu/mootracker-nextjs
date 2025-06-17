@@ -237,7 +237,6 @@ export default function AnimalDetailPage() {
         </div>
       </div>
     );
-  }
 
   if (error || !animal || !editedAnimal) {
     return (
