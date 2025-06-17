@@ -2,6 +2,67 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+// Hozzáadás a komponens tetejéhez (useState importok mellé):
+const [isEditing, setIsEditing] = useState(false);
+const [editedAnimal, setEditedAnimal] = useState(animal);
+
+// Kategória opciók definiálása
+const categoryOptions = [
+  { value: 'tehén', label: 'Tehén' },
+  { value: 'szűz_üsző', label: 'Szűz üsző' },
+  { value: 'vemhes_üsző', label: 'Vemhes üsző' },
+  { value: 'vemhesülés_alatt', label: 'Vemhesülés alatt' },
+  { value: 'csira_üsző', label: 'Csira üsző' },
+  { value: 'üres_üsző', label: 'Üres üsző' },
+  { value: 'hímivarú_borjú', label: 'Hímivarú borjú' },
+  { value: 'nőivarú_borjú', label: 'Nőivarú borjú' },
+  { value: 'hízóbika', label: 'Hízóbika' },
+  { value: 'tenyészbika', label: 'Tenyészbika' }
+];
+
+// Change handler függvény
+const handleCategoryChange = (newCategory: string) => {
+  setEditedAnimal(prev => ({
+    ...prev,
+    kategoria: newCategory
+  }));
+};
+
+// Mentés handler
+const handleSave = async () => {
+  try {
+    // Itt később Supabase UPDATE lesz
+    console.log('Mentés:', editedAnimal);
+    
+    // Mock mentés - localStorage update
+    const animals = JSON.parse(localStorage.getItem('mootracker_animals') || '[]');
+    const updatedAnimals = animals.map((a: any) => 
+      a.enar === animal.enar ? editedAnimal : a
+    );
+    localStorage.setItem('mootracker_animals', JSON.stringify(updatedAnimals));
+    
+    // State frissítés
+    setAnimal(editedAnimal);
+    setIsEditing(false);
+    
+    alert('Sikeresen mentve!');
+  } catch (error) {
+    console.error('Mentési hiba:', error);
+    alert('Mentési hiba történt!');
+  }
+};
+
+// Mégse handler
+const handleCancel = () => {
+  setEditedAnimal(animal); // Reset az eredeti állapotra
+  setIsEditing(false);
+};
+
+// Edit gomb handler frissítése
+const handleEditClick = () => {
+  setEditedAnimal(animal); // Jelenlegi állat adatok betöltése
+  setIsEditing(true);
+};
 
 // Mock adat - később ezt az adatbázisból töltjük
 const mockAnimalData: { [key: string]: any } = {
