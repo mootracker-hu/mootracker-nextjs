@@ -426,13 +426,14 @@ useEffect(() => {
               <div className="border-b border-gray-200">
                 <nav className="-mb-px flex space-x-8">
                   {[
-                    { id: 'details', name: 'Részletek', icon: '📋' },
-                    { id: 'health', name: 'Egészségügy', icon: '💊' },
-                    { id: 'weight', name: 'Súly fejlődés', icon: '📊' },
-                    { id: 'pens', name: 'Karám történet', icon: '🏠' },
-                    { id: 'tasks', name: 'Feladatok', icon: '⏰' },
-                    { id: 'photos', name: 'Fotók', icon: '📷' }
-                  ].map((tab) => (
+  { id: 'details', name: 'Részletek', icon: '📋' },
+  { id: 'alapadatok', name: 'Alapadatok', icon: '✏️' },
+  { id: 'szuletesi', name: 'Születési adatok', icon: '📅' },
+  { id: 'helyzet', name: 'Jelenlegi helyzet', icon: '📍' },
+  { id: 'csalad', name: 'Család', icon: '🐄💝🐂' },
+  { id: 'egeszseg', name: 'Egészség', icon: '💊' },
+  { id: 'esemenynaplo', name: 'Eseménynapló', icon: '📝' }
+].map((tab) => (
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
@@ -555,7 +556,7 @@ useEffect(() => {
                   <div className="border rounded-lg p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="text-sm font-medium text-gray-900">👨 Apa</h4>
+                        <h4 className="text-sm font-medium text-gray-900">🐂 Apa</h4>
                         <p className="text-sm text-gray-600">{animal.anya.enar}</p>
                         <p className="text-xs text-gray-500">{getCategoryDisplay(animal.anya.kategoria)}</p>
                       </div>
@@ -573,7 +574,7 @@ useEffect(() => {
                   <div className="border rounded-lg p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="text-sm font-medium text-gray-900">👨 Apa</h4>
+                        <h4 className="text-sm font-medium text-gray-900">🐂 Apa</h4>
                         <p className="text-sm text-gray-600">{animal.apa.enar}</p>
                         <p className="text-xs text-gray-500">{getCategoryDisplay(animal.apa.kategoria)}</p>
                       </div>
