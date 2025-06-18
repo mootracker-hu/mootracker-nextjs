@@ -4,13 +4,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { 
-  ArrowLeft, 
-  Edit, 
-  Calendar, 
-  MapPin, 
-  Users, 
-  Heart, 
+import {  
+  ArrowLeft,
+  Edit,
+  Calendar,
+  MapPin,
+  Users,
+  Heart,
   Activity,
   FileText,
   Save,
@@ -35,7 +35,7 @@ interface Animal {
 
 export default function AnimalDetailPage() {
   const router = useRouter();
-  
+
   const [animal, setAnimal] = useState<Animal | null>(null);
   const [editedAnimal, setEditedAnimal] = useState<Animal | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,18 +44,18 @@ export default function AnimalDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // 🔧 Manual URL parsing (working solution)
+  // Manual URL parsing (working solution)
   useEffect(() => {
     console.log('🔍 ENAR Extraction Starting...');
-    
+
     if (typeof window !== 'undefined') {
       try {
         const pathname = window.location.pathname;
         console.log('Current pathname:', pathname);
-        
+
         const pathParts = pathname.split('/');
         const lastPart = pathParts[pathParts.length - 1];
-        
+
         if (lastPart && lastPart !== 'undefined' && lastPart.length > 0) {
           const decodedEnar = decodeURIComponent(lastPart);
           console.log('✅ Decoded ENAR:', decodedEnar);
@@ -72,12 +72,12 @@ export default function AnimalDetailPage() {
     }
   }, []);
 
-  // 🐄 Fetch animal data
+  // Fetch animal data
   const fetchAnimal = async (enar: string) => {
     try {
       setLoading(true);
       setError(null);
-      
+
       console.log('🔍 Searching for animal with ENAR:', enar);
 
       const { data, error: supabaseError } = await supabase
@@ -112,13 +112,13 @@ export default function AnimalDetailPage() {
     }
   };
 
-  // 💾 Save changes
+  // Save changes
   const handleSave = async () => {
     if (!editedAnimal || !animal) return;
-    
+
     try {
       setSaving(true);
-      
+
       const { error } = await supabase
         .from('animals')
         .update({
@@ -149,7 +149,7 @@ export default function AnimalDetailPage() {
     }
   };
 
-  // 📝 Update field
+  // Update field
   const updateField = (field: keyof Animal, value: string) => {
     if (!editedAnimal) return;
     setEditedAnimal({
@@ -158,27 +158,27 @@ export default function AnimalDetailPage() {
     });
   };
 
-  // 📅 Calculate age
+  // Calculate age
   const calculateAge = (birthDate: string) => {
     const birth = new Date(birthDate);
     const now = new Date();
     const diffMs = now.getTime() - birth.getTime();
     const years = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 365.25));
     const months = Math.floor((diffMs % (1000 * 60 * 60 * 24 * 365.25)) / (1000 * 60 * 60 * 24 * 30.44));
-    
+
     if (years > 0) {
       return `${years} év ${months} hó`;
     }
     return `${months} hónap`;
   };
 
-  // 🏷️ Get short ID
+  // Get short ID
   const getShortId = (enar: string) => {
     const numbers = enar.replace(/\D/g, '');
     return numbers.slice(-5);
   };
 
-  // 🎨 Category colors
+  // Category colors
   const getCategoryColor = (category: string) => {
     const colors = {
       'tehén': 'bg-green-100 text-green-800 border-green-200',
@@ -192,7 +192,7 @@ export default function AnimalDetailPage() {
     return colors[category as keyof typeof colors] || 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
-  // 📊 Dropdown options
+  // Dropdown options
   const categoryOptions = [
     { value: 'tehén', label: 'Tehén' },
     { value: 'szűz_üsző', label: 'Szűz üsző' },
@@ -237,6 +237,7 @@ export default function AnimalDetailPage() {
         </div>
       </div>
     );
+  }
 
   if (error || !animal || !editedAnimal) {
     return (
@@ -254,17 +255,18 @@ export default function AnimalDetailPage() {
         </div>
       </div>
     );
+  }
 
   const tabs = [
-    { id: 'reszletek', name: '📋 Részletek', icon: FileText },
-    { id: 'szuletesi', name: '📅 Születési adatok', icon: Calendar },
-    { id: 'helyzet', name: '📍 Jelenlegi helyzet', icon: MapPin },
-    { id: 'csalad', name: '🐄💕🐂 Család', icon: Users },
-    { id: 'egeszseg', name: '❤️ Egészség', icon: Heart },
-    { id: 'esemenynaplo', name: '📊 Eseménynapló', icon: Activity }
+    { id: 'reszletek', name: '📋 Részletek', icon: null },
+    { id: 'szuletesi', name: '📅 Születési adatok', icon: null },
+    { id: 'helyzet', name: '📍 Jelenlegi helyzet', icon: null },
+    { id: 'csalad', name: '🐄💕🐂 Család', icon: null },
+    { id: 'egeszseg', name: '❤️ Egészség', icon: null },
+    { id: 'esemenynaplo', name: '📊 Eseménynapló', icon: null }
   ];
 
-    return (
+  return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
@@ -286,7 +288,7 @@ export default function AnimalDetailPage() {
                 </p>
               </div>
             </div>
-            
+
             <div className="flex space-x-3">
               {isEditing && (
                 <button
@@ -335,14 +337,13 @@ export default function AnimalDetailPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                <span className={`flex items-center px-3 py-4 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
-                  activeTab === tab.id
+                className={`flex items-center px-3 py-4 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${activeTab === tab.id
                     ? 'border-green-500 text-green-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}>
-                  <tab.icon className="h-4 w-4 mr-2" />
-                  {tab.name}
-                </span>
+                  }`}
+              >
+                {tab.icon && (tab.icon as any)({ className: "h-4 w-4 mr-2" })}
+                {tab.name}
               </button>
             ))}
           </div>
@@ -351,7 +352,7 @@ export default function AnimalDetailPage() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* 📋 Részletek Tab */}
+        {/* Részletek Tab */}
         {activeTab === 'reszletek' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Alapadatok Kártya */}
@@ -360,7 +361,7 @@ export default function AnimalDetailPage() {
                 <FileText className="h-5 w-5 mr-2 text-green-600" />
                 Alapadatok
               </h3>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -419,9 +420,8 @@ export default function AnimalDetailPage() {
                       ))}
                     </select>
                   ) : (
-                    <div className="flex items-center">
-                      <span className="mr-2">{animal.ivar === 'nő' ? '♀️' : '♂️'}</span>
-                      <span>{animal.ivar}</span>
+                    <div className="text-xl">
+                      {animal.ivar === 'nő' ? '♀️' : '♂️'}
                     </div>
                   )}
                 </div>
@@ -446,7 +446,7 @@ export default function AnimalDetailPage() {
                 <Activity className="h-5 w-5 mr-2 text-blue-600" />
                 Jelenlegi állapot
               </h3>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -465,12 +465,11 @@ export default function AnimalDetailPage() {
                       ))}
                     </select>
                   ) : (
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                      animal.statusz === 'aktív' ? 'bg-green-100 text-green-800' :
-                      animal.statusz === 'eladott' ? 'bg-blue-100 text-blue-800' :
-                      animal.statusz === 'elhullott' ? 'bg-red-100 text-red-800' :
-                      'bg-yellow-100 text-yellow-800'
-                    }`}>
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${animal.statusz === 'aktív' ? 'bg-green-100 text-green-800' :
+                        animal.statusz === 'eladott' ? 'bg-blue-100 text-blue-800' :
+                          animal.statusz === 'elhullott' ? 'bg-red-100 text-red-800' :
+                            'bg-yellow-100 text-yellow-800'
+                      }`}>
                       {statusOptions.find(opt => opt.value === animal.statusz)?.label || animal.statusz}
                     </span>
                   )}
@@ -528,14 +527,14 @@ export default function AnimalDetailPage() {
           </div>
         )}
 
-        {/* 📅 Születési adatok Tab */}
+        {/* Születési adatok Tab */}
         {activeTab === 'szuletesi' && (
           <div className="bg-white rounded-lg shadow-sm p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
               <Calendar className="h-5 w-5 mr-2 text-blue-600" />
               Születési adatok
             </h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -583,7 +582,7 @@ export default function AnimalDetailPage() {
               <span className="mr-2">🐄💕🐂</span>
               Szülők és családfa
             </h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="flex items-center text-sm font-medium text-gray-700 mb-2">

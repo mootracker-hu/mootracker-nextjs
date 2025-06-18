@@ -38,7 +38,7 @@ export default function AnimalsPage() {
   const [filteredAnimals, setFilteredAnimals] = useState<Animal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Szűrő és keresés state-ek
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -85,7 +85,7 @@ export default function AnimalsPage() {
     // Keresés (ENAR, rövid azonosító)
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(animal => 
+      filtered = filtered.filter(animal =>
         animal.enar.toLowerCase().includes(term) ||
         getShortId(animal.enar).includes(term)
       );
@@ -122,7 +122,7 @@ export default function AnimalsPage() {
     const diffMs = now.getTime() - birth.getTime();
     const years = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 365.25));
     const months = Math.floor((diffMs % (1000 * 60 * 60 * 24 * 365.25)) / (1000 * 60 * 60 * 24 * 30.44));
-    
+
     if (years > 0) {
       return `${years} év ${months > 0 ? months + ' hó' : ''}`;
     }
@@ -193,7 +193,7 @@ export default function AnimalsPage() {
                 Összesen {animals.length} állat ({filteredAnimals.length} megjelenítve)
               </p>
             </div>
-            
+
             <div className="flex items-center space-x-3">
               <Link
                 href="/dashboard/import-export"
@@ -202,7 +202,7 @@ export default function AnimalsPage() {
                 <Upload className="h-4 w-4 mr-1" />
                 Importálás
               </Link>
-              
+
               <Link
                 href="/dashboard/animals/new"
                 className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
@@ -279,7 +279,7 @@ export default function AnimalsPage() {
               {animals.length === 0 ? 'Nincsenek állatok' : 'Nincs találat'}
             </h3>
             <p className="text-gray-500 mb-6">
-              {animals.length === 0 
+              {animals.length === 0
                 ? 'Kezdj egy Excel importálással!'
                 : 'Próbáld meg módosítani a keresési feltételeket.'
               }
@@ -360,11 +360,9 @@ export default function AnimalsPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          animal.ivar === 'nő' ? 'bg-pink-100 text-pink-800' : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {animal.ivar === 'nő' ? '♀' : '♂'} {animal.ivar}
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <span className="text-xl">
+                          {animal.ivar === 'nő' ? '♀️' : '♂️'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -376,9 +374,8 @@ export default function AnimalsPage() {
                         {animal.jelenlegi_karam || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          animal.statusz === 'aktív' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                        }`}>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${animal.statusz === 'aktív' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                          }`}>
                           {animal.statusz}
                         </span>
                       </td>
