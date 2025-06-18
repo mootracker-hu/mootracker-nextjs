@@ -31,6 +31,7 @@ interface Animal {
   kplsz?: string;
   bekerules_datum: string;
   created_at: string;
+  birth_location?: 'nálunk' | 'vásárolt' | 'ismeretlen';
 }
 
 export default function AnimalDetailPage() {
@@ -73,95 +74,95 @@ export default function AnimalDetailPage() {
   }, []);
 
   // Fetch animal data - FIXED VERSION
-const fetchAnimal = async (enar: string) => {
-  try {
-    setLoading(true);
-    setError(null);
+  const fetchAnimal = async (enar: string) => {
+    try {
+      setLoading(true);
+      setError(null);
 
-    console.log('🔍 Searching for animal with ENAR:', enar);
+      console.log('🔍 Searching for animal with ENAR:', enar);
 
-    const { data, error: supabaseError } = await supabase
-      .from('animals')
-      .select('*')
-      .eq('enar', enar)
-      .single();
+      const { data, error: supabaseError } = await supabase
+        .from('animals')
+        .select('*')
+        .eq('enar', enar)
+        .single();
 
-    if (supabaseError) {
-      console.error('❌ Supabase error:', supabaseError);
-      if (supabaseError.code === 'PGRST116') {
-        setError(`Állat nem található: ${enar}`);
-      } else {
-        setError(`Adatbázis hiba: ${supabaseError.message}`);
+      if (supabaseError) {
+        console.error('❌ Supabase error:', supabaseError);
+        if (supabaseError.code === 'PGRST116') {
+          setError(`Állat nem található: ${enar}`);
+        } else {
+          setError(`Adatbázis hiba: ${supabaseError.message}`);
+        }
+        return;
       }
-      return;
-    }
 
-    if (!data) {
-      setError(`Nincs állat ezzel az ENAR-ral: ${enar}`);
-      return;
-    }
+      if (!data) {
+        setError(`Nincs állat ezzel az ENAR-ral: ${enar}`);
+        return;
+      }
 
-    console.log('✅ Animal loaded successfully:', data);
-    
-    // 🔧 FIX: Csak akkor frissítjük az animal state-et, ha nincs szerkesztés folyamatban
-    if (!isEditing) {
-      setAnimal(data);
-      setEditedAnimal(data);
-    } else {
-      // Ha szerkesztés folyamatban, csak az original animal-t frissítjük
-      setAnimal(data);
-      console.log('🔒 Editing in progress - preserving edited state');
+      console.log('✅ Animal loaded successfully:', data);
+
+      // 🔧 FIX: Csak akkor frissítjük az animal state-et, ha nincs szerkesztés folyamatban
+      if (!isEditing) {
+        setAnimal(data);
+        setEditedAnimal(data);
+      } else {
+        // Ha szerkesztés folyamatban, csak az original animal-t frissítjük
+        setAnimal(data);
+        console.log('🔒 Editing in progress - preserving edited state');
+      }
+    } catch (err) {
+      console.error('❌ Fetch error:', err);
+      setError('Hiba történt az adatok betöltése során');
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error('❌ Fetch error:', err);
-    setError('Hiba történt az adatok betöltése során');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // Save changes - CLEAN VERSION (no debug logs)
-const handleSave = async () => {
-  if (!editedAnimal || !animal) return;
+  const handleSave = async () => {
+    if (!editedAnimal || !animal) return;
 
-  try {
-    setSaving(true);
+    try {
+      setSaving(true);
 
-    const { error } = await supabase
-      .from('animals')
-      .update({
-        kategoria: editedAnimal.kategoria,
-        ivar: editedAnimal.ivar,
-        statusz: editedAnimal.statusz,
-        jelenlegi_karam: editedAnimal.jelenlegi_karam,
-        anya_enar: editedAnimal.anya_enar,
-        apa_enar: editedAnimal.apa_enar,
-        kplsz: editedAnimal.kplsz,
-        szuletesi_datum: editedAnimal.szuletesi_datum,
-        bekerules_datum: editedAnimal.bekerules_datum
-      })
-      .eq('enar', animal.enar);
+      const { error } = await supabase
+        .from('animals')
+        .update({
+          kategoria: editedAnimal.kategoria,
+          ivar: editedAnimal.ivar,
+          statusz: editedAnimal.statusz,
+          jelenlegi_karam: editedAnimal.jelenlegi_karam,
+          anya_enar: editedAnimal.anya_enar,
+          apa_enar: editedAnimal.apa_enar,
+          kplsz: editedAnimal.kplsz,
+          szuletesi_datum: editedAnimal.szuletesi_datum,
+          bekerules_datum: editedAnimal.bekerules_datum
+        })
+        .eq('enar', animal.enar);
 
-    if (error) {
-      console.error('Save error:', error);
-      alert('Hiba a mentés során: ' + error.message);
-      return;
+      if (error) {
+        console.error('Save error:', error);
+        alert('Hiba a mentés során: ' + error.message);
+        return;
+      }
+
+      // ✅ State update
+      setAnimal(editedAnimal);
+      setIsEditing(false);
+
+      // 🔧 Force refresh prevention
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+    } catch (err) {
+      console.error('Save error:', err);
+      alert('Hiba történt a mentés során');
+    } finally {
+      setSaving(false);
     }
-
-    // ✅ State update
-    setAnimal(editedAnimal);
-    setIsEditing(false);
-    
-    // 🔧 Force refresh prevention
-    await new Promise(resolve => setTimeout(resolve, 50));
-    
-  } catch (err) {
-    console.error('Save error:', err);
-    alert('Hiba történt a mentés során');
-  } finally {
-    setSaving(false);
-  }
-};
+  };
 
   // Update field
   const updateField = (field: keyof Animal, value: string) => {
@@ -536,69 +537,92 @@ const handleSave = async () => {
                     className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-500"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Származás
+                  </label>
+                  {isEditing ? (
+                    <select
+                      value={editedAnimal?.birth_location || 'ismeretlen'}
+                       onChange={() => {}}
+                      className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    >
+                      <option value="nálunk">🏠 Nálunk született</option>
+                      <option value="vásárolt">🛒 Vásárolt</option>
+                      <option value="ismeretlen">❓ Ismeretlen</option>
+                    </select>
+                  ) : (
+                    <div className={`inline-flex items-center px-3 py-2 rounded-md text-sm font-medium ${animal?.birth_location === 'nálunk'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-blue-100 text-blue-800'
+                      }`}>
+                      {animal?.birth_location === 'nálunk' ? '🏠 Nálunk született' : '🛒 Vásárolt'}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         )}
 
         {/* NUKLEÁRIS FIX - Születési adatok Tab - TELJES ÚJRAÍRÁS */}
-{activeTab === 'szuletesi' && (
-  <div className="bg-white rounded-lg shadow-sm p-6">
-    <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
-      <Calendar className="h-5 w-5 mr-2 text-blue-600" />
-      Születési adatok
-    </h3>
+        {activeTab === 'szuletesi' && (
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+              <Calendar className="h-5 w-5 mr-2 text-blue-600" />
+              Születési adatok
+            </h3>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Születési dátum
-        </label>
-        <input
-          type="date"
-          value={isEditing ? (editedAnimal?.szuletesi_datum || '') : (animal?.szuletesi_datum || '')}
-          onChange={(e) => {
-            if (!isEditing || !editedAnimal) return;
-            const newValue = e.target.value;
-            setEditedAnimal(prev => prev ? {...prev, szuletesi_datum: newValue} : null);
-          }}
-          disabled={!isEditing}
-          className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-        />
-      </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Születési dátum
+                </label>
+                <input
+                  type="date"
+                  value={isEditing ? (editedAnimal?.szuletesi_datum || '') : (animal?.szuletesi_datum || '')}
+                  onChange={(e) => {
+                    if (!isEditing || !editedAnimal) return;
+                    const newValue = e.target.value;
+                    setEditedAnimal(prev => prev ? { ...prev, szuletesi_datum: newValue } : null);
+                  }}
+                  disabled={!isEditing}
+                  className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                />
+              </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Bekerülés dátuma
-        </label>
-        <input
-          type="date"
-          value={isEditing ? (editedAnimal?.bekerules_datum || '') : (animal?.bekerules_datum || '')}
-          onChange={(e) => {
-            if (!isEditing || !editedAnimal) return;
-            const newValue = e.target.value;
-            setEditedAnimal(prev => prev ? {...prev, bekerules_datum: newValue} : null);
-          }}
-          disabled={!isEditing}
-          className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-        />
-      </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Bekerülés dátuma
+                </label>
+                <input
+                  type="date"
+                  value={isEditing ? (editedAnimal?.bekerules_datum || '') : (animal?.bekerules_datum || '')}
+                  onChange={(e) => {
+                    if (!isEditing || !editedAnimal) return;
+                    const newValue = e.target.value;
+                    setEditedAnimal(prev => prev ? { ...prev, bekerules_datum: newValue } : null);
+                  }}
+                  disabled={!isEditing}
+                  className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                />
+              </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Életkor
-        </label>
-        <input
-          type="text"
-          value={calculateAge(animal?.szuletesi_datum)}
-          disabled
-          className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-500"
-        />
-      </div>
-    </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Életkor
+                </label>
+                <input
+                  type="text"
+                  value={calculateAge(animal?.szuletesi_datum)}
+                  disabled
+                  className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-500"
+                />
+              </div>
+            </div>
 
-      </div>
-)}
+          </div>
+        )}
 
         {/* Család Tab */}
         {activeTab === 'csalad' && (
