@@ -415,7 +415,7 @@ export default function AnimalsPage() {
                           href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`}
                           className="text-green-600 hover:text-green-900 transition-colors"
                         >
-                          Megtekintés
+                          🔍 Megtekintés
                         </Link>
                       </td>
                     </tr>
