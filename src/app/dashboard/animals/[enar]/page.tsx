@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import {  
+import {
   ArrowLeft,
   Edit,
   Calendar,
@@ -72,82 +72,96 @@ export default function AnimalDetailPage() {
     }
   }, []);
 
-  // Fetch animal data
-  const fetchAnimal = async (enar: string) => {
-    try {
-      setLoading(true);
-      setError(null);
+  // Fetch animal data - FIXED VERSION
+const fetchAnimal = async (enar: string) => {
+  try {
+    setLoading(true);
+    setError(null);
 
-      console.log('🔍 Searching for animal with ENAR:', enar);
+    console.log('🔍 Searching for animal with ENAR:', enar);
 
-      const { data, error: supabaseError } = await supabase
-        .from('animals')
-        .select('*')
-        .eq('enar', enar)
-        .single();
+    const { data, error: supabaseError } = await supabase
+      .from('animals')
+      .select('*')
+      .eq('enar', enar)
+      .single();
 
-      if (supabaseError) {
-        console.error('❌ Supabase error:', supabaseError);
-        if (supabaseError.code === 'PGRST116') {
-          setError(`Állat nem található: ${enar}`);
-        } else {
-          setError(`Adatbázis hiba: ${supabaseError.message}`);
-        }
-        return;
+    if (supabaseError) {
+      console.error('❌ Supabase error:', supabaseError);
+      if (supabaseError.code === 'PGRST116') {
+        setError(`Állat nem található: ${enar}`);
+      } else {
+        setError(`Adatbázis hiba: ${supabaseError.message}`);
       }
+      return;
+    }
 
-      if (!data) {
-        setError(`Nincs állat ezzel az ENAR-ral: ${enar}`);
-        return;
-      }
+    if (!data) {
+      setError(`Nincs állat ezzel az ENAR-ral: ${enar}`);
+      return;
+    }
 
-      console.log('✅ Animal loaded successfully:', data);
+    console.log('✅ Animal loaded successfully:', data);
+    
+    // 🔧 FIX: Csak akkor frissítjük az animal state-et, ha nincs szerkesztés folyamatban
+    if (!isEditing) {
       setAnimal(data);
       setEditedAnimal(data);
-    } catch (err) {
-      console.error('❌ Fetch error:', err);
-      setError('Hiba történt az adatok betöltése során');
-    } finally {
-      setLoading(false);
+    } else {
+      // Ha szerkesztés folyamatban, csak az original animal-t frissítjük
+      setAnimal(data);
+      console.log('🔒 Editing in progress - preserving edited state');
     }
-  };
+  } catch (err) {
+    console.error('❌ Fetch error:', err);
+    setError('Hiba történt az adatok betöltése során');
+  } finally {
+    setLoading(false);
+  }
+};
 
-  // Save changes
-  const handleSave = async () => {
-    if (!editedAnimal || !animal) return;
+  // Save changes - CLEAN VERSION (no debug logs)
+const handleSave = async () => {
+  if (!editedAnimal || !animal) return;
 
-    try {
-      setSaving(true);
+  try {
+    setSaving(true);
 
-      const { error } = await supabase
-        .from('animals')
-        .update({
-          kategoria: editedAnimal.kategoria,
-          ivar: editedAnimal.ivar,
-          statusz: editedAnimal.statusz,
-          jelenlegi_karam: editedAnimal.jelenlegi_karam,
-          anya_enar: editedAnimal.anya_enar,
-          apa_enar: editedAnimal.apa_enar,
-          kplsz: editedAnimal.kplsz
-        })
-        .eq('enar', animal.enar);
+    const { error } = await supabase
+      .from('animals')
+      .update({
+        kategoria: editedAnimal.kategoria,
+        ivar: editedAnimal.ivar,
+        statusz: editedAnimal.statusz,
+        jelenlegi_karam: editedAnimal.jelenlegi_karam,
+        anya_enar: editedAnimal.anya_enar,
+        apa_enar: editedAnimal.apa_enar,
+        kplsz: editedAnimal.kplsz,
+        szuletesi_datum: editedAnimal.szuletesi_datum,
+        bekerules_datum: editedAnimal.bekerules_datum
+      })
+      .eq('enar', animal.enar);
 
-      if (error) {
-        console.error('Save error:', error);
-        alert('Hiba a mentés során: ' + error.message);
-        return;
-      }
-
-      setAnimal(editedAnimal);
-      setIsEditing(false);
-      console.log('✅ Changes saved successfully');
-    } catch (err) {
-      console.error('Save error:', err);
-      alert('Hiba történt a mentés során');
-    } finally {
-      setSaving(false);
+    if (error) {
+      console.error('Save error:', error);
+      alert('Hiba a mentés során: ' + error.message);
+      return;
     }
-  };
+
+    // ✅ State update
+    setAnimal(editedAnimal);
+    setIsEditing(false);
+    
+    // 🔧 Force refresh prevention
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+  } catch (err) {
+    console.error('Save error:', err);
+    alert('Hiba történt a mentés során');
+  } finally {
+    setSaving(false);
+  }
+};
 
   // Update field
   const updateField = (field: keyof Animal, value: string) => {
@@ -338,8 +352,8 @@ export default function AnimalDetailPage() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center px-3 py-4 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${activeTab === tab.id
-                    ? 'border-green-500 text-green-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-green-500 text-green-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
               >
                 {tab.icon && (tab.icon as any)({ className: "h-4 w-4 mr-2" })}
@@ -466,9 +480,9 @@ export default function AnimalDetailPage() {
                     </select>
                   ) : (
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${animal.statusz === 'aktív' ? 'bg-green-100 text-green-800' :
-                        animal.statusz === 'eladott' ? 'bg-blue-100 text-blue-800' :
-                          animal.statusz === 'elhullott' ? 'bg-red-100 text-red-800' :
-                            'bg-yellow-100 text-yellow-800'
+                      animal.statusz === 'eladott' ? 'bg-blue-100 text-blue-800' :
+                        animal.statusz === 'elhullott' ? 'bg-red-100 text-red-800' :
+                          'bg-yellow-100 text-yellow-800'
                       }`}>
                       {statusOptions.find(opt => opt.value === animal.statusz)?.label || animal.statusz}
                     </span>
@@ -527,53 +541,64 @@ export default function AnimalDetailPage() {
           </div>
         )}
 
-        {/* Születési adatok Tab */}
-        {activeTab === 'szuletesi' && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
-              <Calendar className="h-5 w-5 mr-2 text-blue-600" />
-              Születési adatok
-            </h3>
+        {/* NUKLEÁRIS FIX - Születési adatok Tab - TELJES ÚJRAÍRÁS */}
+{activeTab === 'szuletesi' && (
+  <div className="bg-white rounded-lg shadow-sm p-6">
+    <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+      <Calendar className="h-5 w-5 mr-2 text-blue-600" />
+      Születési adatok
+    </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Születési dátum
-                </label>
-                <input
-                  type="date"
-                  value={animal.szuletesi_datum}
-                  disabled={!isEditing}
-                  className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                />
-              </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Születési dátum
+        </label>
+        <input
+          type="date"
+          value={isEditing ? (editedAnimal?.szuletesi_datum || '') : (animal?.szuletesi_datum || '')}
+          onChange={(e) => {
+            if (!isEditing || !editedAnimal) return;
+            const newValue = e.target.value;
+            setEditedAnimal(prev => prev ? {...prev, szuletesi_datum: newValue} : null);
+          }}
+          disabled={!isEditing}
+          className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+        />
+      </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Bekerülés dátuma
-                </label>
-                <input
-                  type="date"
-                  value={animal.bekerules_datum}
-                  disabled={!isEditing}
-                  className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                />
-              </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Bekerülés dátuma
+        </label>
+        <input
+          type="date"
+          value={isEditing ? (editedAnimal?.bekerules_datum || '') : (animal?.bekerules_datum || '')}
+          onChange={(e) => {
+            if (!isEditing || !editedAnimal) return;
+            const newValue = e.target.value;
+            setEditedAnimal(prev => prev ? {...prev, bekerules_datum: newValue} : null);
+          }}
+          disabled={!isEditing}
+          className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+        />
+      </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Életkor
-                </label>
-                <input
-                  type="text"
-                  value={calculateAge(animal.szuletesi_datum)}
-                  disabled
-                  className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-500"
-                />
-              </div>
-            </div>
-          </div>
-        )}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Életkor
+        </label>
+        <input
+          type="text"
+          value={calculateAge(animal?.szuletesi_datum)}
+          disabled
+          className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-500"
+        />
+      </div>
+    </div>
+
+      </div>
+)}
 
         {/* Család Tab */}
         {activeTab === 'csalad' && (
