@@ -30,6 +30,7 @@ interface Animal {
   kplsz?: string;
   bekerules_datum: string;
   created_at: string;
+  birth_location?: 'nálunk' | 'vásárolt' | 'ismeretlen';
 }
 
 export default function AnimalsPage() {
@@ -44,6 +45,7 @@ export default function AnimalsPage() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [penFilter, setPenFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [selectedBirthLocation, setSelectedBirthLocation] = useState('');
 
   // Adatok betöltése Supabase-ből
   useEffect(() => {
@@ -106,8 +108,21 @@ export default function AnimalsPage() {
       filtered = filtered.filter(animal => animal.statusz === statusFilter);
     }
 
+    // Származás szűrés
+    if (selectedBirthLocation) {
+      console.log('🔍 DEBUG - Filtering by:', selectedBirthLocation);
+      filtered = filtered.filter((animal, index) => {
+        const birthLocation = (animal as any).birth_location;
+        if (index < 3) { // Első 3 állat debug
+          console.log(`Animal ${index}:`, animal.enar, 'birth_location:', birthLocation);
+        }
+        return birthLocation === selectedBirthLocation;
+      });
+      console.log('🔍 DEBUG - Filtered results:', filtered.length);
+    }
+
     setFilteredAnimals(filtered);
-  }, [animals, searchTerm, categoryFilter, penFilter, statusFilter]);
+}, [animals, searchTerm, categoryFilter, penFilter, statusFilter, selectedBirthLocation]); //
 
   // Rövid ENAR azonosító (utolsó 5 szám)
   const getShortId = (enar: string): string => {
@@ -265,6 +280,23 @@ export default function AnimalsPage() {
               {uniqueStatuses.map(status => (
                 <option key={status} value={status}>{status}</option>
               ))}
+            </select>
+
+            {/* Származás szűrés */}
+            <select
+              value={selectedBirthLocation}
+              onChange={(e) => {
+                console.log('🔍 DROPDOWN CHANGE - new value:', e.target.value);
+                const newValue = e.target.value;
+                setSelectedBirthLocation(newValue);
+                console.log('🔍 STATE SET TO:', newValue);
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            >
+              <option value="">Összes származás</option>
+              <option value="nálunk">🏠 Nálunk született</option>
+              <option value="vásárolt">🛒 Vásárolt</option>
+              <option value="ismeretlen">❓ Ismeretlen</option>
             </select>
           </div>
         </div>
