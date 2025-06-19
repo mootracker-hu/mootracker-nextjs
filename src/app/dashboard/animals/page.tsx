@@ -39,6 +39,21 @@ export default function AnimalsPage() {
   const [filteredAnimals, setFilteredAnimals] = useState<Animal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const getCategoryEmoji = (kategoria: string): string => {
+  const emojiMap: { [key: string]: string } = {
+    'nőivarú_borjú': '🐮',
+    'szűz_üsző': '🐄',
+    'háremben_lévő_üsző': '🐄💕',
+    'vemhes_üsző': '🐄💖',
+    'üres_üsző': '🐄🚫',
+    'csíra': '🐄⚠️',
+    'tehén': '🐄🍼',
+    'hímivarú_borjú': '🐂',
+    'hízóbika': '🐂',
+    'tenyészbika': '🐂'
+  };
+  return emojiMap[kategoria] || '';
+};
 
   // Szűrő és keresés state-ek
   const [searchTerm, setSearchTerm] = useState('');
@@ -354,6 +369,11 @@ export default function AnimalsPage() {
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       <div className="flex items-center space-x-1">
+                        <span>Származás</span>
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <div className="flex items-center space-x-1">
                         <MapPin className="h-4 w-4" />
                         <span>Jelenlegi Karám</span>
                       </div>
@@ -400,8 +420,19 @@ export default function AnimalsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(animal.kategoria)}`}>
+                          <span className="mr-1">{getCategoryEmoji(animal.kategoria)}</span>
                           {animal.kategoria}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        <div className="flex items-center space-x-1">
+                          <span className="text-base">
+                            {animal.birth_location === 'nálunk' ? '🏠' : '🛒'}
+                          </span>
+                          <span>
+                            {animal.birth_location === 'nálunk' ? 'Nálunk' : 'Vásárolt'}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {animal.jelenlegi_karam || '-'}
