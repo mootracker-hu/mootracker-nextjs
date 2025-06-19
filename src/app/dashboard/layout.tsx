@@ -65,11 +65,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     router.push(item.href);
                     setSidebarOpen(false);
                   }}
-                  className={`w-full text-left group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
-                    isActive(item.href)
-                      ? 'bg-green-100 text-green-900'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
+                  className={`w-full text-left group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${isActive(item.href)
+                    ? 'bg-green-100 text-green-900'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
                 >
                   <span className="mr-3 text-lg">{item.icon}</span>
                   {item.name}
@@ -81,7 +80,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       {/* Desktop sidebar */}
-      <div className="hidden lg:flex lg:flex-shrink-0">
+            <div className={`${sidebarOpen ? 'lg:flex' : 'lg:hidden'} hidden lg:flex-shrink-0 transition-all duration-300`}>
         <div className="flex flex-col w-64">
           <div className="flex flex-col h-0 flex-1 bg-white border-r border-gray-200">
             <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
@@ -96,11 +95,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   <button
                     key={item.name}
                     onClick={() => router.push(item.href)}
-                    className={`w-full text-left group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
-                      isActive(item.href)
-                        ? 'bg-green-100 text-green-900'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
+                    className={`w-full text-left group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${isActive(item.href)
+                      ? 'bg-green-100 text-green-900'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      }`}
                   >
                     <span className="mr-3 text-lg">{item.icon}</span>
                     {item.name}
@@ -113,34 +111,42 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       {/* Main content */}
-      <div className="flex flex-col w-0 flex-1 overflow-hidden">
+      <div className={`flex flex-col w-0 flex-1 overflow-hidden transition-all duration-300 ${sidebarOpen ? '' : 'lg:ml-0'}`}>
         {/* Top bar */}
         <div className="relative z-10 flex-shrink-0 flex h-16 bg-white shadow-sm border-b border-gray-200">
           <button
-            className="px-4 border-r border-gray-200 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-green-500 lg:hidden"
-            onClick={() => setSidebarOpen(true)}
+            className="px-4 border-r border-gray-200 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-green-500"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
           >
             <span className="sr-only">Open sidebar</span>
             <span className="text-xl">☰</span>
           </button>
           <div className="flex-1 px-4 flex justify-between items-center">
-            <div className="flex-1">
+            <div className="flex-1 flex items-center space-x-4">
+              {/* Logo */}
+              <div className="flex items-center">
+                <div className="bg-green-600 p-1.5 rounded-lg mr-2">
+                  <span className="text-white text-lg">🐄</span>
+                </div>
+                <h1 className="text-lg font-bold text-gray-900 hidden sm:block">MooTracker</h1>
+              </div>
+              
               {/* Breadcrumb navigation */}
               <nav className="flex" aria-label="Breadcrumb">
-                <ol className="flex items-center space-x-4">
+                <ol className="flex items-center space-x-2 text-sm">
                   <li>
                     <button
                       onClick={() => router.push('/dashboard')}
-                      className="text-gray-400 hover:text-gray-500"
+                      className="text-gray-500 hover:text-gray-700"
                     >
-                      🏠 Dashboard
+                      Dashboard
                     </button>
                   </li>
                   {pathname !== '/dashboard' && (
                     <>
                       <span className="text-gray-400">/</span>
-                      <li className="text-sm">
-                        <span className="text-gray-500 font-medium">
+                      <li>
+                        <span className="text-gray-900 font-medium">
                           {navigation.find(item => pathname.startsWith(item.href) && item.href !== '/dashboard')?.name || 'Oldal'}
                         </span>
                       </li>
