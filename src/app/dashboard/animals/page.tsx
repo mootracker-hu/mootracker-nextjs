@@ -161,6 +161,7 @@ export default function AnimalsPage() {
 
   // Egyedi értékek lekérése szűréshez
   const uniqueCategories = [...new Set(animals.map(a => a.kategoria))].filter(Boolean);
+  console.log('🐂 Unique categories:', uniqueCategories); // ← ÚJ DEBUG SOR!
   const uniquePens = [...new Set(animals.map(a => a.jelenlegi_karam))].filter(Boolean);
   const uniqueStatuses = [...new Set(animals.map(a => a.statusz))].filter(Boolean);
 
