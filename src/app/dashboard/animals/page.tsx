@@ -255,6 +255,51 @@ export default function AnimalsPage() {
         </div>
       </div>
 
+      {/* Statisztika Widget - külön szekció */}
+      <div className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex flex-wrap gap-3 text-sm">
+            <div className="flex items-center bg-blue-50 px-3 py-1 rounded-full">
+              <span className="text-blue-700 font-medium">📊 Összesen: {animals.length} állat</span>
+            </div>
+
+            {/* Nőivarok */}
+            <div className="flex items-center bg-pink-50 px-3 py-1 rounded-full">
+              <span className="text-pink-700 font-medium">🐮 {animals.filter(a => a.kategoria === 'nőivarú_borjú').length} nőivarú borjú</span>
+            </div>
+            <div className="flex items-center bg-purple-50 px-3 py-1 rounded-full">
+              <span className="text-purple-700 font-medium">🐄 {animals.filter(a => a.kategoria === 'szűz_üsző').length} szűz üsző</span>
+            </div>
+            <div className="flex items-center bg-red-50 px-3 py-1 rounded-full">
+              <span className="text-red-700 font-medium">🐄💕 {animals.filter(a => a.kategoria === 'háremben_lévő_üsző').length} háremben</span>
+            </div>
+            <div className="flex items-center bg-green-50 px-3 py-1 rounded-full">
+              <span className="text-green-700 font-medium">🐄💖 {animals.filter(a => a.kategoria === 'vemhes_üsző').length} vemhes üsző</span>
+            </div>
+            <div className="flex items-center bg-yellow-50 px-3 py-1 rounded-full">
+              <span className="text-yellow-700 font-medium">🐄🚫 {animals.filter(a => a.kategoria === 'üres_üsző').length} üres üsző</span>
+            </div>
+            <div className="flex items-center bg-gray-50 px-3 py-1 rounded-full">
+              <span className="text-gray-700 font-medium">🐄⚠️ {animals.filter(a => a.kategoria === 'csíra').length} csíra</span>
+            </div>
+            <div className="flex items-center bg-green-50 px-3 py-1 rounded-full">
+              <span className="text-green-700 font-medium">🐄🍼 {animals.filter(a => a.kategoria === 'tehén').length} tehén</span>
+            </div>
+
+            {/* Hímivarok */}
+            <div className="flex items-center bg-blue-50 px-3 py-1 rounded-full">
+              <span className="text-blue-700 font-medium">🐂 {animals.filter(a => a.kategoria === 'hímivarú_borjú').length} hímivarú borjú</span>
+            </div>
+            <div className="flex items-center bg-orange-50 px-3 py-1 rounded-full">
+              <span className="text-orange-700 font-medium">🐂 {animals.filter(a => a.kategoria === 'hízóbika').length} hízóbika</span>
+            </div>
+            <div className="flex items-center bg-red-50 px-3 py-1 rounded-full">
+              <span className="text-red-700 font-medium">🐂 {animals.filter(a => a.kategoria === 'tenyészbika').length} tenyészbika</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Filters */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -496,7 +541,7 @@ export default function AnimalsPage() {
                 </tbody>
               </table>
             </div>
-            
+
             {/* Pagination Controls */}
             {!loading && filteredAnimals.length > 0 && (
               <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
@@ -542,11 +587,10 @@ export default function AnimalsPage() {
                           <button
                             key={pageNum}
                             onClick={() => setCurrentPage(pageNum)}
-                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                              currentPage === pageNum
-                                ? 'z-10 bg-green-50 border-green-500 text-green-600'
-                                : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                            }`}
+                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${currentPage === pageNum
+                              ? 'z-10 bg-green-50 border-green-500 text-green-600'
+                              : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                              }`}
                           >
                             {pageNum}
                           </button>
@@ -570,4 +614,3 @@ export default function AnimalsPage() {
     </div>
   );
 }
-          
