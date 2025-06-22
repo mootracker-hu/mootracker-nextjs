@@ -23,7 +23,7 @@ import {
     MoreHorizontal
 } from 'lucide-react';
 
-// TypeScript interfaces
+// TypeScript interfaces - egyértelműen definiálva
 interface Animal {
     id: number;
     enar: string;
@@ -36,19 +36,21 @@ interface Animal {
     apa_enar?: string;
     created_at: string;
     birth_location?: 'nálunk' | 'vásárolt' | 'ismeretlen';
+    assigned_at?: string;
+    assignment_reason?: string;
 }
 
-interface Pen {
+interface PenDetailsType {
     id: string;
     pen_number: string;
     pen_type: 'outdoor' | 'barn' | 'birthing';
     capacity: number;
     location?: string;
-    current_function?: PenFunction;
+    current_function?: PenFunctionType;
     animal_count: number;
 }
 
-interface PenFunction {
+interface PenFunctionType {
     id: string;
     function_type: 'bölcsi' | 'óvi' | 'hárem' | 'vemhes' | 'hízóbika' | 'ellető' | 'üres' | 'tehén';
     start_date: string;
@@ -59,9 +61,10 @@ interface PenFunction {
 export default function PenDetailsPage() {
     const router = useRouter();
     const params = useParams();
-    const penId = params.id as string; // ez most lehet "1", "4A", "E1" stb.
+    const penId = params.id as string;
 
-    const [pen, setPen] = useState<Pen | null>(null);
+    // State management
+    const [pen, setPen] = useState<PenDetailsType | null>(null);
     const [animals, setAnimals] = useState<Animal[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -70,8 +73,146 @@ export default function PenDetailsPage() {
     const [showFunctionManager, setShowFunctionManager] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
 
+    console.log('🔍 PEN DETAILS RENDER:', { 
+        pen: pen?.pen_number, 
+        loading, 
+        hasData: !!pen 
+    });
 
-    // Kategória emoji mapping
+    // Data loading effects
+    useEffect(() => {
+        fetchPenDetails();
+    }, [penId]);
+
+    useEffect(() => {
+        if (pen?.id) {
+            fetchAnimalsInPen();
+        }
+    }, [pen?.id]);
+
+    // Animals count update
+    useEffect(() => {
+        if (pen) {
+            setPen(prev => prev ? {...prev, animal_count: animals.length} : null);
+        }
+    }, [animals.length]);
+
+    // Fetch pen details
+    const fetchPenDetails = async () => {
+        try {
+            console.log('🏠 Fetching pen with ID:', penId);
+            setLoading(true);
+            setError(null);
+            
+            // Egyszerű lekérdezés először - nézzük meg létezik-e a karám
+            const { data: simplePen, error: simpleError } = await supabase
+                .from('pens')
+                .select('*')
+                .eq('id', penId)
+                .single();
+
+            console.log('📊 Simple pen query result:', { simplePen, simpleError });
+
+            if (simpleError) {
+                console.error('❌ Simple pen fetch error:', simpleError);
+                setError(`Karám nem található: ${simpleError.message}`);
+                setLoading(false);
+                return;
+            }
+
+            if (!simplePen) {
+                console.error('❌ No pen found with ID:', penId);
+                setError('Karám nem található');
+                setLoading(false);
+                return;
+            }
+
+            // Ha a karám létezik, próbáljuk meg a funkciókat is
+            const { data: penFunctions, error: functionsError } = await supabase
+                .from('pen_functions')
+                .select('*')
+                .eq('pen_id', penId);
+
+            console.log('📊 Pen functions query result:', { penFunctions, functionsError });
+
+            // Kombináljuk az adatokat
+            const activeFunction = penFunctions?.find((f: any) => f.end_date === null);
+            console.log('🎯 Active function found:', activeFunction);
+            
+            const penWithFunction: PenDetailsType = {
+                ...simplePen,
+                current_function: activeFunction ? {
+                    id: activeFunction.id,
+                    function_type: (activeFunction.function_name || 'üres') as PenFunctionType['function_type'],
+                    start_date: activeFunction.start_date,
+                    metadata: activeFunction.metadata || {},
+                    notes: activeFunction.notes
+                } : undefined,
+                animal_count: 0 // Will be updated when animals load
+            };
+            
+            console.log('✅ Final pen object:', penWithFunction);
+            setPen(penWithFunction);
+            setLoading(false);
+
+        } catch (err) {
+            console.error('💥 fetchPenDetails catch error:', err);
+            setError(`Hiba történt a karám betöltésekor: ${err}`);
+            setLoading(false);
+        }
+    };
+
+    // Fetch animals in pen
+    const fetchAnimalsInPen = async () => {
+        if (!pen?.id) return;
+        
+        try {
+            console.log(`🐄 Állatok betöltése ${pen.pen_number} karamhoz...`);
+            
+            const { data: assignments, error: assignError } = await supabase
+                .from('animal_pen_assignments')
+                .select(`
+                    animal_id,
+                    assigned_at,
+                    assignment_reason,
+                    animals!inner(
+                        id,
+                        enar,
+                        szuletesi_datum,
+                        ivar,
+                        kategoria,
+                        statusz,
+                        anya_enar,
+                        apa_enar,
+                        birth_location
+                    )
+                `)
+                .eq('pen_id', pen.id)
+                .is('removed_at', null);
+
+            if (assignError) {
+                console.error('❌ Állatok betöltési hiba:', assignError);
+                setError('Nem sikerült betölteni az állatok listáját');
+                return;
+            }
+
+            console.log(`✅ ${assignments?.length || 0} állat betöltve:`, assignments);
+            
+            const animalsData: Animal[] = assignments?.map((assignment: any) => ({
+                ...assignment.animals,
+                assigned_at: assignment.assigned_at,
+                assignment_reason: assignment.assignment_reason
+            })) || [];
+
+            setAnimals(animalsData);
+            
+        } catch (err) {
+            console.error('💥 fetchAnimalsInPen error:', err);
+            setError('Hiba történt az állatok betöltésekor');
+        }
+    };
+
+    // Helper functions
     const getCategoryEmoji = (kategoria: string): string => {
         const emojiMap: { [key: string]: string } = {
             'nőivarú_borjú': '🐮',
@@ -88,7 +229,6 @@ export default function PenDetailsPage() {
         return emojiMap[kategoria] || '❓';
     };
 
-    // Funkció emoji és színek
     const getFunctionEmoji = (functionType: string): string => {
         const emojiMap: { [key: string]: string } = {
             'bölcsi': '🐮',
@@ -117,7 +257,6 @@ export default function PenDetailsPage() {
         return colorMap[functionType] || 'bg-gray-100 text-gray-800 border-gray-200';
     };
 
-    // Kapacitás színek
     const getCapacityColor = (current: number, capacity: number): string => {
         const percentage = (current / capacity) * 100;
         if (percentage < 60) return 'text-green-600';
@@ -126,82 +265,21 @@ export default function PenDetailsPage() {
         return 'text-red-600';
     };
 
-    // Adatok betöltése
-    useEffect(() => {
-        fetchPenDetails();
-        fetchAnimalsInPen();
-    }, [penId]);
-
-    const fetchPenDetails = async () => {
-        try {
-            // Pontos karám adatok lookup táblázat
-            const penLookup: { [key: string]: any } = {
-                '1': { type: 'outdoor', location: 'Bal oldal', function: 'hárem', tenyeszbika: 'Buksi' },
-                '2': { type: 'outdoor', location: 'Bal oldal', function: 'óvi', tenyeszbika: null },
-                '3': { type: 'outdoor', location: 'Bal oldal', function: 'bölcsi', tenyeszbika: null },
-                '4A': { type: 'outdoor', location: 'Bal oldal', function: 'hárem', tenyeszbika: 'Morzsa' },
-                '4B': { type: 'outdoor', location: 'Bal oldal', function: 'vemhes', tenyeszbika: null },
-                '13': { type: 'outdoor', location: 'Bal oldal', function: 'tehén', tenyeszbika: null },
-                '14': { type: 'outdoor', location: 'Bal oldal', function: 'üres', tenyeszbika: null },
-                '15': { type: 'outdoor', location: 'Bal oldal', function: 'üres', tenyeszbika: null },
-                // Jobb oldal
-                '5': { type: 'outdoor', location: 'Jobb oldal', function: 'óvi', tenyeszbika: null },
-                '6': { type: 'outdoor', location: 'Jobb oldal', function: 'bölcsi', tenyeszbika: null },
-                '7': { type: 'outdoor', location: 'Jobb oldal', function: 'hárem', tenyeszbika: 'Zorro' },
-                // Ellető
-                'E1': { type: 'birthing', location: 'Ellető istálló - Bal oldal', function: 'ellető', tenyeszbika: null },
-                'E2': { type: 'birthing', location: 'Ellető istálló - Bal oldal', function: 'ellető', tenyeszbika: null }
-            };
-
-            const penData = penLookup[penId] || { type: 'outdoor', location: 'Ismeretlen', function: 'üres', tenyeszbika: null };
-
-            const mockPen: Pen = {
-                id: penId,
-                pen_number: penId,
-                pen_type: penData.type as 'outdoor' | 'barn' | 'birthing',
-                capacity: 27,
-                location: penData.location,
-                current_function: {
-                    id: '1',
-                    function_type: penData.function as any,
-                    start_date: '2025-06-01',
-                    metadata: penData.tenyeszbika ? {
-                        tenyeszbika_name: penData.tenyeszbika,
-                        tenyeszbika_enar: 'HU 12345 6789'
-                    } : {}
-                },
-                animal_count: penData.function === 'üres' ? 0 : 25
-            };
-
-            setPen(mockPen);
-        } catch (err) {
-            // ... error handling
+    const calculateAge = (birthDate: string): string => {
+        const birth = new Date(birthDate);
+        const now = new Date();
+        const diffTime = Math.abs(now.getTime() - birth.getTime());
+        const diffMonths = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 30.44));
+        if (diffMonths < 12) {
+            return `${diffMonths} hó`;
+        } else {
+            const years = Math.floor(diffMonths / 12);
+            const months = diffMonths % 12;
+            return `${years} év ${months > 0 ? months + ' hó' : ''}`;
         }
     };
 
-    const fetchAnimalsInPen = async () => {
-        try {
-            setLoading(true);
-
-            // Mock animals data - később Supabase query
-            const mockAnimals: Animal[] = [
-                { id: 1, enar: 'HU 30038 1234 1', szuletesi_datum: '2023-03-15', ivar: 'nőivar', kategoria: 'szűz_üsző', statusz: 'aktív', created_at: '2024-01-01', birth_location: 'nálunk' },
-                { id: 2, enar: 'HU 30038 1234 2', szuletesi_datum: '2023-02-20', ivar: 'nőivar', kategoria: 'szűz_üsző', statusz: 'aktív', created_at: '2024-01-01', birth_location: 'nálunk' },
-                { id: 3, enar: 'HU 30038 1234 3', szuletesi_datum: '2023-04-10', ivar: 'nőivar', kategoria: 'háremben_lévő_üsző', statusz: 'aktív', created_at: '2024-01-01', birth_location: 'vásárolt' },
-                { id: 4, enar: 'HU 30038 1234 4', szuletesi_datum: '2023-01-25', ivar: 'nőivar', kategoria: 'háremben_lévő_üsző', statusz: 'aktív', created_at: '2024-01-01', birth_location: 'nálunk' },
-                { id: 5, enar: 'HU 30038 1234 5', szuletesi_datum: '2023-05-05', ivar: 'nőivar', kategoria: 'szűz_üsző', statusz: 'aktív', created_at: '2024-01-01', birth_location: 'nálunk' }
-            ];
-
-            setAnimals(mockAnimals);
-        } catch (err) {
-            console.error('Hiba az állatok betöltésekor:', err);
-            setError('Hiba történt az állatok betöltésekor');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Állat kiválasztás kezelése
+    // Animal selection handlers
     const toggleAnimalSelection = (animalId: number) => {
         setSelectedAnimals(prev =>
             prev.includes(animalId)
@@ -218,46 +296,33 @@ export default function PenDetailsPage() {
         setSelectedAnimals([]);
     };
 
-    // Szűrt állatok
-    const filteredAnimals = animals.filter(animal =>
-        animal.enar.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        animal.kategoria.toLowerCase().includes(searchTerm.toLowerCase())
+    // Filtered animals
+    const filteredAnimals = animals.filter((animal: Animal) =>
+        animal.enar?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        animal.kategoria?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // Életkor számítás
-    const calculateAge = (birthDate: string): string => {
-        const birth = new Date(birthDate);
-        const now = new Date();
-        const diffTime = Math.abs(now.getTime() - birth.getTime());
-        const diffMonths = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 30.44));
-
-        if (diffMonths < 12) {
-            return `${diffMonths} hó`;
-        } else {
-            const years = Math.floor(diffMonths / 12);
-            const months = diffMonths % 12;
-            return `${years} év ${months > 0 ? months + ' hó' : ''}`;
-        }
-    };
-
+    // Loading state
     if (loading) {
+        console.log('🔄 LOADING STATE = true, loading screen megjelenítése');
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
-                    <p className="mt-4 text-gray-600">Karám adatok betöltése...</p>
+                    <p className="mt-4 text-gray-600">Karám betöltése...</p>
                 </div>
             </div>
         );
     }
 
-    if (error || !pen) {
+    // Error state
+    if (error) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="text-center">
                     <AlertTriangle className="h-12 w-12 text-red-600 mx-auto" />
-                    <p className="mt-4 text-red-600">{error || 'Karám nem található'}</p>
-                    <Link
+                    <p className="mt-4 text-red-600">{error}</p>
+                    <Link 
                         href="/dashboard/pens"
                         className="mt-4 inline-flex items-center text-blue-600 hover:text-blue-800"
                     >
@@ -268,6 +333,27 @@ export default function PenDetailsPage() {
             </div>
         );
     }
+
+    // No pen data
+    if (!pen) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <AlertTriangle className="h-12 w-12 text-gray-600 mx-auto" />
+                    <p className="mt-4 text-gray-600">Karám nem található</p>
+                    <Link 
+                        href="/dashboard/pens"
+                        className="mt-4 inline-flex items-center text-blue-600 hover:text-blue-800"
+                    >
+                        <ArrowLeft className="h-4 w-4 mr-1" />
+                        Vissza a karamokhoz
+                    </Link>
+                </div>
+            </div>
+        );
+    }
+
+    console.log('✅ LOADING FALSE, main content megjelenítése');
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -330,7 +416,10 @@ export default function PenDetailsPage() {
                                     <div className="flex items-center">
                                         <Calendar className="h-4 w-4 text-gray-400 mr-2" />
                                         <span className="text-sm text-gray-600">
-                                            Funkció kezdete: {new Date(pen.current_function?.start_date || '').toLocaleDateString('hu-HU')}
+                                            Funkció kezdete: {pen.current_function?.start_date ? 
+                                                new Date(pen.current_function.start_date).toLocaleDateString('hu-HU') : 
+                                                'Nincs megadva'
+                                            }
                                         </span>
                                     </div>
                                 </div>
@@ -363,7 +452,7 @@ export default function PenDetailsPage() {
                                     />
                                 </div>
                                 <p className="text-sm text-gray-600">
-                                    {((pen.animal_count / pen.capacity) * 100).toFixed(1)}%
+                                    {pen.capacity > 0 ? ((pen.animal_count / pen.capacity) * 100).toFixed(1) : 0}%
                                 </p>
                             </div>
                         </div>
@@ -374,19 +463,27 @@ export default function PenDetailsPage() {
                         <div className="mt-6 bg-pink-50 border border-pink-200 rounded-lg p-4">
                             <h4 className="font-medium text-pink-800 mb-2">Hárem Információk</h4>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                                <div>
-                                    <span className="text-pink-600">Tenyészbika:</span>
-                                    <p className="font-medium">{pen.current_function.metadata.tenyeszbika_name}</p>
-                                    <p className="text-xs text-pink-600">{pen.current_function.metadata.tenyeszbika_enar}</p>
-                                </div>
-                                <div>
-                                    <span className="text-pink-600">Párzás kezdete:</span>
-                                    <p className="font-medium">{new Date(pen.current_function.metadata.parozas_kezdete).toLocaleDateString('hu-HU')}</p>
-                                </div>
-                                <div>
-                                    <span className="text-pink-600">VV esedékessége:</span>
-                                    <p className="font-medium">{new Date(pen.current_function.metadata.vv_esedekessege).toLocaleDateString('hu-HU')}</p>
-                                </div>
+                                {pen.current_function.metadata.tenyeszbika_name && (
+                                    <div>
+                                        <span className="text-pink-600">Tenyészbika:</span>
+                                        <p className="font-medium">{pen.current_function.metadata.tenyeszbika_name}</p>
+                                        {pen.current_function.metadata.tenyeszbika_enar && (
+                                            <p className="text-xs text-pink-600">{pen.current_function.metadata.tenyeszbika_enar}</p>
+                                        )}
+                                    </div>
+                                )}
+                                {pen.current_function.metadata.parozas_kezdete && (
+                                    <div>
+                                        <span className="text-pink-600">Párzás kezdete:</span>
+                                        <p className="font-medium">{new Date(pen.current_function.metadata.parozas_kezdete).toLocaleDateString('hu-HU')}</p>
+                                    </div>
+                                )}
+                                {pen.current_function.metadata.vv_esedekessege && (
+                                    <div>
+                                        <span className="text-pink-600">VV esedékessége:</span>
+                                        <p className="font-medium">{new Date(pen.current_function.metadata.vv_esedekessege).toLocaleDateString('hu-HU')}</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
@@ -415,7 +512,6 @@ export default function PenDetailsPage() {
                             </div>
                         )}
                     </div>
-
                     <div className="flex items-center space-x-4">
                         {/* Keresés */}
                         <div className="relative">
@@ -428,7 +524,6 @@ export default function PenDetailsPage() {
                                 className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 w-64"
                             />
                         </div>
-
                         {/* Kiválasztás vezérlők */}
                         <button
                             onClick={selectAllAnimals}
@@ -436,7 +531,6 @@ export default function PenDetailsPage() {
                         >
                             Mind kiválaszt
                         </button>
-
                         <button className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm bg-white hover:bg-gray-50">
                             <Download className="h-4 w-4 mr-2" />
                             Export
@@ -490,7 +584,7 @@ export default function PenDetailsPage() {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <Link
-                                            href={`/dashboard/animals/${animal.id}`}
+                                            href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`}
                                             className="text-blue-600 hover:text-blue-800 font-medium"
                                         >
                                             {animal.enar}
@@ -505,12 +599,13 @@ export default function PenDetailsPage() {
                                         {calculateAge(animal.szuletesi_datum)}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${animal.birth_location === 'nálunk' ? 'bg-green-100 text-green-800' :
+                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                            animal.birth_location === 'nálunk' ? 'bg-green-100 text-green-800' :
                                             animal.birth_location === 'vásárolt' ? 'bg-blue-100 text-blue-800' :
-                                                'bg-gray-100 text-gray-800'
-                                            }`}>
+                                            'bg-gray-100 text-gray-800'
+                                        }`}>
                                             {animal.birth_location === 'nálunk' ? '🏠 Nálunk' :
-                                                animal.birth_location === 'vásárolt' ? '🛒 Vásárolt' : '❓ Ismeretlen'}
+                                             animal.birth_location === 'vásárolt' ? '🛒 Vásárolt' : '❓ Ismeretlen'}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -548,22 +643,45 @@ export default function PenDetailsPage() {
                 ]}
                 currentPenId={penId}
                 onMove={(targetPenId, reason, notes) => {
-                    // TODO: implement movement logic
                     console.log('Move to:', targetPenId, reason, notes);
                     alert(`Állatok mozgatva a ${targetPenId} karamra! Ok: ${reason}`);
                     setShowMovementPanel(false);
                     setSelectedAnimals([]);
                 }}
             />
+
             {/* Function Manager Modal */}
             <PenFunctionManager
                 isOpen={showFunctionManager}
                 onClose={() => setShowFunctionManager(false)}
-                pen={pen!}
-                onFunctionChange={(newFunction, metadata, notes) => {
-                    // TODO: implement function change logic
-                    console.log('Function change:', newFunction, metadata, notes);
-                    setShowFunctionManager(false);
+                pen={pen as any}
+                onFunctionChange={async (newFunction: string, metadata: any, notes: string) => {
+                    try {
+                        // Close old function
+                        await supabase
+                            .from('pen_functions')
+                            .update({ end_date: new Date().toISOString() })
+                            .eq('pen_id', pen?.id)
+                            .is('end_date', null);
+                        
+                        // Add new function
+                        await supabase
+                            .from('pen_functions')
+                            .insert({
+                                pen_id: pen?.id,
+                                function_name: newFunction,
+                                start_date: new Date().toISOString(),
+                                metadata: metadata,
+                                notes: notes
+                            });
+                        
+                        setShowFunctionManager(false);
+                        alert('Funkció sikeresen megváltoztatva!');
+                        window.location.reload();
+                    } catch (error) {
+                        console.error('Hiba:', error);
+                        alert('Hiba történt a funkció váltáskor!');
+                    }
                 }}
             />
         </div>

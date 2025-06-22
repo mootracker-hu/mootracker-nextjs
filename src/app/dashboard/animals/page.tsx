@@ -1,4 +1,4 @@
-// src/app/dashboard/animals/page.tsx
+// src/app/dashboard/animals/page.tsx  
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -14,7 +14,10 @@ import {
   Users,
   Calendar,
   MapPin,
-  AlertCircle
+  AlertCircle,
+  Check,
+  X,
+  ArrowRight
 } from 'lucide-react';
 
 interface Animal {
@@ -33,6 +36,14 @@ interface Animal {
   birth_location?: 'nálunk' | 'vásárolt' | 'ismeretlen';
 }
 
+interface Pen {
+  id: any;
+  pen_number: any;
+  location: any;
+  capacity: any;
+  current_function?: any;
+}
+
 export default function AnimalsPage() {
   const router = useRouter();
   const [animals, setAnimals] = useState<Animal[]>([]);
@@ -40,7 +51,16 @@ export default function AnimalsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(15); // 15 állat/oldal
+  const [itemsPerPage] = useState(15);
+
+  // ÚJ STATE-EK KARÁM HOZZÁRENDELÉSHEZ
+  const [availablePens, setAvailablePens] = useState<any[]>([]);
+  const [selectedAnimals, setSelectedAnimals] = useState<number[]>([]);
+  const [showBulkAssign, setShowBulkAssign] = useState(false);
+  const [bulkTargetPen, setBulkTargetPen] = useState('');
+  const [bulkReason, setBulkReason] = useState('');
+  const [bulkNotes, setBulkNotes] = useState('');
+  const [assignmentLoading, setAssignmentLoading] = useState(false);
 
   const getCategoryEmoji = (kategoria: string): string => {
     const emojiMap: { [key: string]: string } = {
@@ -58,57 +78,221 @@ export default function AnimalsPage() {
     return emojiMap[kategoria] || '';
   };
 
-  // Szűrő és keresés state-ek
+  // Szűrő és keresés state-ek  
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [penFilter, setPenFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedBirthLocation, setSelectedBirthLocation] = useState('');
 
-  // Pagination logic
+  // Pagination logic  
   const totalPages = Math.ceil(filteredAnimals.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentAnimals = filteredAnimals.slice(startIndex, endIndex);
 
-  // Adatok betöltése Supabase-ből
-  useEffect(() => {
-    const fetchAnimals = async () => {
-      try {
-        setLoading(true);
-        console.log('Állatok betöltése Supabase-ből...');
+  console.log('filteredAnimals.length:', filteredAnimals.length);
+  console.log('currentPage:', currentPage);
+  console.log('startIndex:', startIndex);
+  console.log('endIndex:', endIndex);
+  console.log('currentAnimals.length:', currentAnimals.length);
+  console.log('9120 a currentAnimals-ban:', currentAnimals.filter(a => a.enar.includes('9120')));
 
-        const { data, error } = await supabase
+  // ÚJ FUNKCIÓ: Elérhető karamok betöltése (JAVÍTOTT verzió)
+  const fetchAvailablePens = async () => {
+    try {
+      console.log('🔍 Karamok betöltése kezdődik...');
+
+      // EGYSZERŰ QUERY ELŐSZÖR
+      const { data: simpleData, error: simpleError } = await supabase
+        .from('pens')
+        .select('id, pen_number, location, capacity')
+        .order('pen_number');
+
+      console.log('🏠 Egyszerű karamok query:', { simpleData, simpleError });
+
+      if (simpleError) {
+        console.error('❌ Egyszerű query hiba:', simpleError);
+        return;
+      }
+
+      if (!simpleData || simpleData.length === 0) {
+        console.error('❌ Nincsenek karamok az adatbázisban!');
+        return;
+      }
+
+      // FUNKCIÓK KÜLÖN LEKÉRÉSE
+      const { data: functionsData, error: functionsError } = await supabase
+        .from('pen_functions')
+        .select('pen_id, function_name')
+        .is('end_date', null);
+
+      console.log('🔧 Funkciók query:', { functionsData, functionsError });
+
+      // ADATOK ÖSSZEKAPCSOLÁSA
+      const pensWithFunctions = simpleData.map(pen => {
+        const currentFunction = functionsData?.find(f => f.pen_id === pen.id);
+        return {
+          ...pen,
+          current_function: currentFunction ? {
+            function_name: currentFunction.function_name
+          } : null
+        };
+      });
+
+      console.log('✅ Végleges karamok listája:', pensWithFunctions);
+      setAvailablePens(pensWithFunctions);
+
+    } catch (err) {
+      console.error('💥 fetchAvailablePens hiba:', err);
+    }
+  };
+
+  // ÚJ FUNKCIÓ: Állat hozzárendelése karamhoz
+  const assignAnimalToPen = async (animalId: number, penId: string, reason: string = 'manual_assignment') => {
+    try {
+      console.log(`🔄 Állat hozzárendelése: ${animalId} → ${penId}`);
+
+      // 1. Régi hozzárendelés lezárása (ha van)
+      await supabase
+        .from('animal_pen_assignments')
+        .update({ removed_at: new Date().toISOString() })
+        .eq('animal_id', animalId)
+        .is('removed_at', null);
+
+      // 2. Új hozzárendelés létrehozása
+      const { error } = await supabase
+        .from('animal_pen_assignments')
+        .insert({
+          animal_id: animalId,
+          pen_id: penId,
+          assigned_at: new Date().toISOString(),
+          assignment_reason: reason
+        });
+
+      if (error) {
+        console.error('Hozzárendelési hiba:', error);
+        throw error;
+      }
+
+      console.log('✅ Hozzárendelés sikeres');
+      return true;
+    } catch (err) {
+      console.error('assignAnimalToPen hiba:', err);
+      return false;
+    }
+  };
+
+  // ÚJ FUNKCIÓ: Bulk hozzárendelés
+  const handleBulkAssign = async () => {
+    if (!bulkTargetPen || selectedAnimals.length === 0) {
+      alert('Válassz ki állatokat és célkaramot!');
+      return;
+    }
+
+    setAssignmentLoading(true);
+    try {
+      let successCount = 0;
+
+      for (const animalId of selectedAnimals) {
+        const success = await assignAnimalToPen(animalId, bulkTargetPen, bulkReason || 'bulk_assignment');
+        if (success) successCount++;
+      }
+
+      alert(`${successCount}/${selectedAnimals.length} állat sikeresen hozzárendelve!`);
+
+      // UI visszaállítás
+      setSelectedAnimals([]);
+      setShowBulkAssign(false);
+      setBulkTargetPen('');
+      setBulkReason('');
+      setBulkNotes('');
+
+      // Adatok frissítése
+      fetchAnimals();
+
+    } catch (err) {
+      console.error('Bulk assignment hiba:', err);
+      alert('Hiba történt a hozzárendelés során!');
+    } finally {
+      setAssignmentLoading(false);
+    }
+  };
+
+  // Adatok betöltése Supabase-ből  
+  const fetchAnimals = async () => {
+    try {
+      setLoading(true);
+      console.log('🐄 Állatok betöltése karám adatokkal...');
+
+      // Próbáljuk meg a JOIN query-t
+      const { data: animalsWithPens, error: joinError } = await supabase
+        .from('animals')
+        .select(`
+        *,
+        animal_pen_assignments!left(
+          pen_id,
+          assigned_at,
+          removed_at,
+          pens(
+            pen_number,
+            location,
+            pen_type
+          )
+        )
+      `)
+        .is('animal_pen_assignments.removed_at', null)
+        .order('created_at', { ascending: false });
+
+      if (joinError) {
+        console.warn('⚠️ JOIN query hiba, fallback egyszerű query-re:', joinError);
+
+        // Fallback: egyszerű állatok lekérdezés
+        const { data: simpleAnimals, error: simpleError } = await supabase
           .from('animals')
           .select('*')
-          .order('enar', { ascending: true });
+          .order('created_at', { ascending: false });
 
-        if (error) {
-          console.error('Supabase hiba:', error);
-          setError('Nem sikerült betölteni az állatok listáját');
+        if (simpleError) {
+          console.error('❌ Egyszerű állatok lekérdezés is hibás:', simpleError);
+          setError('Nem sikerült betölteni az állatokat');
+          setLoading(false);
           return;
         }
 
-        console.log(`${data?.length || 0} állat betöltve:`, data);
-        setAnimals(data || []);
-        setFilteredAnimals(data || []);
-
-      } catch (err) {
-        console.error('Fetch hiba:', err);
-        setError('Hiba történt az adatok betöltése során');
-      } finally {
-        setLoading(false);
+        console.log('✅ Fallback: állatok betöltve karamok nélkül:', simpleAnimals?.length || 0);
+        setAnimals(simpleAnimals || []);
+        setFilteredAnimals(simpleAnimals || []);
+      } else {
+        console.log('✅ Állatok + karamok sikeresen betöltve:', animalsWithPens?.length || 0);
+        console.log('📊 Példa állat karám adatokkal:', animalsWithPens?.[0]);
+        setAnimals(animalsWithPens || []);
+        setFilteredAnimals(animalsWithPens || []);
       }
-    };
 
+      setLoading(false);
+    } catch (err) {
+      console.error('💥 fetchAnimals általános hiba:', err);
+      setError('Hiba történt az állatok betöltésekor');
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchAnimals();
+    fetchAvailablePens();
   }, []);
 
-  // Keresés és szűrés
+  // Keresés és szűrés  
   useEffect(() => {
+
+    if (!animals || animals.length === 0) {
+      setFilteredAnimals([]);
+      return;
+    }
+
     let filtered = animals;
 
-    // Keresés (ENAR, rövid azonosító)
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(animal =>
@@ -117,44 +301,62 @@ export default function AnimalsPage() {
       );
     }
 
-    // Kategória szűrés
     if (categoryFilter) {
       filtered = filtered.filter(animal => animal.kategoria === categoryFilter);
     }
 
-    // Karám szűrés
     if (penFilter) {
-      filtered = filtered.filter(animal => animal.jelenlegi_karam === penFilter);
+      filtered = filtered.filter(animal => {
+        const assignment = (animal as any).animal_pen_assignments?.find(
+          (a: any) => a.removed_at === null
+        );
+        return assignment?.pens?.pen_number === penFilter;
+      });
     }
 
-    // Státusz szűrés
     if (statusFilter) {
       filtered = filtered.filter(animal => animal.statusz === statusFilter);
     }
 
-    // Származás szűrés
     if (selectedBirthLocation) {
-      console.log('🔍 DEBUG - Filtering by:', selectedBirthLocation);
-      filtered = filtered.filter((animal, index) => {
+      filtered = filtered.filter((animal) => {
         const birthLocation = (animal as any).birth_location;
-        if (index < 3) { // Első 3 állat debug
-          console.log(`Animal ${index}:`, animal.enar, 'birth_location:', birthLocation);
-        }
         return birthLocation === selectedBirthLocation;
       });
-      console.log('🔍 DEBUG - Filtered results:', filtered.length);
     }
 
-    setFilteredAnimals(filtered);
-  }, [animals, searchTerm, categoryFilter, penFilter, statusFilter, selectedBirthLocation]); //
+    console.log('penFilter:', penFilter);
+    console.log('categoryFilter:', categoryFilter);
+    console.log('filtered állatok száma:', filtered.length);
+    console.log('9120 a filtered-ban:', filtered.filter(a => a.enar.includes('9120')));
 
-  // Rövid ENAR azonosító (utolsó 5 szám)
+    setFilteredAnimals(filtered);
+  }, [animals, searchTerm, categoryFilter, penFilter, statusFilter, selectedBirthLocation]);
+
+  // Checkbox kezelés
+  const handleSelectAnimal = (animalId: number) => {
+    setSelectedAnimals(prev =>
+      prev.includes(animalId)
+        ? prev.filter(id => id !== animalId)
+        : [...prev, animalId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedAnimals.length === currentAnimals.length) {
+      setSelectedAnimals([]);
+    } else {
+      setSelectedAnimals(currentAnimals.map(animal => animal.id));
+    }
+  };
+
+  // Rövid ENAR azonosító (utolsó 5 szám)  
   const getShortId = (enar: string): string => {
     const numbers = enar.replace(/\D/g, '');
     return numbers.slice(-5);
   };
 
-  // Életkor kalkuláció
+  // Életkor kalkuláció  
   const calculateAge = (birthDate: string): string => {
     const birth = new Date(birthDate);
     const now = new Date();
@@ -168,7 +370,7 @@ export default function AnimalsPage() {
     return `${months} hónap`;
   };
 
-  // Kategória színek
+  // Kategória színek  
   const getCategoryColor = (category: string): string => {
     const colors = {
       'tehén': 'bg-green-100 text-green-800',
@@ -183,10 +385,18 @@ export default function AnimalsPage() {
     return colors[category as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
-  // Egyedi értékek lekérése szűréshez
+  // Egyedi értékek lekérése szűréshez  
   const uniqueCategories = [...new Set(animals.map(a => a.kategoria))].filter(Boolean);
-  console.log('🐂 Unique categories:', uniqueCategories); // ← ÚJ DEBUG SOR!
-  const uniquePens = [...new Set(animals.map(a => a.jelenlegi_karam))].filter(Boolean);
+  const uniquePens = [...new Set(
+    animals
+      .map(animal => {
+        const assignment = (animal as any).animal_pen_assignments?.find(
+          (a: any) => a.removed_at === null
+        );
+        return assignment?.pens?.pen_number;
+      })
+      .filter(Boolean)
+  )];
   const uniqueStatuses = [...new Set(animals.map(a => a.statusz))].filter(Boolean);
 
   if (loading) {
@@ -231,10 +441,26 @@ export default function AnimalsPage() {
               </h1>
               <p className="text-sm text-gray-500">
                 Összesen {animals.length} állat ({filteredAnimals.length} megjelenítve)
+                {selectedAnimals.length > 0 && (
+                  <span className="ml-2 text-green-600 font-medium">
+                    • {selectedAnimals.length} kiválasztva
+                  </span>
+                )}
               </p>
             </div>
 
             <div className="flex items-center space-x-3">
+              {/* ÚJ: Bulk Assignment gomb */}
+              {selectedAnimals.length > 0 && (
+                <button
+                  onClick={() => setShowBulkAssign(true)}
+                  className="flex items-center px-3 py-2 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                >
+                  <ArrowRight className="h-4 w-4 mr-1" />
+                  Karám hozzárendelés ({selectedAnimals.length})
+                </button>
+              )}
+
               <Link
                 href="/dashboard/import-export"
                 className="flex items-center px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -254,6 +480,84 @@ export default function AnimalsPage() {
           </div>
         </div>
       </div>
+
+      {/* Bulk Assignment Modal */}
+      {showBulkAssign && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">
+              Karám hozzárendelés ({selectedAnimals.length} állat)
+            </h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Célkarám *
+                </label>
+                <select
+                  value={bulkTargetPen}
+                  onChange={(e) => setBulkTargetPen(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="">Válassz karamot...</option>
+                  {availablePens.map(pen => (
+                    <option key={pen.id} value={pen.id}>
+                      {pen.pen_number} - {pen.current_function?.function_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Hozzárendelés oka
+                </label>
+                <select
+                  value={bulkReason}
+                  onChange={(e) => setBulkReason(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="">Válassz okot...</option>
+                  <option value="new_arrival">Új bekerülés</option>
+                  <option value="sorting">Válogatás</option>
+                  <option value="breeding">Tenyésztés</option>
+                  <option value="medical">Egészségügyi</option>
+                  <option value="manual_assignment">Kézi hozzárendelés</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Megjegyzés
+                </label>
+                <textarea
+                  value={bulkNotes}
+                  onChange={(e) => setBulkNotes(e.target.value)}
+                  placeholder="Opcionális megjegyzés..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  rows={2}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => setShowBulkAssign(false)}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Mégse
+              </button>
+              <button
+                onClick={handleBulkAssign}
+                disabled={!bulkTargetPen || assignmentLoading}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+              >
+                {assignmentLoading ? 'Hozzárendelés...' : 'Hozzárendelés'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Statisztika Widget - külön szekció */}
       <div className="bg-white border-b">
@@ -335,8 +639,10 @@ export default function AnimalsPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
             >
               <option value="">Összes karám</option>
-              {uniquePens.map(pen => (
-                <option key={pen} value={pen}>{pen}</option>
+              {availablePens.map(pen => (
+                <option key={pen.id} value={pen.pen_number}>
+                  {pen.pen_number} - {pen.location}
+                </option>
               ))}
             </select>
 
@@ -355,12 +661,7 @@ export default function AnimalsPage() {
             {/* Származás szűrés */}
             <select
               value={selectedBirthLocation}
-              onChange={(e) => {
-                console.log('🔍 DROPDOWN CHANGE - new value:', e.target.value);
-                const newValue = e.target.value;
-                setSelectedBirthLocation(newValue);
-                console.log('🔍 STATE SET TO:', newValue);
-              }}
+              onChange={(e) => setSelectedBirthLocation(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
             >
               <option value="">Összes származás</option>
@@ -402,6 +703,15 @@ export default function AnimalsPage() {
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
+                    {/* ÚJ: Checkbox oszlop */}
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <input
+                        type="checkbox"
+                        checked={selectedAnimals.length === currentAnimals.length && currentAnimals.length > 0}
+                        onChange={handleSelectAll}
+                        className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                      />
+                    </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       <div className="flex items-center space-x-1">
                         <span>ENAR</span>
@@ -423,11 +733,6 @@ export default function AnimalsPage() {
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       <div className="flex items-center space-x-1">
-                        <span>Származás</span>
-                      </div>
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      <div className="flex items-center space-x-1">
                         <MapPin className="h-4 w-4" />
                         <span>Jelenlegi Karám</span>
                       </div>
@@ -439,6 +744,11 @@ export default function AnimalsPage() {
                       Szülők
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <div className="flex items-center space-x-1">
+                        <span>Származás</span>
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Műveletek
                     </th>
                   </tr>
@@ -446,6 +756,15 @@ export default function AnimalsPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {currentAnimals.map((animal) => (
                     <tr key={animal.id} className="hover:bg-gray-50 transition-colors">
+                      {/* ÚJ: Checkbox cella */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={selectedAnimals.includes(animal.id)}
+                          onChange={() => handleSelectAnimal(animal.id)}
+                          className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                        />
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center space-x-2">
                           <Link
@@ -478,18 +797,31 @@ export default function AnimalsPage() {
                           {animal.kategoria}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                        <div className="flex items-center space-x-1">
-                          <span className="text-base">
-                            {animal.birth_location === 'nálunk' ? '🏠' : '🛒'}
-                          </span>
-                          <span>
-                            {animal.birth_location === 'nálunk' ? 'Nálunk' : 'Vásárolt'}
-                          </span>
-                        </div>
-                      </td>
+
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {animal.jelenlegi_karam || '-'}
+                        {/* Jelenlegi karám megjelenítése - biztonságos lekérdezés */}
+                        {(() => {
+                          // Próbáljuk meg megtalálni az aktív hozzárendelést - típus javítással
+                          const assignment = (animal as any).animal_pen_assignments?.find(
+                            (a: any) => a.removed_at === null
+                          );
+
+                          const penInfo = assignment?.pens;
+
+                          if (penInfo?.pen_number) {
+                            return (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                📍 {penInfo.pen_number}
+                              </span>
+                            );
+                          } else {
+                            return (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                🏠 Nincs karám
+                              </span>
+                            );
+                          }
+                        })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${animal.statusz === 'aktív' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
@@ -528,6 +860,16 @@ export default function AnimalsPage() {
                           )}
                         </div>
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        <div className="flex items-center space-x-1">
+                          <span className="text-base">
+                            {animal.birth_location === 'nálunk' ? '🏠' : '🛒'}
+                          </span>
+                          <span>
+                            {animal.birth_location === 'nálunk' ? 'Nálunk' : 'Vásárolt'}
+                          </span>
+                        </div>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <Link
                           href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`}
@@ -542,7 +884,7 @@ export default function AnimalsPage() {
               </table>
             </div>
 
-            {/* Pagination Controls */}
+            {/* Pagination Controls - JAVÍTOTT VERZIÓ */}
             {!loading && filteredAnimals.length > 0 && (
               <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
                 <div className="flex-1 flex justify-between sm:hidden">
@@ -581,21 +923,31 @@ export default function AnimalsPage() {
                       >
                         «
                       </button>
-                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                        const pageNum = i + 1;
-                        return (
-                          <button
-                            key={pageNum}
-                            onClick={() => setCurrentPage(pageNum)}
-                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${currentPage === pageNum
-                              ? 'z-10 bg-green-50 border-green-500 text-green-600'
-                              : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                              }`}
-                          >
-                            {pageNum}
-                          </button>
-                        );
-                      })}
+
+                      {/* JAVÍTOTT PAGINATION GOMBOK */}
+                      {(() => {
+                        const maxVisible = 5;
+                        const startPage = Math.max(1, currentPage - 2);
+                        const endPage = Math.min(totalPages, startPage + maxVisible - 1);
+                        const adjustedStartPage = Math.max(1, endPage - maxVisible + 1);
+
+                        return Array.from({ length: endPage - adjustedStartPage + 1 }, (_, i) => {
+                          const pageNum = adjustedStartPage + i;
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setCurrentPage(pageNum)}
+                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${currentPage === pageNum
+                                ? 'z-10 bg-green-50 border-green-500 text-green-600'
+                                : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                                }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        });
+                      })()}
+
                       <button
                         onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                         disabled={currentPage === totalPages}

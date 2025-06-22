@@ -83,7 +83,19 @@ export default function AnimalDetailPage() {
 
       const { data, error: supabaseError } = await supabase
         .from('animals')
-        .select('*')
+        .select(`
+    *,
+    animal_pen_assignments!left(
+      pen_id,
+      assigned_at,
+      removed_at,
+      pens(
+        pen_number,
+        location,
+        pen_type
+      )
+    )
+  `)
         .eq('enar', enar)
         .single();
 
@@ -103,6 +115,7 @@ export default function AnimalDetailPage() {
       }
 
       console.log('✅ Animal loaded successfully:', data);
+      console.log('🔍 ANIMAL_PEN_ASSIGNMENTS:', data.animal_pen_assignments);
 
       // 🔧 FIX: Csak akkor frissítjük az animal state-et, ha nincs szerkesztés folyamatban
       if (!isEditing) {
@@ -173,6 +186,57 @@ export default function AnimalDetailPage() {
     });
   };
 
+  const handlePenChange = async (newPenId: string) => {
+  if (!animal?.id) return;
+  
+  try {
+    console.log(`🔄 Karám változtatás: ${animal.jelenlegi_karam} → ${newPenId}`);
+    
+    // A. Régi assignment lezárása
+    await supabase
+      .from('animal_pen_assignments')
+      .update({ removed_at: new Date().toISOString() })
+      .eq('animal_id', animal.id)
+      .is('removed_at', null);
+
+    // B. Új assignment létrehozása (ha van új karám)
+    if (newPenId) {
+      // Pen ID megkeresése pen_number alapján
+      const { data: penData } = await supabase
+        .from('pens')
+        .select('id')
+        .eq('pen_number', newPenId)
+        .single();
+
+      if (penData?.id) {
+        await supabase
+          .from('animal_pen_assignments')
+          .insert({
+            animal_id: animal.id,
+            pen_id: penData.id,
+            assigned_at: new Date().toISOString(),
+            assignment_reason: 'manual_edit',
+            notes: 'Állat részletek oldalon módosítva'
+          });
+      }
+    }
+
+    // C. Frontend state frissítés
+    updateField('jelenlegi_karam', newPenId);
+    
+    // D. Oldal újratöltése
+    setTimeout(() => {
+      window.location.reload();
+    }, 500);
+
+    console.log('✅ Karám sikeresen megváltoztatva!');
+    
+  } catch (error) {
+    console.error('❌ Hiba a karám változtatásnál:', error);
+    alert('Hiba történt a karám változtatáskor!');
+  }
+};
+  
   // Calculate age
   const calculateAge = (birthDate: string) => {
     const birth = new Date(birthDate);
@@ -232,15 +296,35 @@ export default function AnimalDetailPage() {
 
   const penOptions = [
     { value: '', label: 'Nincs megadva' },
-    { value: 'Hárem #1', label: 'Hárem #1' },
-    { value: 'Hárem #2', label: 'Hárem #2' },
-    { value: 'Bölcsi #1', label: 'Bölcsi #1' },
-    { value: 'Bölcsi #2', label: 'Bölcsi #2' },
-    { value: 'Óvi #1', label: 'Óvi #1' },
-    { value: 'Óvi #2', label: 'Óvi #2' },
-    { value: 'Karám #1', label: 'Karám #1' },
-    { value: 'Karám #2', label: 'Karám #2' },
-    { value: 'Ellető istálló', label: 'Ellető istálló' }
+    { value: '1', label: '1 - Bal oldal' },
+    { value: '2', label: '2 - Bal oldal' },
+    { value: '3', label: '3 - Bal oldal' },
+    { value: '4A', label: '4A - Bal oldal' },
+    { value: '4B', label: '4B - Bal oldal' },
+    { value: '5', label: '5 - Jobb oldal' },
+    { value: '6', label: '6 - Jobb oldal' },
+    { value: '7', label: '7 - Jobb oldal' },
+    { value: '8', label: '8 - Jobb oldal' },
+    { value: '9', label: '9 - Jobb oldal' },
+    { value: '10', label: '10 - Jobb oldal' },
+    { value: '11', label: '11 - Jobb oldal' },
+    { value: '12A', label: '12A - Konténereknél' },
+    { value: '12B', label: '12B - Konténereknél' },
+    { value: '13', label: '13 - Hátsó sor' },
+    { value: '14', label: '14 - Hátsó sor' },
+    { value: '15', label: '15 - Hátsó sor' },
+    { value: 'E1', label: 'E1 - Ellető istálló' },
+    { value: 'E2', label: 'E2 - Ellető istálló' },
+    { value: 'E3', label: 'E3 - Ellető istálló' },
+    { value: 'E4', label: 'E4 - Ellető istálló' },
+    { value: 'E5', label: 'E5 - Ellető istálló' },
+    { value: 'E6', label: 'E6 - Ellető istálló' },
+    { value: 'E7', label: 'E7 - Ellető istálló' },
+    { value: 'E8', label: 'E8 - Ellető istálló' },
+    { value: 'E9', label: 'E9 - Ellető istálló' },
+    { value: 'E10', label: 'E10 - Ellető istálló' },
+    { value: 'E11', label: 'E11 - Ellető istálló' },
+    { value: 'E12', label: 'E12 - Ellető istálló' }
   ];
 
   if (loading) {
@@ -497,7 +581,7 @@ export default function AnimalDetailPage() {
                   {isEditing ? (
                     <select
                       value={editedAnimal.jelenlegi_karam || ''}
-                      onChange={(e) => updateField('jelenlegi_karam', e.target.value)}
+                      onChange={(e) => handlePenChange(e.target.value)}
                       className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                     >
                       {penOptions.map(option => (
@@ -509,7 +593,30 @@ export default function AnimalDetailPage() {
                   ) : (
                     <div className="flex items-center">
                       <MapPin className="h-4 w-4 mr-2 text-gray-400" />
-                      <span>{animal.jelenlegi_karam || 'Nincs megadva'}</span>
+                      <span>
+                        {(() => {
+                          // Jelenlegi karám megkeresése az animal_pen_assignments-ből
+                          const assignment = (animal as any).animal_pen_assignments?.find(
+                            (a: any) => a.removed_at === null
+                          );
+
+                          const penInfo = assignment?.pens;
+
+                          if (penInfo?.pen_number) {
+                            return (
+                              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                                📍 {penInfo.pen_number} - {penInfo.location}
+                              </span>
+                            );
+                          } else {
+                            return (
+                              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                                🏠 Nincs karám hozzárendelés
+                              </span>
+                            );
+                          }
+                        })()}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -544,7 +651,7 @@ export default function AnimalDetailPage() {
                   {isEditing ? (
                     <select
                       value={editedAnimal?.birth_location || 'ismeretlen'}
-                       onChange={() => {}}
+                      onChange={() => { }}
                       className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                     >
                       <option value="nálunk">🏠 Nálunk született</option>
@@ -553,8 +660,8 @@ export default function AnimalDetailPage() {
                     </select>
                   ) : (
                     <div className={`inline-flex items-center px-3 py-2 rounded-md text-sm font-medium ${animal?.birth_location === 'nálunk'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-blue-100 text-blue-800'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-blue-100 text-blue-800'
                       }`}>
                       {animal?.birth_location === 'nálunk' ? '🏠 Nálunk született' : '🛒 Vásárolt'}
                     </div>
