@@ -22,6 +22,8 @@ import {
     Download,
     MoreHorizontal
 } from 'lucide-react';
+import { usePenAlerts } from '../hooks/usePenAlerts';
+import { PenAlertsWidget } from '../components/pen-alerts-widget';
 
 // TypeScript interfaces - egyértelműen definiálva
 interface Animal {
@@ -72,6 +74,8 @@ export default function PenDetailsPage() {
     const [showMovementPanel, setShowMovementPanel] = useState(false);
     const [showFunctionManager, setShowFunctionManager] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    // Riasztások hook hozzáadása
+    const { alerts, getAlertsForPen } = usePenAlerts();
 
     console.log('🔍 PEN DETAILS RENDER:', { 
         pen: pen?.pen_number, 
@@ -143,7 +147,7 @@ export default function PenDetailsPage() {
                 ...simplePen,
                 current_function: activeFunction ? {
                     id: activeFunction.id,
-                    function_type: (activeFunction.function_name || 'üres') as PenFunctionType['function_type'],
+                    function_type: (activeFunction.function_type || 'üres') as PenFunctionType['function_type'],
                     start_date: activeFunction.start_date,
                     metadata: activeFunction.metadata || {},
                     notes: activeFunction.notes
@@ -430,11 +434,11 @@ export default function PenDetailsPage() {
                         <div>
                             <div className="bg-gray-50 rounded-lg p-4">
                                 <h3 className="text-lg font-medium text-gray-900 mb-3">Jelenlegi Funkció</h3>
-                                <div className={`px-3 py-2 rounded-full text-sm font-medium border ${getFunctionColor(pen.current_function?.function_type || 'üres')}`}>
+                                <div className={`px-3 py-2 rounded-full text-sm font-medium border ${getFunctionColor(pen.current_function?.function_type || 'tehén')}`}>
                                     {getFunctionEmoji(pen.current_function?.function_type || 'üres')}
                                     {pen.current_function?.function_type ?
-                                        pen.current_function.function_type.charAt(0).toUpperCase() + pen.current_function.function_type.slice(1)
-                                        : 'Nincs funkció'}
+    pen.current_function.function_type.charAt(0).toUpperCase() + pen.current_function.function_type.slice(1)
+    : 'üres'}
                                 </div>
                             </div>
                         </div>
@@ -484,9 +488,15 @@ export default function PenDetailsPage() {
                                         <p className="font-medium">{new Date(pen.current_function.metadata.vv_esedekessege).toLocaleDateString('hu-HU')}</p>
                                     </div>
                                 )}
+
                             </div>
                         </div>
                     )}
+                    <PenAlertsWidget 
+    penId={pen.id} 
+    alerts={alerts} 
+    className="mt-6"
+/>
                 </div>
             </div>
 

@@ -3,6 +3,8 @@
 
 import { useRouter } from 'next/navigation';
 import { MapPin, AlertTriangle } from 'lucide-react';
+import { PenAlertsWidget } from './pen-alerts-widget';
+import { usePenAlerts } from '../hooks/usePenAlerts';
 
 interface Pen {
   id: string;
@@ -27,6 +29,7 @@ interface PenCardProps {
 }
 
 export default function PenCard({ pen }: PenCardProps) {
+  const { alerts } = usePenAlerts();
   const router = useRouter();
 
   // Funkció emoji és színek
@@ -122,11 +125,10 @@ export default function PenCard({ pen }: PenCardProps) {
 
         {/* Progress Bar */}
         <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
-          <div 
-            className={`h-2 rounded-full transition-all ${
-              pen.animal_count / pen.capacity > 0.8 ? 'bg-red-500' :
-              pen.animal_count / pen.capacity > 0.6 ? 'bg-yellow-500' : 'bg-green-500'
-            }`}
+          <div
+            className={`h-2 rounded-full transition-all ${pen.animal_count / pen.capacity > 0.8 ? 'bg-red-500' :
+                pen.animal_count / pen.capacity > 0.6 ? 'bg-yellow-500' : 'bg-green-500'
+              }`}
             style={{ width: `${Math.min((pen.animal_count / pen.capacity) * 100, 100)}%` }}
           />
         </div>
@@ -152,6 +154,11 @@ export default function PenCard({ pen }: PenCardProps) {
             Túlzsúfolt!
           </div>
         )}
+        {/* ÚJ specializált riasztások widget */}
+        <PenAlertsWidget
+          penId={pen.id}
+          alerts={alerts}
+        />
       </div>
     </div>
   );

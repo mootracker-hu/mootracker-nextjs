@@ -17,6 +17,8 @@ import {
   MapPin,
   TrendingUp
 } from 'lucide-react';
+import { usePenAlerts } from './hooks/usePenAlerts';
+import { AlertsSummary } from './components/pen-alerts-widget';
 
 export default function PensPage() {
   const router = useRouter();
@@ -26,6 +28,8 @@ export default function PensPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState('mind');
   const [selectedLocation, setSelectedLocation] = useState('mind');
+  // Riasztások hook hozzáadása
+  const { alerts, loading: alertsLoading, getAlertCounts } = usePenAlerts();
 
   // Karám funkció emoji és színek
   const getFunctionEmoji = (functionType: string): string => {
@@ -286,6 +290,9 @@ export default function PensPage() {
         </div>
       </div>
 
+      {/* Riasztások összesítő */}
+      <AlertsSummary alerts={alerts} className="mb-6" />
+      
       {/* Statisztika Widget */}
       <PenStats />
 
