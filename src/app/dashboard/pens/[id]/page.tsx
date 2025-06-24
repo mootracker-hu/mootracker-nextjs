@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import AnimalMovementPanel from '../components/animal-movement-panel';
 import PenFunctionManager from '../components/pen-function-manager';
+import PenSpecificAnimalTable from '../components/pen-specific-animal-table';
 import {
     ArrowLeft,
     Users,
@@ -77,10 +78,10 @@ export default function PenDetailsPage() {
     // Riasztások hook hozzáadása
     const { alerts, getAlertsForPen } = usePenAlerts();
 
-    console.log('🔍 PEN DETAILS RENDER:', { 
-        pen: pen?.pen_number, 
-        loading, 
-        hasData: !!pen 
+    console.log('🔍 PEN DETAILS RENDER:', {
+        pen: pen?.pen_number,
+        loading,
+        hasData: !!pen
     });
 
     // Data loading effects
@@ -97,7 +98,7 @@ export default function PenDetailsPage() {
     // Animals count update
     useEffect(() => {
         if (pen) {
-            setPen(prev => prev ? {...prev, animal_count: animals.length} : null);
+            setPen(prev => prev ? { ...prev, animal_count: animals.length } : null);
         }
     }, [animals.length]);
 
@@ -107,7 +108,7 @@ export default function PenDetailsPage() {
             console.log('🏠 Fetching pen with ID:', penId);
             setLoading(true);
             setError(null);
-            
+
             // Egyszerű lekérdezés először - nézzük meg létezik-e a karám
             const { data: simplePen, error: simpleError } = await supabase
                 .from('pens')
@@ -136,25 +137,43 @@ export default function PenDetailsPage() {
                 .from('pen_functions')
                 .select('*')
                 .eq('pen_id', penId);
-
             console.log('📊 Pen functions query result:', { penFunctions, functionsError });
 
-            // Kombináljuk az adatokat
-            const activeFunction = penFunctions?.find((f: any) => f.end_date === null);
+            // ✅ JAVÍTOTT AKTÍV FUNKCIÓ KERESÉS
+            const activeFunction = penFunctions?.find((f: any) => {
+                // 1. Nincs end_date (NULL)
+                if (f.end_date === null) return true;
+                // 2. end_date üres string
+                if (f.end_date === '') return true;
+                // 3. end_date jövőbeli dátum
+                if (f.end_date && new Date(f.end_date) > new Date()) return true;
+                return false;
+            }) || penFunctions?.[penFunctions.length - 1]; // Fallback: legutóbbi funkció
+
             console.log('🎯 Active function found:', activeFunction);
-            
+            console.log('🔍 All functions:', penFunctions);
+
             const penWithFunction: PenDetailsType = {
                 ...simplePen,
                 current_function: activeFunction ? {
                     id: activeFunction.id,
-                    function_type: (activeFunction.function_type || 'üres') as PenFunctionType['function_type'],
+                    function_type: (activeFunction.function_type || 'üres') as PenFunctionType,
                     start_date: activeFunction.start_date,
+                    end_date: activeFunction.end_date || null,
                     metadata: activeFunction.metadata || {},
-                    notes: activeFunction.notes
-                } : undefined,
+                    notes: activeFunction.notes || ''
+                } : {
+                    // DEFAULT FUNKCIÓ HA NINCS AKTÍV
+                    id: 'default',
+                    function_type: 'üres',
+                    start_date: new Date().toISOString(),
+                    end_date: null,
+                    metadata: {},
+                    notes: ''
+                },
                 animal_count: 0 // Will be updated when animals load
             };
-            
+
             console.log('✅ Final pen object:', penWithFunction);
             setPen(penWithFunction);
             setLoading(false);
@@ -169,10 +188,10 @@ export default function PenDetailsPage() {
     // Fetch animals in pen
     const fetchAnimalsInPen = async () => {
         if (!pen?.id) return;
-        
+
         try {
             console.log(`🐄 Állatok betöltése ${pen.pen_number} karamhoz...`);
-            
+
             const { data: assignments, error: assignError } = await supabase
                 .from('animal_pen_assignments')
                 .select(`
@@ -201,7 +220,7 @@ export default function PenDetailsPage() {
             }
 
             console.log(`✅ ${assignments?.length || 0} állat betöltve:`, assignments);
-            
+
             const animalsData: Animal[] = assignments?.map((assignment: any) => ({
                 ...assignment.animals,
                 assigned_at: assignment.assigned_at,
@@ -209,7 +228,7 @@ export default function PenDetailsPage() {
             })) || [];
 
             setAnimals(animalsData);
-            
+
         } catch (err) {
             console.error('💥 fetchAnimalsInPen error:', err);
             setError('Hiba történt az állatok betöltésekor');
@@ -326,7 +345,7 @@ export default function PenDetailsPage() {
                 <div className="text-center">
                     <AlertTriangle className="h-12 w-12 text-red-600 mx-auto" />
                     <p className="mt-4 text-red-600">{error}</p>
-                    <Link 
+                    <Link
                         href="/dashboard/pens"
                         className="mt-4 inline-flex items-center text-blue-600 hover:text-blue-800"
                     >
@@ -345,7 +364,7 @@ export default function PenDetailsPage() {
                 <div className="text-center">
                     <AlertTriangle className="h-12 w-12 text-gray-600 mx-auto" />
                     <p className="mt-4 text-gray-600">Karám nem található</p>
-                    <Link 
+                    <Link
                         href="/dashboard/pens"
                         className="mt-4 inline-flex items-center text-blue-600 hover:text-blue-800"
                     >
@@ -420,8 +439,8 @@ export default function PenDetailsPage() {
                                     <div className="flex items-center">
                                         <Calendar className="h-4 w-4 text-gray-400 mr-2" />
                                         <span className="text-sm text-gray-600">
-                                            Funkció kezdete: {pen.current_function?.start_date ? 
-                                                new Date(pen.current_function.start_date).toLocaleDateString('hu-HU') : 
+                                            Funkció kezdete: {pen.current_function?.start_date ?
+                                                new Date(pen.current_function.start_date).toLocaleDateString('hu-HU') :
                                                 'Nincs megadva'
                                             }
                                         </span>
@@ -437,8 +456,8 @@ export default function PenDetailsPage() {
                                 <div className={`px-3 py-2 rounded-full text-sm font-medium border ${getFunctionColor(pen.current_function?.function_type || 'tehén')}`}>
                                     {getFunctionEmoji(pen.current_function?.function_type || 'üres')}
                                     {pen.current_function?.function_type ?
-    pen.current_function.function_type.charAt(0).toUpperCase() + pen.current_function.function_type.slice(1)
-    : 'üres'}
+                                        pen.current_function.function_type.charAt(0).toUpperCase() + pen.current_function.function_type.slice(1)
+                                        : 'üres'}
                                 </div>
                             </div>
                         </div>
@@ -492,11 +511,11 @@ export default function PenDetailsPage() {
                             </div>
                         </div>
                     )}
-                    <PenAlertsWidget 
-    penId={pen.id} 
-    alerts={alerts} 
-    className="mt-6"
-/>
+                    <PenAlertsWidget
+                        penId={pen.id}
+                        alerts={alerts}
+                        className="mt-6"
+                    />
                 </div>
             </div>
 
@@ -548,96 +567,28 @@ export default function PenDetailsPage() {
                     </div>
                 </div>
 
-                {/* Állatok táblázat */}
-                <div className="bg-white shadow-sm rounded-lg overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedAnimals.length === filteredAnimals.length && filteredAnimals.length > 0}
-                                        onChange={() => selectedAnimals.length === filteredAnimals.length ? clearSelection() : selectAllAnimals()}
-                                        className="rounded border-gray-300"
-                                    />
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    ENAR
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Kategória
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Életkor
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Származás
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Műveletek
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {filteredAnimals.map((animal) => (
-                                <tr
-                                    key={animal.id}
-                                    className={`hover:bg-gray-50 ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''}`}
-                                >
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedAnimals.includes(animal.id)}
-                                            onChange={() => toggleAnimalSelection(animal.id)}
-                                            className="rounded border-gray-300"
-                                        />
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <Link
-                                            href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`}
-                                            className="text-blue-600 hover:text-blue-800 font-medium"
-                                        >
-                                            {animal.enar}
-                                        </Link>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                            {getCategoryEmoji(animal.kategoria)} {animal.kategoria.replace('_', ' ')}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {calculateAge(animal.szuletesi_datum)}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                            animal.birth_location === 'nálunk' ? 'bg-green-100 text-green-800' :
-                                            animal.birth_location === 'vásárolt' ? 'bg-blue-100 text-blue-800' :
-                                            'bg-gray-100 text-gray-800'
-                                        }`}>
-                                            {animal.birth_location === 'nálunk' ? '🏠 Nálunk' :
-                                             animal.birth_location === 'vásárolt' ? '🛒 Vásárolt' : '❓ Ismeretlen'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        <button className="text-gray-400 hover:text-gray-600">
-                                            <MoreHorizontal className="h-4 w-4" />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                {/* Karám-specifikus állatok táblázat */}
+<PenSpecificAnimalTable 
+    penFunction={pen.current_function?.function_type || 'üres'}
+    animals={filteredAnimals.map(animal => ({
+        ...animal,
+        id: animal.id.toString()
+    }))}
+    selectedAnimals={selectedAnimals.map(id => id.toString())}
+    onToggleAnimal={(id) => toggleAnimalSelection(parseInt(id))}
+    onSelectAll={selectAllAnimals}
+    onClearSelection={clearSelection}
+/>
 
-                    {filteredAnimals.length === 0 && (
-                        <div className="text-center py-12">
-                            <Users className="mx-auto h-12 w-12 text-gray-400" />
-                            <h3 className="mt-2 text-sm font-medium text-gray-900">Nincsenek állatok</h3>
-                            <p className="mt-1 text-sm text-gray-500">
-                                {searchTerm ? 'Nincs találat a keresési feltételre.' : 'Ez a karám jelenleg üres.'}
-                            </p>
-                        </div>
-                    )}
-                </div>
+{filteredAnimals.length === 0 && (
+    <div className="text-center py-12">
+        <Users className="mx-auto h-12 w-12 text-gray-400" />
+        <h3 className="mt-2 text-sm font-medium text-gray-900">Nincsenek állatok</h3>
+        <p className="mt-1 text-sm text-gray-500">
+            {searchTerm ? 'Nincs találat a keresési feltételre.' : 'Ez a karám jelenleg üres.'}
+        </p>
+    </div>
+)}
             </div>
 
             {/* Movement Panel Modal */}
@@ -666,33 +617,46 @@ export default function PenDetailsPage() {
                 onClose={() => setShowFunctionManager(false)}
                 pen={pen as any}
                 onFunctionChange={async (newFunction: string, metadata: any, notes: string) => {
-                    try {
-                        // Close old function
-                        await supabase
-                            .from('pen_functions')
-                            .update({ end_date: new Date().toISOString() })
-                            .eq('pen_id', pen?.id)
-                            .is('end_date', null);
-                        
-                        // Add new function
-                        await supabase
-                            .from('pen_functions')
-                            .insert({
-                                pen_id: pen?.id,
-                                function_name: newFunction,
-                                start_date: new Date().toISOString(),
-                                metadata: metadata,
-                                notes: notes
-                            });
-                        
-                        setShowFunctionManager(false);
-                        alert('Funkció sikeresen megváltoztatva!');
-                        window.location.reload();
-                    } catch (error) {
-                        console.error('Hiba:', error);
-                        alert('Hiba történt a funkció váltáskor!');
-                    }
-                }}
+    try {
+        console.log('🔄 Funkció váltás indítása:', { newFunction, metadata, notes });
+        
+        // 1. RÉGI FUNKCIÓ LEZÁRÁSA
+        const { error: closeError } = await supabase
+            .from('pen_functions')
+            .update({ end_date: new Date().toISOString() })
+            .eq('pen_id', pen?.id)
+            .is('end_date', null);
+
+        if (closeError) throw closeError;
+
+        // 2. ÚJ FUNKCIÓ LÉTREHOZÁSA
+        const { data: newPenFunction, error: insertError } = await supabase
+            .from('pen_functions')
+            .insert({
+                pen_id: pen?.id,
+                function_type: newFunction,
+                start_date: new Date().toISOString(),
+                end_date: null,
+                metadata: metadata || {},
+                notes: notes || ''
+            })
+            .select()
+            .single();
+
+        if (insertError) throw insertError;
+
+        console.log('✅ Funkció váltás sikeres!', newPenFunction);
+        
+        setShowFunctionManager(false);
+        alert('Funkció sikeresen megváltoztatva!');
+        
+        // NE RELOAD - csak refresh a pen adatokat
+        window.location.reload();
+    } catch (error) {
+        console.error('💥 Funkció váltási hiba:', error);
+        alert('Hiba történt: ' + (error instanceof Error ? error.message : String(error)));
+    }
+}}
             />
         </div>
     );

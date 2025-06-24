@@ -232,7 +232,7 @@ export default function PenFunctionManager({
 
   if (!isOpen) return null;
 
-  const availableFunctions = getAvailableFunctions();
+  const availableFunctions = functionTypes;
   const capacityWarning = getCapacityWarning();
   const newCapacity = newFunction ? calculateNewCapacity(newFunction) : pen.capacity;
   const selectedTemplate = NOTES_TEMPLATES[newFunction];
