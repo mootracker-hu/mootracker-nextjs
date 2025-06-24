@@ -1,15 +1,49 @@
 // src/types/alert-task-types.ts
-// MooTracker Alert & Task típusok - Tiszta verzió
+// MooTracker Alert & Task típusok - FRISSÍTETT VERZIÓ v8.1
 
 // ============================================
 // ALAPVETŐ TÍPUSOK
 // ============================================
 
-export type TaskPriority = 'low' | 'medium' | 'high' | 'critical';
-export type AlertPriority = 'low' | 'medium' | 'high' | 'critical' | 'urgent';
-export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
-export type TaskCategory = 'general' | 'health' | 'vaccination' | 'breeding' | 'movement' | 'maintenance';
-export type AlertType = 'vaccination_due' | 'weaning_time' | 'pen_change_needed' | 'breeding_reminder' | 'market_opportunity' | 'pregnancy_check' | 'birth_approaching';
+export type TaskPriority = 'alacsony' | 'kozepes' | 'magas' | 'kritikus';
+export type AlertPriority = 'alacsony' | 'kozepes' | 'magas' | 'kritikus' | 'surgos';
+export type TaskStatus = 'fuggőben' | 'folyamatban' | 'befejezve' | 'torolve';
+export type TaskCategory = 'altalanos' | 'egeszsegugy' | 'vakcinazas' | 'tenyesztes' | 'mozgatas' | 'karbantartas' | 'gyogykezeles' | 'donteshez' | 'ertekesites';
+
+// ✅ MAGYAR ALERT TÍPUSOK - VV PROTOKOLLAL KIEGÉSZÍTVE
+export type AlertType = 
+  | 'vakcinazas_esedékes'        // vaccination_due
+  | 'valasztas_ideje'            // weaning_time  
+  | 'karam_valtas_szukseges'     // pen_change_needed
+  | 'tenyesztesi_emlekezeto'     // breeding_reminder
+  | 'piaci_lehetoseg'            // market_opportunity
+  | 'vemhessegvizsgalat'         // pregnancy_check
+  | 'rcc_vakcina_esedékes'       // ✅ ÚJ - ellés előtt 6 hét
+  | 'bovipast_vakcina_esedékes'  // ✅ ÚJ - ellés előtt 4 hét
+  | 'abrak_elvetel_esedékes'     // ✅ ÚJ - ellés előtt 2 hét
+  | 'elleto_karam_athelyezes'    // ✅ ÚJ - ellés előtt 1 hét
+  | 'elles_kozeledik'            // birth_approaching
+  | 'elles_kesesben'             // ✅ ÚJ - túlhordás
+  | 'vemhessegvizsgalat_ismetles' // ✅ ÚJ - üres állat újra VV
+  | 'selejtezesi_javaslat'       // ✅ ÚJ - csíra állat selejtezése;
+
+// ✅ ÚJ KARÁM FUNKCIÓ TÍPUSOK
+export type PenFunctionType = 
+  | 'bölcsi'        // 0-12 hónapos borjak
+  | 'óvi'           // 12-24 hónapos fiatalok  
+  | 'hárem'         // Tenyésztés folyamatban
+  | 'vemhes'        // Vemhes állatok
+  | 'ellető'        // Ellés körül
+  | 'tehén'         // Laktáló tehenek
+  | 'hízóbika'      // Hústermelés
+  | 'üres'          // Nincs használatban
+  | 'átmeneti'      // ✅ ÚJ - Ideiglenes, döntés alatt
+  | 'kórház'        // ✅ ÚJ - Kezelés alatt lévő állatok
+  | 'karantén'      // ✅ ÚJ - Elkülönítés (új állatok, betegek)
+  | 'selejt'        // ✅ ÚJ - Értékesítésre/vágásra várók;
+
+// ✅ VV EREDMÉNY TÍPUSOK
+export type PregnancyStatus = 'vemhes' | 'ures' | 'csira';
 
 // ============================================
 // TASK INTERFACE
@@ -76,7 +110,67 @@ export interface Alert {
   metadata?: {
     animal_age_days?: number;
     rule_type?: string;
+    vv_date?: string;           // ✅ ÚJ - VV vizsgálat dátuma
+    vv_result_days?: number;    // ✅ ÚJ - VV eredmény napokban
+    expected_birth_date?: string; // ✅ ÚJ - várható ellési dátum
   };
+}
+
+// ============================================
+// ÚJ KARÁM METADATA TÍPUSOK
+// ============================================
+
+export interface KorhazMetadata {
+  treatment_type: 'vakcinazas' | 'gyogykezeles' | 'sebezes' | 'megfigyeles';
+  treatment_start_date: string;
+  expected_recovery_date?: string;
+  veterinarian?: string;
+  medication_schedule?: string[];
+  return_pen_id?: string;      // Vissza ide megy gyógyulás után
+  treatment_notes?: string;
+}
+
+export interface AtmenetiMetadata {
+  reason: 'funkció_váltás_alatt' | 'besorolás_alatt' | 'vizsgálat_alatt';
+  temporary_since: string;
+  decision_deadline?: string;   // Meddig lehet itt
+  target_function_candidates?: PenFunctionType[]; // Lehetséges célok
+  decision_criteria?: string;
+  notes?: string;
+}
+
+export interface KarantenMetadata {
+  quarantine_reason: 'uj_allat' | 'betegseg_gryanuja' | 'kulso_fertozes';
+  quarantine_start_date: string;
+  expected_end_date?: string;
+  health_checks?: string[];
+  release_criteria?: string;
+  notes?: string;
+}
+
+export interface SelejtMetadata {
+  reason: 'reprodukcios_problema' | 'betegseg' | 'eletkor' | 'genetikai_hiba';
+  planned_disposal: 'ertekesites' | 'vagas' | 'egyeb';
+  market_price_info?: string;
+  disposal_deadline?: string;
+  notes?: string;
+}
+
+// ✅ KARÁM NOTES RENDSZER
+export interface PenNotes {
+  template: string;             // Karám típus alapértelmezett template
+  custom_notes: string;         // Szabad szöveges megjegyzések
+  last_updated: string;
+  updated_by?: string;
+  notes_history?: PreviousNote[];
+}
+
+export interface PreviousNote {
+  period: string;               // "hárem (2024-01-15 - 2024-06-20)"
+  function_type: PenFunctionType;
+  notes: string;
+  start_date: string;
+  end_date: string;
 }
 
 // ============================================
@@ -108,6 +202,15 @@ export interface UpdateTaskRequest {
   completed_at?: string;
 }
 
+// ✅ VV EREDMÉNY RÖGZÍTÉSE
+export interface VVResult {
+  vv_date: string;                    // VV vizsgálat dátuma
+  pregnancy_status: PregnancyStatus;  // 3 féle eredmény
+  vv_result_days?: number;            // Csak vemhes esetén (pl. 45 nap)
+  animal_enar: string;                // Melyik állat
+  notes?: string;                     // Megjegyzések
+}
+
 // ============================================
 // FILTER ÉS STATS TÍPUSOK
 // ============================================
@@ -122,16 +225,16 @@ export interface TaskFilters {
 }
 
 export interface AlertStats {
-  total: number;
-  active: number;
-  resolved: number;
-  snoozed: number;
-  overdue: number;
-  critical: number;
-  urgent: number;
-  high: number;
-  medium: number;
-  low: number;
+  osszes: number;     // total → osszes
+  aktiv: number;      // active → aktiv  
+  megoldott: number;  // resolved → megoldott
+  halasztott: number; // snoozed → halasztott
+  lejart: number;     // overdue → lejart
+  kritikus: number;   // critical → kritikus
+  surgos: number;     // urgent → surgos
+  magas: number;      // high → magas
+  kozepes: number;    // medium → kozepes
+  alacsony: number;   // low → alacsony
 }
 
 // ============================================
@@ -153,12 +256,12 @@ export interface UseTasksReturn {
   setFilters: (filters: TaskFilters) => void;
   sortBy: (field: keyof Task, direction: 'asc' | 'desc') => void;
   taskStats: {
-    total: number;
-    pending: number;
-    in_progress: number;
-    completed: number;
-    overdue: number;
-    critical: number;
+    osszes: number;
+    fuggőben: number;
+    folyamatban: number;
+    befejezve: number;
+    lejart: number;
+    kritikus: number;
   };
   createTaskFromAlert: (alert: Alert) => Promise<Task>;
 }
@@ -188,6 +291,13 @@ export interface Animal {
   ivar: string;
   statusz: string;
   szuletesi_datum: string;
+  // ✅ ÚJ VV MEZŐK
+  pairing_date?: string;              // Párzási dátum
+  vv_date?: string;                   // VV vizsgálat dátuma
+  vv_result_days?: number;            // VV eredmény napokban
+  pregnancy_status?: PregnancyStatus; // VV státusz
+  expected_birth_date?: string;       // Várható ellési dátum
+  notes?: string;                     // Állat megjegyzések
 }
 
 export interface AlertRule {
@@ -203,18 +313,116 @@ export interface AlertRule {
 }
 
 export interface DailyTaskSchedule {
-  urgent: Alert[];
-  today: Alert[];
-  thisWeek: Alert[];
-  later: Alert[];
+  surgos: Alert[];    // urgent → surgos
+  ma: Alert[];        // today → ma
+  ezen_a_heten: Alert[]; // thisWeek → ezen_a_heten
+  kesobb: Alert[];    // later → kesobb
 }
-// types/alert-task-types.ts végére add hozzá:
+
+// ============================================
+// MAGYAR LOKALIZÁCIÓ
+// ============================================
+
 export const ALERT_TYPE_LABELS: Record<AlertType, string> = {
-  vaccination_due: 'Vakcinázás',
-  weaning_time: 'Választás',
-  pen_change_needed: 'Karám váltás',
-  breeding_reminder: 'Tenyésztés',
-  market_opportunity: 'Értékesítés',
-  pregnancy_check: 'Vemhességvizsgálat',
-  birth_approaching: 'Ellés közeleg'
+  vakcinazas_esedékes: '💉 Vakcinázás',
+  valasztas_ideje: '🐄 Választás',
+  karam_valtas_szukseges: '🏠 Karám váltás',
+  tenyesztesi_emlekezeto: '💕 Tenyésztés',
+  piaci_lehetoseg: '💰 Értékesítés',
+  vemhessegvizsgalat: '🔬 VV vizsgálat',
+  rcc_vakcina_esedékes: '💉 RCC vakcina',
+  bovipast_vakcina_esedékes: '💉 BoviPast vakcina',
+  abrak_elvetel_esedékes: '🚫 Abrak elvétel',
+  elleto_karam_athelyezes: '🏠➡️ Ellető karámba',
+  elles_kozeledik: '🍼 Ellés közeledik',
+  elles_kesesben: '🚨 TÚLHORDÁS',
+  vemhessegvizsgalat_ismetles: '🔬 VV ismétlés',
+  selejtezesi_javaslat: '📦 Selejtezés'
+};
+
+export const PRIORITY_LABELS: Record<AlertPriority, string> = {
+  kritikus: 'Kritikus',
+  surgos: 'Sürgős', 
+  magas: 'Magas',
+  kozepes: 'Közepes',
+  alacsony: 'Alacsony'
+};
+
+export const PEN_FUNCTION_LABELS: Record<PenFunctionType, string> = {
+  bölcsi: '🐮 Bölcsi',
+  óvi: '🐄 Óvi',
+  hárem: '🐄💕 Hárem',
+  vemhes: '🐄💖 Vemhes',
+  ellető: '🐄🍼 Ellető',
+  tehén: '🐄🍼 Tehén',
+  hízóbika: '🐂 Hízóbika',
+  üres: '⭕ Üres',
+  átmeneti: '🔄 Átmeneti',
+  kórház: '🏥 Kórház',
+  karantén: '🔒 Karantén',
+  selejt: '📦 Selejt'
+};
+
+// ✅ NOTES TEMPLATE RENDSZER
+export const NOTES_TEMPLATES: Record<PenFunctionType, string> = {
+  bölcsi: `Súlygyarapodás: ___kg/hét
+Vakcinázási státusz: ___
+Egészségi állapot: ___
+Különleges igények: ___`,
+
+  óvi: `Növekedési ütem: ___
+Kondíció: ___
+Tenyésztésre való alkalmasság: ___
+Problémás állatok: ___`,
+
+  hárem: `Tenyészbika: ___
+Párzási aktivitás: ___
+VV vizsgálatok: ___
+Problémás állatok: ___`,
+
+  vemhes: `Ellési dátumok: ___
+RCC/BoviPast státusz: ___
+Kondíció: ___
+Speciális figyelés: ___`,
+
+  ellető: `Ellések száma: ___
+Komplikációk: ___
+Újszülöttek állapota: ___
+Segítség szükségessége: ___`,
+
+  tehén: `Laktációs szakasz: ___
+Borjak állapota: ___
+Választási tervek: ___
+Egészségügyi problémák: ___`,
+
+  hízóbika: `Súlygyarapodás: ___kg/nap
+Takarmány-átalakítás: ___
+Értékesítési tervek: ___
+Viselkedési problémák: ___`,
+
+  üres: `Utolsó használat: ___
+Tisztítás dátuma: ___
+Karbantartási igények: ___
+Következő felhasználás terve: ___`,
+
+  átmeneti: `Ide kerülés oka: ___
+Döntési határidő: ___
+Lehetséges célkarám: ___
+Szükséges vizsgálatok: ___`,
+
+  kórház: `Kezelés típusa: ___
+Gyógyszerek: ___
+Állatorvos: ___
+Gyógyulási előrehaladás: ___
+Visszahelyezés tervezett dátuma: ___`,
+
+  karantén: `Karantén oka: ___
+Várható időtartam: ___
+Egészségügyi ellenőrzések: ___
+Feloldási kritériumok: ___`,
+
+  selejt: `Selejtezés oka: ___
+Értékesítési terv: ___
+Piaci információk: ___
+Deadline: ___`
 };

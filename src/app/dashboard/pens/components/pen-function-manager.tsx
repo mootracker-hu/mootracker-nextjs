@@ -2,7 +2,8 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Settings, AlertTriangle, CheckCircle, Calendar, User } from 'lucide-react';
+import { X, Settings, AlertTriangle, CheckCircle, Calendar, User, Heart, Clock, Shield, Package } from 'lucide-react';
+import { PenFunctionType, PEN_FUNCTION_LABELS, NOTES_TEMPLATES, KorhazMetadata, AtmenetiMetadata, KarantenMetadata, SelejtMetadata } from '@/types/alert-task-types';
 
 interface Pen {
   id: string;
@@ -16,7 +17,7 @@ interface Pen {
 
 interface PenFunction {
   id: string;
-  function_type: 'bölcsi' | 'óvi' | 'hárem' | 'vemhes' | 'hízóbika' | 'ellető' | 'üres' | 'tehén';
+  function_type: PenFunctionType;
   start_date: string;
   metadata: any;
   notes?: string;
@@ -26,7 +27,7 @@ interface PenFunctionManagerProps {
   isOpen: boolean;
   onClose: () => void;
   pen: Pen;
-  onFunctionChange: (newFunction: string, metadata: any, notes: string) => void;
+  onFunctionChange: (newFunction: PenFunctionType, metadata: any, notes: string) => void;
 }
 
 export default function PenFunctionManager({
@@ -35,8 +36,9 @@ export default function PenFunctionManager({
   pen,
   onFunctionChange
 }: PenFunctionManagerProps) {
-  const [newFunction, setNewFunction] = useState(pen.current_function?.function_type || '');
+  const [newFunction, setNewFunction] = useState<PenFunctionType>(pen.current_function?.function_type || 'üres');
   const [notes, setNotes] = useState(pen.current_function?.notes || '');
+  const [customNotes, setCustomNotes] = useState('');
   const [loading, setLoading] = useState(false);
   
   // Hárem specifikus mezők
@@ -44,28 +46,56 @@ export default function PenFunctionManager({
   const [tenyeszbikaEnar, setTenyeszbikaEnar] = useState(pen.current_function?.metadata?.tenyeszbika_enar || '');
   const [parozasKezdete, setParozasKezdete] = useState(pen.current_function?.metadata?.parozas_kezdete || '');
 
-  // Funkció típusok és leírásaik
+  // Kórház specifikus mezők
+  const [treatmentType, setTreatmentType] = useState<KorhazMetadata['treatment_type']>('megfigyeles');
+  const [veterinarian, setVeterinarian] = useState('');
+  const [expectedRecovery, setExpectedRecovery] = useState('');
+  const [returnPenId, setReturnPenId] = useState('');
+
+  // Átmeneti specifikus mezők
+  const [atmenetiReason, setAtmenetiReason] = useState<AtmenetiMetadata['reason']>('besorolás_alatt');
+  const [decisionDeadline, setDecisionDeadline] = useState('');
+  const [decisionCriteria, setDecisionCriteria] = useState('');
+
+  // Karantén specifikus mezők
+  const [quarantineReason, setQuarantineReason] = useState<KarantenMetadata['quarantine_reason']>('uj_allat');
+  const [expectedEndDate, setExpectedEndDate] = useState('');
+  const [releaseCriteria, setReleaseCriteria] = useState('');
+
+  // Selejt specifikus mezők
+  const [selejtReason, setSelejtReason] = useState<SelejtMetadata['reason']>('reprodukcios_problema');
+  const [plannedDisposal, setPlannedDisposal] = useState<SelejtMetadata['planned_disposal']>('ertekesites');
+  const [disposalDeadline, setDisposalDeadline] = useState('');
+
+  // ✅ BŐVÍTETT FUNKCIÓ TÍPUSOK
   const functionTypes = [
-    { value: 'bölcsi', label: '🐮 Bölcsi', description: '0-12 hónapos borjak nevelése' },
-    { value: 'óvi', label: '🐄 Óvi', description: '12-24 hónapos üszők nevelése' },
-    { value: 'hárem', label: '🐄💕 Hárem', description: 'Tenyésztésben lévő üszők/tehenek' },
-    { value: 'vemhes', label: '🐄💖 Vemhes', description: 'Vemhes állatok ellésre várva' },
-    { value: 'hízóbika', label: '🐂 Hízóbika', description: 'Hústermelés céljából tartott bikák' },
-    { value: 'ellető', label: '🐄🍼 Ellető', description: 'Ellés körül lévő tehenek' },
-    { value: 'tehén', label: '🐄🍼 Tehén', description: 'Borjával együtt tartott tehenek' },
-    { value: 'üres', label: '⭕ Üres', description: 'Jelenleg nincs használatban' }
+    { value: 'bölcsi' as PenFunctionType, label: '🐮 Bölcsi', description: '0-12 hónapos borjak nevelése', color: 'blue' },
+    { value: 'óvi' as PenFunctionType, label: '🐄 Óvi', description: '12-24 hónapos üszők nevelése', color: 'green' },
+    { value: 'hárem' as PenFunctionType, label: '🐄💕 Hárem', description: 'Tenyésztésben lévő üszők/tehenek', color: 'pink' },
+    { value: 'vemhes' as PenFunctionType, label: '🐄💖 Vemhes', description: 'Vemhes állatok ellésre várva', color: 'purple' },
+    { value: 'hízóbika' as PenFunctionType, label: '🐂 Hízóbika', description: 'Hústermelés céljából tartott bikák', color: 'orange' },
+    { value: 'ellető' as PenFunctionType, label: '🐄🍼 Ellető', description: 'Ellés körül lévő tehenek', color: 'red' },
+    { value: 'tehén' as PenFunctionType, label: '🐄🍼 Tehén', description: 'Borjával együtt tartott tehenek', color: 'yellow' },
+    { value: 'üres' as PenFunctionType, label: '⭕ Üres', description: 'Jelenleg nincs használatban', color: 'gray' },
+    
+    // ✅ ÚJ KARÁM TÍPUSOK
+    { value: 'átmeneti' as PenFunctionType, label: '🔄 Átmeneti', description: 'Ideiglenes elhelyezés, döntés alatt', color: 'indigo' },
+    { value: 'kórház' as PenFunctionType, label: '🏥 Kórház', description: 'Kezelés alatt lévő állatok', color: 'red' },
+    { value: 'karantén' as PenFunctionType, label: '🔒 Karantén', description: 'Elkülönített állatok', color: 'yellow' },
+    { value: 'selejt' as PenFunctionType, label: '📦 Selejt', description: 'Értékesítésre/vágásra váró állatok', color: 'slate' }
   ];
 
   // Ellető karamokra csak ellető és üres funkció
   const getAvailableFunctions = () => {
     if (pen.pen_type === 'birthing') {
-      return functionTypes.filter(func => ['ellető', 'üres'].includes(func.value));
+      return functionTypes.filter(func => ['ellető', 'üres', 'kórház'].includes(func.value));
     }
-    return functionTypes.filter(func => func.value !== 'ellető'); // Ellető csak ellető karamokban
+    // Ellető csak ellető karamokban, de kórház bárhol lehet
+    return functionTypes.filter(func => func.value !== 'ellető');
   };
 
-  // Dinamikus kapacitás számítás
-  const calculateNewCapacity = (functionType: string): number => {
+  // ✅ RUGALMAS KAPACITÁS SZÁMÍTÁS
+  const calculateNewCapacity = (functionType: PenFunctionType): number => {
     // Ellető istálló kapacitások
     if (pen.pen_number.startsWith('E')) {
       if (['E1', 'E2', 'E7', 'E8'].includes(pen.pen_number)) return 25;
@@ -87,6 +117,13 @@ export default function PenFunctionManager({
       case 'bölcsi': return 25;
       case 'óvi': return 25;
       case 'hízóbika': return 20;
+      
+      // ✅ ÚJ TÍPUSOK - RUGALMAS KAPACITÁS
+      case 'kórház': return Math.min(5, pen.capacity); // Max 5, de alkalmazkodik
+      case 'átmeneti': return pen.capacity; // Rugalmas, eredeti kapacitás
+      case 'karantén': return Math.min(10, pen.capacity); // Max 10 elkülönítésre
+      case 'selejt': return pen.capacity; // Rugalmas
+      
       default: return 25;
     }
   };
@@ -98,6 +135,15 @@ export default function PenFunctionManager({
     const newCapacity = calculateNewCapacity(newFunction);
     const currentAnimals = pen.animal_count;
     
+    // Speciális üzenetek az új típusokhoz
+    if (newFunction === 'kórház' && currentAnimals > 5) {
+      return 'Kórház karám: Maximum 5 állat ajánlott intenzív megfigyeléshez.';
+    }
+    
+    if (newFunction === 'átmeneti') {
+      return 'Átmeneti karám: Rugalmas kapacitás, időben korlátozott használat.';
+    }
+    
     if (currentAnimals > newCapacity) {
       return `Figyelem: ${currentAnimals - newCapacity} állattal túllépi az új kapacitást! Állatok áthelyezése szükséges.`;
     }
@@ -107,22 +153,75 @@ export default function PenFunctionManager({
     return null;
   };
 
+  // ✅ METADATA ÖSSZEÁLLÍTÁSA
+  const buildMetadata = (): any => {
+    const baseMetadata: any = {};
+    
+    switch (newFunction) {
+      case 'hárem':
+        if (tenyeszbikaName) baseMetadata.tenyeszbika_name = tenyeszbikaName;
+        if (tenyeszbikaEnar) baseMetadata.tenyeszbika_enar = tenyeszbikaEnar;
+        if (parozasKezdete) baseMetadata.parozas_kezdete = parozasKezdete;
+        break;
+        
+      case 'kórház':
+        const korhazMeta: KorhazMetadata = {
+          treatment_type: treatmentType,
+          treatment_start_date: new Date().toISOString(),
+          expected_recovery_date: expectedRecovery || undefined,
+          veterinarian: veterinarian || undefined,
+          return_pen_id: returnPenId || undefined,
+          treatment_notes: customNotes || undefined
+        };
+        Object.assign(baseMetadata, korhazMeta);
+        break;
+        
+      case 'átmeneti':
+        const atmenetiMeta: AtmenetiMetadata = {
+          reason: atmenetiReason,
+          temporary_since: new Date().toISOString(),
+          decision_deadline: decisionDeadline || undefined,
+          decision_criteria: decisionCriteria || undefined,
+          notes: customNotes || undefined
+        };
+        Object.assign(baseMetadata, atmenetiMeta);
+        break;
+        
+      case 'karantén':
+        const karantenMeta: KarantenMetadata = {
+          quarantine_reason: quarantineReason,
+          quarantine_start_date: new Date().toISOString(),
+          expected_end_date: expectedEndDate || undefined,
+          release_criteria: releaseCriteria || undefined,
+          notes: customNotes || undefined
+        };
+        Object.assign(baseMetadata, karantenMeta);
+        break;
+        
+      case 'selejt':
+        const selejtMeta: SelejtMetadata = {
+          reason: selejtReason,
+          planned_disposal: plannedDisposal,
+          disposal_deadline: disposalDeadline || undefined,
+          notes: customNotes || undefined
+        };
+        Object.assign(baseMetadata, selejtMeta);
+        break;
+    }
+    
+    return baseMetadata;
+  };
+
   // Funkció változtatás
   const handleFunctionChange = async () => {
     if (!newFunction) return;
 
     setLoading(true);
     try {
-      const metadata: any = {};
+      const metadata = buildMetadata();
+      const finalNotes = notes + (customNotes ? `\n\n${customNotes}` : '');
       
-      // Hárem specifikus metadata
-      if (newFunction === 'hárem') {
-        if (tenyeszbikaName) metadata.tenyeszbika_name = tenyeszbikaName;
-        if (tenyeszbikaEnar) metadata.tenyeszbika_enar = tenyeszbikaEnar;
-        if (parozasKezdete) metadata.parozas_kezdete = parozasKezdete;
-      }
-
-      await onFunctionChange(newFunction, metadata, notes);
+      await onFunctionChange(newFunction, metadata, finalNotes);
       onClose();
     } catch (error) {
       console.error('Hiba a funkció váltáskor:', error);
@@ -136,10 +235,11 @@ export default function PenFunctionManager({
   const availableFunctions = getAvailableFunctions();
   const capacityWarning = getCapacityWarning();
   const newCapacity = newFunction ? calculateNewCapacity(newFunction) : pen.capacity;
+  const selectedTemplate = NOTES_TEMPLATES[newFunction];
 
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-10 mx-auto p-0 border max-w-2xl shadow-lg rounded-lg bg-white">
+      <div className="relative top-10 mx-auto p-0 border max-w-4xl shadow-lg rounded-lg bg-white">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center">
@@ -157,14 +257,14 @@ export default function PenFunctionManager({
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-6 max-h-[80vh] overflow-y-auto">
           {/* Jelenlegi állapot */}
           <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
             <h4 className="font-medium text-gray-900 mb-2">Jelenlegi Állapot:</h4>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-gray-600">Funkció:</span>
-                <p className="font-medium">{pen.current_function?.function_type || 'Nincs beállítva'}</p>
+                <p className="font-medium">{PEN_FUNCTION_LABELS[pen.current_function?.function_type || 'üres']}</p>
               </div>
               <div>
                 <span className="text-gray-600">Kapacitás:</span>
@@ -192,7 +292,7 @@ export default function PenFunctionManager({
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 Új funkció: *
               </label>
-              <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {availableFunctions.map(funcType => (
                   <label key={funcType.value} className="cursor-pointer">
                     <div className={`p-4 border rounded-lg transition-colors ${
@@ -206,7 +306,7 @@ export default function PenFunctionManager({
                           name="function"
                           value={funcType.value}
                           checked={newFunction === funcType.value}
-                          onChange={(e) => setNewFunction(e.target.value)}
+                          onChange={(e) => setNewFunction(e.target.value as PenFunctionType)}
                           className="h-4 w-4 text-green-600 border-gray-300 focus:ring-green-500"
                         />
                         <div className="ml-3">
@@ -237,7 +337,7 @@ export default function PenFunctionManager({
                   <div className={`text-sm font-medium ${
                     capacityWarning.includes('túllépi') ? 'text-red-800' : 'text-yellow-800'
                   }`}>
-                    Kapacitás Figyelmeztetés
+                    Kapacitás Információ
                   </div>
                   <div className={`text-sm ${
                     capacityWarning.includes('túllépi') ? 'text-red-700' : 'text-yellow-700'
@@ -248,11 +348,13 @@ export default function PenFunctionManager({
               </div>
             )}
 
+            {/* ✅ FUNKCIÓ-SPECIFIKUS BEÁLLÍTÁSOK */}
+            
             {/* Hárem specifikus mezők */}
             {newFunction === 'hárem' && (
               <div className="p-4 bg-pink-50 border border-pink-200 rounded-lg">
                 <h4 className="font-medium text-pink-900 mb-4 flex items-center">
-                  <User className="h-4 w-4 mr-2" />
+                  <Heart className="h-4 w-4 mr-2" />
                   Hárem Beállítások
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -295,18 +397,156 @@ export default function PenFunctionManager({
               </div>
             )}
 
-            {/* Megjegyzések */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Megjegyzések:
-              </label>
-              <textarea 
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-green-500 focus:border-green-500"
-                rows={3}
-                placeholder="Opcionális megjegyzés a funkció váltásról..."
-              />
+            {/* Kórház specifikus mezők */}
+            {newFunction === 'kórház' && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                <h4 className="font-medium text-red-900 mb-4 flex items-center">
+                  <Heart className="h-4 w-4 mr-2" />
+                  Kórház Beállítások
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-red-700 mb-1">
+                      Kezelés típusa:
+                    </label>
+                    <select
+                      value={treatmentType}
+                      onChange={(e) => setTreatmentType(e.target.value as KorhazMetadata['treatment_type'])}
+                      className="w-full border border-red-300 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500"
+                    >
+                      <option value="megfigyeles">Megfigyelés</option>
+                      <option value="gyogykezeles">Gyógykezelés</option>
+                      <option value="vakcinazas">Vakcinázás</option>
+                      <option value="sebezes">Sebészet</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-red-700 mb-1">
+                      Állatorvos:
+                    </label>
+                    <input
+                      type="text"
+                      value={veterinarian}
+                      onChange={(e) => setVeterinarian(e.target.value)}
+                      className="w-full border border-red-300 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500"
+                      placeholder="Dr. Nagy Péter"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-red-700 mb-1">
+                      Várható gyógyulás:
+                    </label>
+                    <input
+                      type="date"
+                      value={expectedRecovery}
+                      onChange={(e) => setExpectedRecovery(e.target.value)}
+                      className="w-full border border-red-300 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-red-700 mb-1">
+                      Visszahelyezés karám ID:
+                    </label>
+                    <input
+                      type="text"
+                      value={returnPenId}
+                      onChange={(e) => setReturnPenId(e.target.value)}
+                      className="w-full border border-red-300 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500"
+                      placeholder="Eredeti karám ID"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Átmeneti specifikus mezők */}
+            {newFunction === 'átmeneti' && (
+              <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+                <h4 className="font-medium text-indigo-900 mb-4 flex items-center">
+                  <Clock className="h-4 w-4 mr-2" />
+                  Átmeneti Beállítások
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-indigo-700 mb-1">
+                      Ide kerülés oka:
+                    </label>
+                    <select
+                      value={atmenetiReason}
+                      onChange={(e) => setAtmenetiReason(e.target.value as AtmenetiMetadata['reason'])}
+                      className="w-full border border-indigo-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    >
+                      <option value="besorolás_alatt">Besorolás alatt</option>
+                      <option value="funkció_váltás_alatt">Funkció váltás alatt</option>
+                      <option value="vizsgálat_alatt">Vizsgálat alatt</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-indigo-700 mb-1">
+                      Döntési határidő:
+                    </label>
+                    <input
+                      type="date"
+                      value={decisionDeadline}
+                      onChange={(e) => setDecisionDeadline(e.target.value)}
+                      className="w-full border border-indigo-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-indigo-700 mb-1">
+                      Döntési kritériumok:
+                    </label>
+                    <input
+                      type="text"
+                      value={decisionCriteria}
+                      onChange={(e) => setDecisionCriteria(e.target.value)}
+                      className="w-full border border-indigo-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="VV eredmény, egészségügyi vizsgálat, stb."
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Notes Template + Szabad szöveg */}
+            <div className="space-y-4">
+              {/* Template preview */}
+              {selectedTemplate && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-medium text-blue-900 mb-2">📝 Javasolt mezők ({PEN_FUNCTION_LABELS[newFunction]}):</h4>
+                  <pre className="text-sm text-blue-800 whitespace-pre-wrap font-mono bg-white p-3 rounded border">
+                    {selectedTemplate}
+                  </pre>
+                </div>
+              )}
+
+              {/* Szabad megjegyzések */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Egyedi megjegyzések:
+                </label>
+                <textarea 
+                  value={customNotes}
+                  onChange={(e) => setCustomNotes(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-green-500 focus:border-green-500"
+                  rows={4}
+                  placeholder="Írj ide bármilyen megjegyzést, megfigyelést a karámmal kapcsolatban..."
+                />
+              </div>
+
+              {/* Általános megjegyzések */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Funkció váltási megjegyzés:
+                </label>
+                <textarea 
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-green-500 focus:border-green-500"
+                  rows={2}
+                  placeholder="Megjegyzés a funkció váltásról..."
+                />
+              </div>
             </div>
           </div>
         </div>
