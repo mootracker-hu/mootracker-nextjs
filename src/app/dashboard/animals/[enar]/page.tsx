@@ -2,8 +2,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import VVForm from '@/components/vv-form';
 import {
   ArrowLeft,
   Edit,
@@ -34,6 +36,152 @@ interface Animal {
   birth_location?: 'nálunk' | 'vásárolt' | 'ismeretlen';
 }
 
+// SzaporitasTab komponens definíció - ÉLES VERZIÓ
+function SzaporitasTab({ animal }: { animal: any }) {
+  const [showVVForm, setShowVVForm] = React.useState(false);
+  const [vvResults, setVvResults] = React.useState<any[]>([]);
+  const [loadingVV, setLoadingVV] = React.useState(true);
+  
+  // VV eredmények betöltése
+  React.useEffect(() => {
+    const fetchVVResults = async () => {
+      try {
+        setLoadingVV(true);
+        const { data, error } = await supabase
+          .from('vv_results')
+          .select('*')
+          .eq('animal_enar', animal?.enar)
+          .order('vv_date', { ascending: false });
+
+        if (error) {
+          console.error('❌ VV eredmények betöltési hiba:', error);
+        } else {
+          setVvResults(data || []);
+        }
+      } catch (err) {
+        console.error('❌ VV fetch hiba:', err);
+      } finally {
+        setLoadingVV(false);
+      }
+    };
+
+    if (animal?.enar) {
+      fetchVVResults();
+    }
+  }, [animal?.enar]);
+
+  const refreshVVResults = async () => {
+    const { data } = await supabase
+      .from('vv_results')
+      .select('*')
+      .eq('animal_enar', animal?.enar)
+      .order('vv_date', { ascending: false });
+    
+    setVvResults(data || []);
+  };
+  
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-medium text-gray-900">🔬 Szaporítási adatok</h3>
+        <button 
+          onClick={() => setShowVVForm(true)}
+          className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
+        >
+          + Új VV eredmény
+        </button>
+      </div>
+      
+      {showVVForm && (
+        <VVForm 
+          animalEnar={animal?.enar || ''}
+          onSubmit={() => {
+            setShowVVForm(false);
+            refreshVVResults();
+          }}
+          onCancel={() => setShowVVForm(false)}
+        />
+      )}
+      
+      {/* VV Történet Táblázat */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h4 className="text-lg font-semibold text-gray-900 mb-4">📊 VV Történet</h4>
+        
+        {loadingVV ? (
+          <div className="text-center py-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
+            <p className="text-gray-600 mt-2">VV eredmények betöltése...</p>
+          </div>
+        ) : vvResults.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <div className="text-4xl mb-2">🔬</div>
+            <p>Még nincs rögzített VV eredmény</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    VV Dátuma
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Eredmény
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Napok
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Tenyészbika
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Ellés
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Állatorvos
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {vvResults.map((result, index) => (
+                  <tr key={result.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {new Date(result.vv_date).toLocaleDateString('hu-HU')}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        result.pregnancy_status === 'vemhes' ? 'bg-green-100 text-green-800' :
+                        result.pregnancy_status === 'ures' ? 'bg-red-100 text-red-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {result.pregnancy_status === 'vemhes' ? '🤰 Vemhes' : 
+                         result.pregnancy_status === 'ures' ? '❌ Üres' : '🌱 Csíra'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {result.vv_result_days} nap
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {result.father_name || result.father_enar || '-'}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {result.expected_birth_date ? 
+                        new Date(result.expected_birth_date).toLocaleDateString('hu-HU') : '-'}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {result.veterinarian || '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AnimalDetailPage() {
   const router = useRouter();
 
@@ -41,25 +189,20 @@ export default function AnimalDetailPage() {
   const [editedAnimal, setEditedAnimal] = useState<Animal | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('reszletek');
+  const [activeTab, setActiveTab] = useState<string>('reszletek');
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Manual URL parsing (working solution)
   useEffect(() => {
-    console.log('🔍 ENAR Extraction Starting...');
-
     if (typeof window !== 'undefined') {
       try {
         const pathname = window.location.pathname;
-        console.log('Current pathname:', pathname);
-
         const pathParts = pathname.split('/');
         const lastPart = pathParts[pathParts.length - 1];
 
         if (lastPart && lastPart !== 'undefined' && lastPart.length > 0) {
           const decodedEnar = decodeURIComponent(lastPart);
-          console.log('✅ Decoded ENAR:', decodedEnar);
           fetchAnimal(decodedEnar);
         } else {
           setError('ENAR nem található az URL-ben');
@@ -73,13 +216,11 @@ export default function AnimalDetailPage() {
     }
   }, []);
 
-  // Fetch animal data - FIXED VERSION
+  // Fetch animal data
   const fetchAnimal = async (enar: string) => {
     try {
       setLoading(true);
       setError(null);
-
-      console.log('🔍 Searching for animal with ENAR:', enar);
 
       const { data, error: supabaseError } = await supabase
         .from('animals')
@@ -114,17 +255,11 @@ export default function AnimalDetailPage() {
         return;
       }
 
-      console.log('✅ Animal loaded successfully:', data);
-      console.log('🔍 ANIMAL_PEN_ASSIGNMENTS:', data.animal_pen_assignments);
-
-      // 🔧 FIX: Csak akkor frissítjük az animal state-et, ha nincs szerkesztés folyamatban
       if (!isEditing) {
         setAnimal(data);
         setEditedAnimal(data);
       } else {
-        // Ha szerkesztés folyamatban, csak az original animal-t frissítjük
         setAnimal(data);
-        console.log('🔒 Editing in progress - preserving edited state');
       }
     } catch (err) {
       console.error('❌ Fetch error:', err);
@@ -134,7 +269,7 @@ export default function AnimalDetailPage() {
     }
   };
 
-  // Save changes - CLEAN VERSION (no debug logs)
+  // Save changes
   const handleSave = async () => {
     if (!editedAnimal || !animal) return;
 
@@ -162,11 +297,9 @@ export default function AnimalDetailPage() {
         return;
       }
 
-      // ✅ State update
       setAnimal(editedAnimal);
       setIsEditing(false);
 
-      // 🔧 Force refresh prevention
       await new Promise(resolve => setTimeout(resolve, 50));
 
     } catch (err) {
@@ -187,56 +320,51 @@ export default function AnimalDetailPage() {
   };
 
   const handlePenChange = async (newPenId: string) => {
-  if (!animal?.id) return;
-  
-  try {
-    console.log(`🔄 Karám változtatás: ${animal.jelenlegi_karam} → ${newPenId}`);
-    
-    // A. Régi assignment lezárása
-    await supabase
-      .from('animal_pen_assignments')
-      .update({ removed_at: new Date().toISOString() })
-      .eq('animal_id', animal.id)
-      .is('removed_at', null);
+    if (!animal?.id) return;
 
-    // B. Új assignment létrehozása (ha van új karám)
-    if (newPenId) {
-      // Pen ID megkeresése pen_number alapján
-      const { data: penData } = await supabase
-        .from('pens')
-        .select('id')
-        .eq('pen_number', newPenId)
-        .single();
+    try {
+      // A. Régi assignment lezárása
+      await supabase
+        .from('animal_pen_assignments')
+        .update({ removed_at: new Date().toISOString() })
+        .eq('animal_id', animal.id)
+        .is('removed_at', null);
 
-      if (penData?.id) {
-        await supabase
-          .from('animal_pen_assignments')
-          .insert({
-            animal_id: animal.id,
-            pen_id: penData.id,
-            assigned_at: new Date().toISOString(),
-            assignment_reason: 'manual_edit',
-            notes: 'Állat részletek oldalon módosítva'
-          });
+      // B. Új assignment létrehozása (ha van új karám)
+      if (newPenId) {
+        const { data: penData } = await supabase
+          .from('pens')
+          .select('id')
+          .eq('pen_number', newPenId)
+          .single();
+
+        if (penData?.id) {
+          await supabase
+            .from('animal_pen_assignments')
+            .insert({
+              animal_id: animal.id,
+              pen_id: penData.id,
+              assigned_at: new Date().toISOString(),
+              assignment_reason: 'manual_edit',
+              notes: 'Állat részletek oldalon módosítva'
+            });
+        }
       }
+
+      // C. Frontend state frissítés
+      updateField('jelenlegi_karam', newPenId);
+
+      // D. Oldal újratöltése
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+
+    } catch (error) {
+      console.error('❌ Hiba a karám változtatásnál:', error);
+      alert('Hiba történt a karám változtatáskor!');
     }
+  };
 
-    // C. Frontend state frissítés
-    updateField('jelenlegi_karam', newPenId);
-    
-    // D. Oldal újratöltése
-    setTimeout(() => {
-      window.location.reload();
-    }, 500);
-
-    console.log('✅ Karám sikeresen megváltoztatva!');
-    
-  } catch (error) {
-    console.error('❌ Hiba a karám változtatásnál:', error);
-    alert('Hiba történt a karám változtatáskor!');
-  }
-};
-  
   // Calculate age
   const calculateAge = (birthDate: string) => {
     const birth = new Date(birthDate);
@@ -356,11 +484,12 @@ export default function AnimalDetailPage() {
     );
   }
 
-  const tabs = [
+  const tabs: { id: string; name: string; icon: any }[] = [
     { id: 'reszletek', name: '📋 Részletek', icon: null },
     { id: 'szuletesi', name: '📅 Születési adatok', icon: null },
     { id: 'helyzet', name: '📍 Jelenlegi helyzet', icon: null },
     { id: 'csalad', name: '🐄💕🐂 Család', icon: null },
+    { id: 'szaporitas', name: '🔬 Szaporítás', icon: null },
     { id: 'egeszseg', name: '❤️ Egészség', icon: null },
     { id: 'esemenynaplo', name: '📊 Eseménynapló', icon: null }
   ];
@@ -595,7 +724,6 @@ export default function AnimalDetailPage() {
                       <MapPin className="h-4 w-4 mr-2 text-gray-400" />
                       <span>
                         {(() => {
-                          // Jelenlegi karám megkeresése az animal_pen_assignments-ből
                           const assignment = (animal as any).animal_pen_assignments?.find(
                             (a: any) => a.removed_at === null
                           );
@@ -644,6 +772,7 @@ export default function AnimalDetailPage() {
                     className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-500"
                   />
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Származás
@@ -672,7 +801,7 @@ export default function AnimalDetailPage() {
           </div>
         )}
 
-        {/* NUKLEÁRIS FIX - Születési adatok Tab - TELJES ÚJRAÍRÁS */}
+        {/* Születési adatok Tab */}
         {activeTab === 'szuletesi' && (
           <div className="bg-white rounded-lg shadow-sm p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
@@ -727,7 +856,6 @@ export default function AnimalDetailPage() {
                 />
               </div>
             </div>
-
           </div>
         )}
 
@@ -803,6 +931,11 @@ export default function AnimalDetailPage() {
               )}
             </div>
           </div>
+        )}
+
+        {/* Szaporítás Tab */}
+        {activeTab === 'szaporitas' && (
+          <SzaporitasTab animal={animal} />
         )}
 
         {/* Placeholder tabs */}
