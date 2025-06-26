@@ -1,6 +1,7 @@
 // src/app/dashboard/pens/components/animal-movement-panel.tsx
 'use client';
 
+import React from 'react';
 import { useState } from 'react';
 import { X, Move, AlertTriangle, CheckCircle } from 'lucide-react';
 

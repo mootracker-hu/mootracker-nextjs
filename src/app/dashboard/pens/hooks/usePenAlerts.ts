@@ -5,9 +5,9 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
 // Riasztás típus definíciója
-  interface PenAlert {
+interface PenAlert {
   id: string;
-  penId: string; 
+  penId: string;
   penNumber: string;
   penType: string;
   alertType: 'calf_15days' | 'calf_6months' | 'age_limit' | 'vaccination' | 'cleaning';
@@ -71,9 +71,9 @@ export function usePenAlerts() {
   // Riasztások generálása egy karámhoz
   const generateAlertsForPen = (pen: PenData, animals: AnimalData[]): PenAlert[] => {
     const penAlerts: PenAlert[] = [];
-    
+
     // Karám állatok szűrése (akiknek ez a jelenlegi karámuk)
-    const penAnimals = animals.filter(animal => 
+    const penAnimals = animals.filter(animal =>
       animal.jelenlegi_karam === pen.pen_number
     );
 
@@ -98,7 +98,7 @@ export function usePenAlerts() {
 
     // BORJÚ RIASZTÁSOK (anyával együtt lévő borjak)
     const calvesWithMother = penAnimals.filter(animal => animal.anya_enar);
-    
+
     // 15 napos borjak (BoviPast, szarvtalanítás, fülszám)
     const calves15Days = calvesWithMother.filter(animal => {
       const ageInDays = calculateAgeInDays(animal.szuletesi_datum);
@@ -175,7 +175,7 @@ export function usePenAlerts() {
     });
 
     if (animals24Months.length > 0) {
-      const femaleCount = animals24Months.filter(animal => 
+      const femaleCount = animals24Months.filter(animal =>
         normalizeGender(animal.ivar) === 'female'
       ).length;
       const maleCount = animals24Months.length - femaleCount;
@@ -235,15 +235,30 @@ export function usePenAlerts() {
         throw new Error(`Karamok lekérdezési hiba: ${pensError.message}`);
       }
 
-      // 2. Állatok lekérdezése (csak azok, akiknek van születési dátuma)
-      const { data: animals, error: animalsError } = await supabase
-        .from('animals')
-        .select('id, enar, szuletesi_datum, ivar, anya_enar, jelenlegi_karam')
-        .not('szuletesi_datum', 'is', null);
 
-      if (animalsError) {
-        throw new Error(`Állatok lekérdezési hiba: ${animalsError.message}`);
+      // 2. ✅ JAVÍTOTT - Állat-karám hozzárendelések lekérdezése
+      const { data: assignments, error: assignmentsError } = await supabase
+        .from('animal_pen_assignments')
+        .select(`
+    pen_id,
+    animals!inner(
+      id, enar, szuletesi_datum, ivar, anya_enar
+    ),
+    pens!inner(pen_number)
+  `)
+        .is('removed_at', null);
+
+      if (assignmentsError) {
+        throw new Error(`Állat hozzárendelések hiba: ${assignmentsError.message}`);
       }
+
+      // Átalakítás animals formátumra
+      const animals = (assignments || []).map((assignment: any) => ({
+        ...assignment.animals,
+        jelenlegi_karam: assignment.pens.pen_number
+      }));
+
+
 
       // 3. Riasztások generálása minden karámhoz
       const allAlerts: PenAlert[] = [];
@@ -254,7 +269,7 @@ export function usePenAlerts() {
 
       setAlerts(allAlerts);
       console.log(`Generált riasztások: ${allAlerts.length} db`);
-      
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Ismeretlen hiba';
       setError(errorMessage);

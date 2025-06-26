@@ -33,43 +33,43 @@ export default function PensPage() {
 
   // Karám funkció emoji és színek
   const getFunctionEmoji = (functionType: string): string => {
-  const emojiMap: Record<string, string> = {
-    'bölcsi': '🐮',
-    'óvi': '🐄',
-    'hárem': '🐄💕',
-    'vemhes': '🐄💖',
-    'hízóbika': '🐂',
-    'ellető': '🐄🍼',
-    'tehén': '🐄🍼',
-    'üres': '⭕',
-    // ✅ ÚJ KARÁM TÍPUSOK
-    'átmeneti': '🔄',
-    'kórház': '🏥',
-    'karantén': '🔒',
-    'selejt': '📦'
+    const emojiMap: Record<string, string> = {
+      'bölcsi': '🐮',
+      'óvi': '🐄',
+      'hárem': '🐄💕',
+      'vemhes': '🐄💖',
+      'hízóbika': '🐂',
+      'ellető': '🐄🍼',
+      'tehén': '🐄🍼',
+      'üres': '⭕',
+      // ✅ ÚJ KARÁM TÍPUSOK
+      'átmeneti': '🔄',
+      'kórház': '🏥',
+      'karantén': '🔒',
+      'selejt': '📦'
+    };
+    return emojiMap[functionType] || '❓';
   };
-  return emojiMap[functionType] || '❓';
-};
 
   const getFunctionColor = (functionType: string): string => {
-  const colorMap = {
-    'bölcsi': 'bg-green-100 text-green-800 border-green-200',
-    'óvi': 'bg-blue-100 text-blue-800 border-blue-200',
-    'hárem': 'bg-pink-100 text-pink-800 border-pink-200',
-    'vemhes': 'bg-purple-100 text-purple-800 border-purple-200',
-    'hízóbika': 'bg-red-100 text-red-800 border-red-200',
-    'ellető': 'bg-orange-100 text-orange-800 border-orange-200',
-    'tehén': 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    'üres': 'bg-gray-100 text-gray-800 border-gray-200',
-    // ✅ ÚJ KARÁM TÍPUSOK SZÍNEI
-    'átmeneti': 'bg-indigo-100 text-indigo-800 border-indigo-200',
-    'kórház': 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    'karantén': 'bg-amber-100 text-amber-800 border-amber-200',
-    'selejt': 'bg-slate-100 text-slate-800 border-slate-200'
-  } as const;
-  
-  return colorMap[functionType as keyof typeof colorMap] || 'bg-gray-100 text-gray-800 border-gray-200';
-};
+    const colorMap = {
+      'bölcsi': 'bg-green-100 text-green-800 border-green-200',
+      'óvi': 'bg-blue-100 text-blue-800 border-blue-200',
+      'hárem': 'bg-pink-100 text-pink-800 border-pink-200',
+      'vemhes': 'bg-purple-100 text-purple-800 border-purple-200',
+      'hízóbika': 'bg-red-100 text-red-800 border-red-200',
+      'ellető': 'bg-orange-100 text-orange-800 border-orange-200',
+      'tehén': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      'üres': 'bg-gray-100 text-gray-800 border-gray-200',
+      // ✅ ÚJ KARÁM TÍPUSOK SZÍNEI
+      'átmeneti': 'bg-indigo-100 text-indigo-800 border-indigo-200',
+      'kórház': 'bg-emerald-100 text-emerald-800 border-emerald-200',
+      'karantén': 'bg-amber-100 text-amber-800 border-amber-200',
+      'selejt': 'bg-slate-100 text-slate-800 border-slate-200'
+    } as const;
+
+    return colorMap[functionType as keyof typeof colorMap] || 'bg-gray-100 text-gray-800 border-gray-200';
+  };
 
   // Kapacitás kihasználtság színek
   const getCapacityColor = (current: number, capacity: number): string => {
@@ -84,6 +84,33 @@ export default function PensPage() {
   useEffect(() => {
     fetchPens();
   }, []);
+
+  // Karám sorrendezési algoritmus - fizikai elhelyezkedés szerint
+  const sortPens = (pens: any[]) => {
+    return pens.sort((a, b) => {
+      const penA = a.pen_number;
+      const penB = b.pen_number;
+
+      // Fizikai sorrend definiálása
+      const physicalOrder: { [key: string]: number } = {
+        // Külső karamok
+        '1': 1, '2': 2, '3': 3, '4A': 4, '4B': 5,
+        '5': 6, '6': 7, '7': 8, '8': 9, '9': 10,
+        '10': 11, '11': 12, '12A': 13, '12B': 14,
+        '13': 15, '14': 16, '15': 17,
+
+        // Ellető istálló - fizikai elhelyezkedés szerint
+        'E1': 100, 'E2': 101, 'EB3': 102, 'EB4': 103,
+        'EB5': 104, 'EB6': 105, 'E7': 106, 'E8': 107,
+        'EB9': 108, 'EB10': 109, 'EB11': 110, 'EB12': 111
+      };
+
+      const orderA = (physicalOrder as any)[penA] || 999;
+      const orderB = (physicalOrder as any)[penB] || 999;
+
+      return orderA - orderB;
+    });
+  };
 
   const fetchPens = async () => {
     try {
@@ -162,7 +189,7 @@ export default function PensPage() {
           };
         }));
 
-        setPens(pensWithData);
+        setPens(sortPens(pensWithData));
       } else {
         setPens([]);
       }
@@ -178,17 +205,17 @@ export default function PensPage() {
   const filteredPens = pens.filter((pen: any) => {
     // 1. Funkció szűrés
     const matchesType = selectedType === 'mind' || pen.current_function?.function_type === selectedType;
-    
+
     // 2. Keresés (karám szám, helyszín, ENAR)
     const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = !searchTerm || 
+    const matchesSearch = !searchTerm ||
       pen.pen_number.toLowerCase().includes(searchLower) ||
       pen.location?.toLowerCase().includes(searchLower) ||
       // ENAR keresés - működő verzió!
-      (pen.animals && pen.animals.some((assignment: any) => 
+      (pen.animals && pen.animals.some((assignment: any) =>
         assignment.animals?.enar?.toLowerCase().includes(searchLower)
       ));
-    
+
     // 3. Helyszín szűrés - JAVÍTOTT!
     let matchesLocation = selectedLocation === 'mind';
     if (!matchesLocation) {
@@ -213,7 +240,7 @@ export default function PensPage() {
           matchesLocation = location.includes(selectedLocation.toLowerCase());
       }
     }
-    
+
     return matchesType && matchesSearch && matchesLocation;
   });
 
@@ -230,30 +257,30 @@ export default function PensPage() {
   }, {} as { [key: string]: number });
 
   const functionTypes = [
-  'mind', 'bölcsi', 'óvi', 'hárem', 'vemhes', 'ellető', 'tehén', 'hízóbika', 'üres',
-  'átmeneti', 'kórház', 'karantén', 'selejt'  // ✅ 4 ÚJ TÍPUS
-];
+    'mind', 'bölcsi', 'óvi', 'hárem', 'vemhes', 'ellető', 'tehén', 'hízóbika', 'üres',
+    'átmeneti', 'kórház', 'karantén', 'selejt'  // ✅ 4 ÚJ TÍPUS
+  ];
 
   // Karám sorrendezés
   const sortedFilteredPens = filteredPens.sort((a: any, b: any) => {
     const aNum = a.pen_number;
     const bNum = b.pen_number;
-    
+
     // E karamok a végére
     if (aNum.startsWith('E') && !bNum.startsWith('E')) return 1;
     if (!aNum.startsWith('E') && bNum.startsWith('E')) return -1;
     if (aNum.startsWith('E') && bNum.startsWith('E')) {
       return parseInt(aNum.slice(1)) - parseInt(bNum.slice(1));
     }
-    
+
     // Számok vs szám+betű keverékek
     const aNumPart = parseInt(aNum);
     const bNumPart = parseInt(bNum);
-    
+
     if (aNumPart !== bNumPart) {
       return aNumPart - bNumPart;
     }
-    
+
     return aNum.localeCompare(bNum);
   });
 
@@ -306,7 +333,7 @@ export default function PensPage() {
 
       {/* Riasztások összesítő */}
       <AlertsSummary alerts={alerts} className="mb-6" />
-      
+
       {/* Statisztika Widget */}
       <PenStats />
 
@@ -314,7 +341,7 @@ export default function PensPage() {
       <div className="bg-white p-6">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            
+
             {/* Keresés - ENAR + Karám szám + Helyszín */}
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -431,11 +458,10 @@ export default function PensPage() {
               <button
                 key={funcType}
                 onClick={() => setSelectedType(funcType === selectedType ? 'mind' : funcType)}
-                className={`px-3 py-1 rounded-full text-sm font-medium cursor-pointer transition-all hover:scale-105 ${
-                  selectedType === funcType 
+                className={`px-3 py-1 rounded-full text-sm font-medium cursor-pointer transition-all hover:scale-105 ${selectedType === funcType
                     ? 'ring-2 ring-blue-400 ' + getFunctionColor(funcType)
                     : getFunctionColor(funcType)
-                }`}
+                  }`}
               >
                 {getFunctionEmoji(funcType)} {funcType}: {count as number}
               </button>
@@ -456,8 +482,8 @@ export default function PensPage() {
           <div className="text-center py-12">
             <Home className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">
-              {searchTerm || selectedType !== 'mind' || selectedLocation !== 'mind' 
-                ? 'Nincs találat a szűrési feltételekre' 
+              {searchTerm || selectedType !== 'mind' || selectedLocation !== 'mind'
+                ? 'Nincs találat a szűrési feltételekre'
                 : 'Nincsenek karamok'}
             </h3>
             <p className="mt-1 text-sm text-gray-500">

@@ -6,6 +6,8 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import VVForm from '@/components/vv-form';
+// A többi import után add hozzá:
+import CurrentStatusTab from './components/current-status-tab';
 import {
   ArrowLeft,
   Edit,
@@ -36,12 +38,13 @@ interface Animal {
   birth_location?: 'nálunk' | 'vásárolt' | 'ismeretlen';
 }
 
-// SzaporitasTab komponens definíció - ÉLES VERZIÓ
+// SzaporitasTab komponens definíció
 function SzaporitasTab({ animal }: { animal: any }) {
   const [showVVForm, setShowVVForm] = React.useState(false);
   const [vvResults, setVvResults] = React.useState<any[]>([]);
   const [loadingVV, setLoadingVV] = React.useState(true);
-  
+  const [selectedVV, setSelectedVV] = React.useState<any>(null); // Kiválasztott VV eredmény
+
   // VV eredmények betöltése
   React.useEffect(() => {
     const fetchVVResults = async () => {
@@ -56,6 +59,7 @@ function SzaporitasTab({ animal }: { animal: any }) {
         if (error) {
           console.error('❌ VV eredmények betöltési hiba:', error);
         } else {
+          console.log('✅ VV eredmények betöltve:', data);
           setVvResults(data || []);
         }
       } catch (err) {
@@ -76,37 +80,45 @@ function SzaporitasTab({ animal }: { animal: any }) {
       .select('*')
       .eq('animal_enar', animal?.enar)
       .order('vv_date', { ascending: false });
-    
+
     setVvResults(data || []);
   };
-  
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-medium text-gray-900">🔬 Szaporítási adatok</h3>
-        <button 
+        <button
           onClick={() => setShowVVForm(true)}
-          className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
+          className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
         >
           + Új VV eredmény
         </button>
       </div>
-      
+
+      <div className="bg-yellow-50 p-3 rounded border border-yellow-200 text-sm">
+        <strong>🔍 DEBUG INFO:</strong><br />
+        Animal objektum létezik: {animal ? 'Igen' : 'Nem'}<br />
+        Animal.ivar: "{animal?.ivar}"<br />
+        Animal.enar: "{animal?.enar}"<br />
+        Animal keys: {JSON.stringify(Object.keys(animal || {}))}
+      </div>
+
       {showVVForm && (
-        <VVForm 
-          animalEnar={animal?.enar || ''}
+        <VVForm
+          animalEnar={animal?.enar || 'ISMERETLEN'}
           onSubmit={() => {
             setShowVVForm(false);
-            refreshVVResults();
+            refreshVVResults(); // Frissítjük a listát
           }}
           onCancel={() => setShowVVForm(false)}
         />
       )}
-      
+
       {/* VV Történet Táblázat */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <h4 className="text-lg font-semibold text-gray-900 mb-4">📊 VV Történet</h4>
-        
+
         {loadingVV ? (
           <div className="text-center py-4">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
@@ -140,6 +152,9 @@ function SzaporitasTab({ animal }: { animal: any }) {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Állatorvos
                   </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Műveletek
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -149,13 +164,12 @@ function SzaporitasTab({ animal }: { animal: any }) {
                       {new Date(result.vv_date).toLocaleDateString('hu-HU')}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        result.pregnancy_status === 'vemhes' ? 'bg-green-100 text-green-800' :
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${result.pregnancy_status === 'vemhes' ? 'bg-green-100 text-green-800' :
                         result.pregnancy_status === 'ures' ? 'bg-red-100 text-red-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {result.pregnancy_status === 'vemhes' ? '🤰 Vemhes' : 
-                         result.pregnancy_status === 'ures' ? '❌ Üres' : '🌱 Csíra'}
+                          'bg-yellow-100 text-yellow-800'
+                        }`}>
+                        {result.pregnancy_status === 'vemhes' ? '🤰 Vemhes' :
+                          result.pregnancy_status === 'ures' ? '❌ Üres' : '🌱 Csíra'}
                       </span>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -165,11 +179,19 @@ function SzaporitasTab({ animal }: { animal: any }) {
                       {result.father_name || result.father_enar || '-'}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {result.expected_birth_date ? 
+                      {result.expected_birth_date ?
                         new Date(result.expected_birth_date).toLocaleDateString('hu-HU') : '-'}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                       {result.veterinarian || '-'}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <button
+                        onClick={() => setSelectedVV(result)}
+                        className="text-blue-600 hover:text-blue-900 font-medium"
+                      >
+                        📋 Részletek
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -178,6 +200,101 @@ function SzaporitasTab({ animal }: { animal: any }) {
           </div>
         )}
       </div>
+
+      {/* VV Részletek Modal */}
+      {selectedVV && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-900">
+                  🔬 VV Eredmény Részletei
+                </h3>
+                <button
+                  onClick={() => setSelectedVV(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-3">📅 Alapadatok</h4>
+                  <div className="space-y-2 text-sm">
+                    <p><strong>VV dátuma:</strong> {new Date(selectedVV.vv_date).toLocaleDateString('hu-HU')}</p>
+                    <p><strong>VV eredmény:</strong> {selectedVV.vv_result_days} nap</p>
+                    <p><strong>Státusz:</strong>
+                      <span className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${selectedVV.pregnancy_status === 'vemhes' ? 'bg-green-100 text-green-800' :
+                        selectedVV.pregnancy_status === 'ures' ? 'bg-red-100 text-red-800' :
+                          'bg-yellow-100 text-yellow-800'
+                        }`}>
+                        {selectedVV.pregnancy_status === 'vemhes' ? '🤰 Vemhes' :
+                          selectedVV.pregnancy_status === 'ures' ? '❌ Üres' : '🌱 Csíra'}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                {selectedVV.pregnancy_status === 'vemhes' && (
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-3">🐂 Tenyészbika</h4>
+                    <div className="space-y-2 text-sm">
+                      <p><strong>Név:</strong> {selectedVV.father_name || '-'}</p>
+                      <p><strong>ENAR:</strong> {selectedVV.father_enar || '-'}</p>
+                      <p><strong>KPLSZ:</strong> {selectedVV.father_kplsz || '-'}</p>
+                      <p><strong>Bizonytalan apaság:</strong> {selectedVV.uncertain_paternity ? '⚠️ Igen' : '✅ Nem'}</p>
+                      {selectedVV.blood_test_required && (
+                        <p><strong>Vérvizsgálat:</strong>
+                          {selectedVV.blood_test_date ?
+                            new Date(selectedVV.blood_test_date).toLocaleDateString('hu-HU') :
+                            '🩸 Szükséges'
+                          }
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {selectedVV.expected_birth_date && (
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-3">📅 Ellési előrejelzés</h4>
+                    <div className="space-y-2 text-sm">
+                      <p><strong>Várható ellés:</strong> {new Date(selectedVV.expected_birth_date).toLocaleDateString('hu-HU')}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-3">👨‍⚕️ Egyéb adatok</h4>
+                  <div className="space-y-2 text-sm">
+                    <p><strong>Állatorvos:</strong> {selectedVV.veterinarian || '-'}</p>
+                    <p><strong>Rögzítés dátuma:</strong> {new Date(selectedVV.created_at).toLocaleDateString('hu-HU')}</p>
+                  </div>
+                </div>
+              </div>
+
+              {selectedVV.notes && (
+                <div className="mt-6">
+                  <h4 className="font-semibold text-gray-900 mb-2">📝 Megjegyzések</h4>
+                  <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded">
+                    {selectedVV.notes}
+                  </p>
+                </div>
+              )}
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setSelectedVV(null)}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                >
+                  Bezárás
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -195,14 +312,19 @@ export default function AnimalDetailPage() {
 
   // Manual URL parsing (working solution)
   useEffect(() => {
+    console.log('🔍 ENAR Extraction Starting...');
+
     if (typeof window !== 'undefined') {
       try {
         const pathname = window.location.pathname;
+        console.log('Current pathname:', pathname);
+
         const pathParts = pathname.split('/');
         const lastPart = pathParts[pathParts.length - 1];
 
         if (lastPart && lastPart !== 'undefined' && lastPart.length > 0) {
           const decodedEnar = decodeURIComponent(lastPart);
+          console.log('✅ Decoded ENAR:', decodedEnar);
           fetchAnimal(decodedEnar);
         } else {
           setError('ENAR nem található az URL-ben');
@@ -216,11 +338,13 @@ export default function AnimalDetailPage() {
     }
   }, []);
 
-  // Fetch animal data
+  // Fetch animal data - FIXED VERSION
   const fetchAnimal = async (enar: string) => {
     try {
       setLoading(true);
       setError(null);
+
+      console.log('🔍 Searching for animal with ENAR:', enar);
 
       const { data, error: supabaseError } = await supabase
         .from('animals')
@@ -255,11 +379,17 @@ export default function AnimalDetailPage() {
         return;
       }
 
+      console.log('✅ Animal loaded successfully:', data);
+      console.log('🔍 ANIMAL_PEN_ASSIGNMENTS:', data.animal_pen_assignments);
+
+      // 🔧 FIX: Csak akkor frissítjük az animal state-et, ha nincs szerkesztés folyamatban
       if (!isEditing) {
         setAnimal(data);
         setEditedAnimal(data);
       } else {
+        // Ha szerkesztés folyamatban, csak az original animal-t frissítjük
         setAnimal(data);
+        console.log('🔒 Editing in progress - preserving edited state');
       }
     } catch (err) {
       console.error('❌ Fetch error:', err);
@@ -269,7 +399,7 @@ export default function AnimalDetailPage() {
     }
   };
 
-  // Save changes
+  // Save changes - CLEAN VERSION (no debug logs)
   const handleSave = async () => {
     if (!editedAnimal || !animal) return;
 
@@ -297,9 +427,11 @@ export default function AnimalDetailPage() {
         return;
       }
 
+      // ✅ State update
       setAnimal(editedAnimal);
       setIsEditing(false);
 
+      // 🔧 Force refresh prevention
       await new Promise(resolve => setTimeout(resolve, 50));
 
     } catch (err) {
@@ -323,6 +455,8 @@ export default function AnimalDetailPage() {
     if (!animal?.id) return;
 
     try {
+      console.log(`🔄 Karám változtatás: ${animal.jelenlegi_karam} → ${newPenId}`);
+
       // A. Régi assignment lezárása
       await supabase
         .from('animal_pen_assignments')
@@ -332,6 +466,7 @@ export default function AnimalDetailPage() {
 
       // B. Új assignment létrehozása (ha van új karám)
       if (newPenId) {
+        // Pen ID megkeresése pen_number alapján
         const { data: penData } = await supabase
           .from('pens')
           .select('id')
@@ -358,6 +493,8 @@ export default function AnimalDetailPage() {
       setTimeout(() => {
         window.location.reload();
       }, 500);
+
+      console.log('✅ Karám sikeresen megváltoztatva!');
 
     } catch (error) {
       console.error('❌ Hiba a karám változtatásnál:', error);
@@ -724,6 +861,7 @@ export default function AnimalDetailPage() {
                       <MapPin className="h-4 w-4 mr-2 text-gray-400" />
                       <span>
                         {(() => {
+                          // Jelenlegi karám megkeresése az animal_pen_assignments-ből
                           const assignment = (animal as any).animal_pen_assignments?.find(
                             (a: any) => a.removed_at === null
                           );
@@ -859,6 +997,11 @@ export default function AnimalDetailPage() {
           </div>
         )}
 
+        {/* Jelenlegi helyzet Tab */}
+        {activeTab === 'helyzet' && (
+          <CurrentStatusTab animal={animal} />
+        )}
+
         {/* Család Tab */}
         {activeTab === 'csalad' && (
           <div className="bg-white rounded-lg shadow-sm p-6">
@@ -939,7 +1082,7 @@ export default function AnimalDetailPage() {
         )}
 
         {/* Placeholder tabs */}
-        {['helyzet', 'egeszseg', 'esemenynaplo'].includes(activeTab) && (
+        {['egeszseg', 'esemenynaplo'].includes(activeTab) && (
           <div className="bg-white rounded-lg shadow-sm p-12 text-center">
             <div className="text-gray-400 text-6xl mb-4">🐄</div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
