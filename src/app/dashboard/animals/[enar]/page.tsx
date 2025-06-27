@@ -1,6 +1,11 @@
 // src/app/dashboard/animals/[enar]/page.tsx
 'use client';
 
+interface Father {
+  enar: string;
+  name: string;
+  kplsz: string;
+}
 import { useState, useEffect } from 'react';
 import React from 'react';
 import { useRouter } from 'next/navigation';
@@ -44,6 +49,8 @@ function SzaporitasTab({ animal }: { animal: any }) {
   const [vvResults, setVvResults] = React.useState<any[]>([]);
   const [loadingVV, setLoadingVV] = React.useState(true);
   const [selectedVV, setSelectedVV] = React.useState<any>(null); // Kiválasztott VV eredmény
+  const [editingVV, setEditingVV] = React.useState<any>(null); // Szerkesztendő VV
+  const [deletingVV, setDeletingVV] = React.useState<any>(null); // Törlendő VV
 
   // VV eredmények betöltése
   React.useEffect(() => {
@@ -83,7 +90,41 @@ function SzaporitasTab({ animal }: { animal: any }) {
 
     setVvResults(data || []);
   };
+  // VV Edit handler
+  const handleEditVV = (vvResult: any) => {
+    console.log('Edit VV:', vvResult);
+    setEditingVV(vvResult);
+    setShowVVForm(true);
+  };
 
+  // VV Delete handler  
+  const handleDeleteVV = (vvResult: any) => {
+    console.log('Delete VV:', vvResult);
+    setDeletingVV(vvResult);
+  };
+
+  // Delete confirmation
+  const confirmDeleteVV = async () => {
+    if (!deletingVV) return;
+
+    try {
+      const { error } = await supabase
+        .from('vv_results')
+        .delete()
+        .eq('id', deletingVV.id);
+
+      if (error) throw error;
+
+      // Refresh VV data
+      window.location.reload();
+      setDeletingVV(null);
+
+      alert('VV eredmény sikeresen törölve!');
+    } catch (error) {
+      console.error('Törlési hiba:', error);
+      alert('Hiba történt a törlés során!');
+    }
+  };
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -96,22 +137,20 @@ function SzaporitasTab({ animal }: { animal: any }) {
         </button>
       </div>
 
-      <div className="bg-yellow-50 p-3 rounded border border-yellow-200 text-sm">
-        <strong>🔍 DEBUG INFO:</strong><br />
-        Animal objektum létezik: {animal ? 'Igen' : 'Nem'}<br />
-        Animal.ivar: "{animal?.ivar}"<br />
-        Animal.enar: "{animal?.enar}"<br />
-        Animal keys: {JSON.stringify(Object.keys(animal || {}))}
-      </div>
-
       {showVVForm && (
         <VVForm
-          animalEnar={animal?.enar || 'ISMERETLEN'}
+          animalEnar={String(animal?.enar || 'ISMERETLEN')}
           onSubmit={() => {
             setShowVVForm(false);
+            setEditingVV(null); // Reset edit mode
             refreshVVResults(); // Frissítjük a listát
           }}
-          onCancel={() => setShowVVForm(false)}
+          onCancel={() => {
+            setShowVVForm(false);
+            setEditingVV(null); // Reset edit mode
+          }}
+          editMode={editingVV ? true : false}
+          editData={editingVV}
         />
       )}
 
@@ -176,7 +215,11 @@ function SzaporitasTab({ animal }: { animal: any }) {
                       {result.vv_result_days} nap
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {result.father_name || result.father_enar || '-'}
+                      {result.father_name ? (
+                        result.uncertain_paternity && result.possible_fathers && result.possible_fathers.length > 1
+                          ? `${result.father_name} + ${result.possible_fathers.length - 1} további`
+                          : result.father_name
+                      ) : result.father_enar || '-'}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                       {result.expected_birth_date ?
@@ -186,12 +229,29 @@ function SzaporitasTab({ animal }: { animal: any }) {
                       {result.veterinarian || '-'}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <button
-                        onClick={() => setSelectedVV(result)}
-                        className="text-blue-600 hover:text-blue-900 font-medium"
-                      >
-                        📋 Részletek
-                      </button>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => setSelectedVV(result)}
+                          className="text-blue-600 hover:text-blue-900 font-medium text-xs px-2 py-1 rounded"
+                          title="Részletek megtekintése"
+                        >
+                          👁️ Részletek
+                        </button>
+                        <button
+                          onClick={() => handleEditVV(result)}
+                          className="text-green-600 hover:text-green-900 font-medium text-xs px-2 py-1 rounded"
+                          title="VV eredmény szerkesztése"
+                        >
+                          ✏️ Szerkesztés
+                        </button>
+                        <button
+                          onClick={() => handleDeleteVV(result)}
+                          className="text-red-600 hover:text-red-900 font-medium text-xs px-2 py-1 rounded"
+                          title="VV eredmény törlése"
+                        >
+                          🗑️ Törlés
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -238,11 +298,28 @@ function SzaporitasTab({ animal }: { animal: any }) {
 
                 {selectedVV.pregnancy_status === 'vemhes' && (
                   <div>
-                    <h4 className="font-semibold text-gray-900 mb-3">🐂 Tenyészbika</h4>
-                    <div className="space-y-2 text-sm">
-                      <p><strong>Név:</strong> {selectedVV.father_name || '-'}</p>
-                      <p><strong>ENAR:</strong> {selectedVV.father_enar || '-'}</p>
-                      <p><strong>KPLSZ:</strong> {selectedVV.father_kplsz || '-'}</p>
+                    <h4 className="font-semibold text-gray-900 mb-3">🐂 Lehetséges apá{selectedVV.possible_fathers && selectedVV.possible_fathers.length > 1 ? 'k' : ''}</h4>
+                    <div className="space-y-3 text-sm">
+                      {selectedVV.possible_fathers && selectedVV.possible_fathers.length > 0 ? (
+                        selectedVV.possible_fathers.map((father: Father, index: number) => (
+                          <div key={index} className={`p-3 border rounded-md ${index === 0 ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="font-medium text-gray-900">
+                                🐂 {father.name || `${index + 1}. lehetséges apa`}
+                              </span>
+                            </div>
+                            <p><strong>Név:</strong> {father.name || '-'}</p>
+                            <p><strong>ENAR:</strong> {father.enar || '-'}</p>
+                            <p><strong>KPLSZ:</strong> {father.kplsz || '-'}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-3 border rounded-md bg-gray-50">
+                          <p><strong>Név:</strong> {selectedVV.father_name || '-'}</p>
+                          <p><strong>ENAR:</strong> {selectedVV.father_enar || '-'}</p>
+                          <p><strong>KPLSZ:</strong> {selectedVV.father_kplsz || '-'}</p>
+                        </div>
+                      )}
                       <p><strong>Bizonytalan apaság:</strong> {selectedVV.uncertain_paternity ? '⚠️ Igen' : '✅ Nem'}</p>
                       {selectedVV.blood_test_required && (
                         <p><strong>Vérvizsgálat:</strong>
@@ -289,6 +366,49 @@ function SzaporitasTab({ animal }: { animal: any }) {
                   className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
                 >
                   Bezárás
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Delete Confirmation Modal */}
+      {deletingVV && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                  <span className="text-red-600 text-xl">⚠️</span>
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-semibold text-gray-900">VV Eredmény Törlése</h3>
+                  <p className="text-sm text-gray-600">Ez a művelet nem visszafordítható!</p>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 p-3 rounded mb-4">
+                <p className="text-sm"><strong>VV dátuma:</strong> {new Date(deletingVV.vv_date).toLocaleDateString('hu-HU')}</p>
+                <p className="text-sm"><strong>Eredmény:</strong> {deletingVV.vv_result_days} nap ({deletingVV.pregnancy_status})</p>
+                <p className="text-sm"><strong>Bika:</strong> {deletingVV.father_name || deletingVV.father_enar}</p>
+              </div>
+
+              <p className="text-gray-700 mb-6">
+                Biztosan törölni szeretnéd ezt a VV eredményt? Ez a művelet nem visszafordítható.
+              </p>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setDeletingVV(null)}
+                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                >
+                  Mégse
+                </button>
+                <button
+                  onClick={confirmDeleteVV}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                >
+                  🗑️ Törlés
                 </button>
               </div>
             </div>
