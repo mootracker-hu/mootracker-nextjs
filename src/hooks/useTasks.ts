@@ -1,5 +1,5 @@
 // src/hooks/useTasks.ts
-// MooTracker Task rendszer - Végső clean verzió
+// MooTracker Task rendszer - JAVÍTOTT VERZIÓ - ID és Mentési Problémák Megoldva
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -14,15 +14,91 @@ import {
   Alert
 } from '@/types/alert-task-types';
 
-// Mock adatok
+// ============================================
+// 🔄 MAPPING FUNCTIONS - DB ↔ APP (UGYANAZ)
+// ============================================
+
+const mapDbStatusToApp = (dbStatus: string): TaskStatus => {
+  const mapping: Record<string, TaskStatus> = {
+    'pending': 'fuggőben',
+    'in_progress': 'folyamatban',
+    'completed': 'befejezve',
+    'deleted': 'torolve',
+    'fuggőben': 'fuggőben',
+    'folyamatban': 'folyamatban',
+    'befejezve': 'befejezve',
+    'torolve': 'torolve'
+  };
+  return mapping[dbStatus] || 'fuggőben';
+};
+
+const mapAppStatusToDb = (appStatus: TaskStatus): string => {
+  const mapping: Record<TaskStatus, string> = {
+    'fuggőben': 'pending',
+    'folyamatban': 'in_progress',
+    'befejezve': 'completed',
+    'torolve': 'deleted'
+  };
+  return mapping[appStatus] || 'pending';
+};
+
+const mapDbPriorityToApp = (dbPriority: number | string): TaskPriority => {
+  const priority = typeof dbPriority === 'string' ? parseInt(dbPriority) : dbPriority;
+  const mapping: Record<number, TaskPriority> = {
+    1: 'alacsony',
+    2: 'kozepes',
+    3: 'magas',
+    4: 'kritikus'
+  };
+  return mapping[priority] || 'kozepes';
+};
+
+const mapAppPriorityToDb = (appPriority: TaskPriority): number => {
+  const mapping: Record<TaskPriority, number> = {
+    'alacsony': 1,
+    'kozepes': 2,
+    'magas': 3,
+    'kritikus': 4
+  };
+  return mapping[appPriority] || 2;
+};
+
+const mapDbTaskToApp = (dbTask: any): Task => {
+  return {
+    id: dbTask.id.toString(), // ✅ JAVÍTÁS: Mindig string ID
+    title: dbTask.title || '',
+    description: dbTask.description || '',
+    priority: mapDbPriorityToApp(dbTask.priority),
+    status: mapDbStatusToApp(dbTask.status),
+    category: dbTask.category || 'altalanos',
+    created_at: dbTask.created_at,
+    updated_at: dbTask.updated_at,
+    due_date: dbTask.due_date,
+    animal_id: dbTask.animal_id,
+    pen_id: dbTask.pen_id,
+    action_required: dbTask.action_required,
+    alert_id: dbTask.alert_id,
+    notes: dbTask.notes,
+    completed_at: dbTask.completed_at,
+    animal: dbTask.animal_id ? { 
+      id: dbTask.animal_id, 
+      enar: dbTask.animal?.enar || `Animal-${dbTask.animal_id}` 
+    } : undefined
+  };
+};
+
+// ============================================
+// 🎯 MOCK ADATOK
+// ============================================
+
 const INITIAL_MOCK_TASKS: Task[] = [
   {
-    id: 'mock-1',
+    id: '1',
     title: 'HU9120 vemhességvizsgálat',
     description: 'Párzás után 75 nappal VV vizsgálat szükséges',
-    priority: 'high',
-    status: 'pending',
-    category: 'breeding',
+    priority: 'magas',
+    status: 'fuggőben',
+    category: 'tenyesztes',
     due_date: '2025-06-25T10:00:00.000Z',
     animal_id: 1,
     animal: { id: 1, enar: 'HU9120' },
@@ -33,62 +109,72 @@ const INITIAL_MOCK_TASKS: Task[] = [
   }
 ];
 
+// ============================================
+// 🪝 MAIN HOOK
+// ============================================
+
 export const useTasks = (): UseTasksReturn => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<TaskFilters>({});
 
-  // Priority mapping
-  const mapPriorityToNumber = (priority: TaskPriority): number => {
-    switch (priority) {
-      case 'low': return 1;
-      case 'medium': return 2;
-      case 'high': return 3;
-      case 'critical': return 4;
-      default: return 2;
-    }
-  };
-
-  // Task-ok betöltése
+  // ✅ TASKS BETÖLTÉSE
   const loadTasks = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // localStorage-ból betöltés
+      console.log('🔄 Tasks betöltése kezdődik...');
+
+      // ✅ 1. Supabase próba ELŐSZÖR
+      try {
+        const { data, error: supabaseError } = await supabase
+          .from('tasks')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (supabaseError) {
+          throw new Error(`Supabase error: ${supabaseError.message}`);
+        }
+
+        if (data && data.length > 0) {
+          const mappedTasks = data.map(dbTask => mapDbTaskToApp(dbTask));
+          setTasks(mappedTasks);
+          
+          // ✅ Supabase adatok localStorage-ba mentése
+          localStorage.setItem('mootracker_tasks', JSON.stringify(mappedTasks));
+          
+          console.log('✅ Tasks betöltve Supabase-ből:', mappedTasks.length);
+          console.log('🔍 Első task ID típusa:', typeof mappedTasks[0]?.id, mappedTasks[0]?.id);
+          return; // ✅ Kilépés, ha Supabase működik
+        }
+      } catch (supabaseError) {
+        console.warn('⚠️ Supabase nem elérhető:', supabaseError);
+      }
+
+      // ✅ 2. localStorage fallback
       const localTasks = localStorage.getItem('mootracker_tasks');
       if (localTasks) {
         try {
           const parsedTasks = JSON.parse(localTasks);
-          setTasks(parsedTasks);
-          console.log('✅ Tasks betöltve localStorage-ból:', parsedTasks.length);
+          if (parsedTasks.length > 0) {
+            setTasks(parsedTasks);
+            console.log('✅ Tasks betöltve localStorage-ból:', parsedTasks.length);
+            return;
+          }
         } catch (parseError) {
           console.warn('localStorage parse hiba:', parseError);
         }
       }
 
-      // Supabase próba (opcionális)
-      try {
-        const { data: supabaseTasks } = await supabase
-          .from('tasks')
-          .select('*')
-          .order('created_at', { ascending: false });
+      // ✅ 3. Mock adatok utolsó esély
+      setTasks(INITIAL_MOCK_TASKS);
+      console.log('✅ Mock tasks betöltve');
 
-        if (supabaseTasks && supabaseTasks.length > 0) {
-          setTasks(supabaseTasks);
-          console.log('✅ Tasks betöltve Supabase-ből:', supabaseTasks.length);
-        }
-      } catch (supabaseError) {
-        console.log('Supabase nem elérhető, localStorage használata');
-      }
-
-      // Ha semmi sincs, mock adatok
-      if (!localTasks || JSON.parse(localTasks).length === 0) {
-        setTasks(INITIAL_MOCK_TASKS);
-      }
     } catch (err) {
       console.error('Task loading error:', err);
+      setError('Hiba a task-ok betöltése során');
       setTasks(INITIAL_MOCK_TASKS);
     } finally {
       setLoading(false);
@@ -99,59 +185,100 @@ export const useTasks = (): UseTasksReturn => {
     loadTasks();
   }, [loadTasks]);
 
-  // Task létrehozása - FUNCTIONAL UPDATE!
+  // ✅ TASK LÉTREHOZÁSA - JAVÍTOTT ID ÉS TÍPUS KEZELÉS
   const createTask = useCallback(async (data: CreateTaskRequest): Promise<Task> => {
+    console.log('🔄 Task létrehozás indítva:', data.title);
+
+    // ✅ 1. SUPABASE INSERT ELŐSZÖR (hogy megkapjuk a valós ID-t)
+    let dbTaskId: string;
+    let fullTaskData: any = null;
+    
+    try {
+      const dbTaskData = {
+        title: data.title,
+        description: data.description || '',
+        priority: mapAppPriorityToDb(data.priority),
+        status: mapAppStatusToDb(data.status || 'fuggőben'),
+        // category: data.category, // ❌ TÖRÖLVE - nincs ilyen oszlop
+        due_date: data.due_date || null,
+        animal_id: data.animal_id || null,
+        pen_id: data.pen_id || null,
+        action_required: data.action_required || null,
+        alert_id: data.alert_id || null
+      };
+
+      console.log('🔄 Supabase insert adatok:', dbTaskData);
+
+      const { data: insertedData, error: insertError } = await supabase
+        .from('tasks')
+        .insert([dbTaskData])
+        .select('*')  // ✅ JAVÍTÁS: teljes rekord lekérése
+        .single();
+
+      if (insertError) {
+        throw new Error(`Insert error: ${insertError.message}`);
+      }
+
+      if (!insertedData || !insertedData.id) {
+        throw new Error('No data returned from insert');
+      }
+
+      // ✅ JAVÍTÁS: Proper ID kezelés
+      dbTaskId = insertedData.id.toString();
+      fullTaskData = insertedData;
+      console.log('✅ Task mentve Supabase-be, teljes adat:', fullTaskData);
+
+    } catch (supabaseError) {
+      console.warn('⚠️ Supabase insert hiba:', supabaseError);
+      // ✅ Fallback: időbélyeg alapú ID
+      dbTaskId = `fallback_${Date.now()}`;
+      console.log('🔄 Fallback ID használata:', dbTaskId);
+    }
+
+    // ✅ 2. App Task object létrehozása
     const newTask: Task = {
-      id: `local-${Date.now()}`,
+      id: dbTaskId, // ✅ Mindig string
       title: data.title,
-      description: data.description,
+      description: data.description || '',
       priority: data.priority,
-      status: data.status || 'pending',
+      status: data.status || 'fuggőben',
       category: data.category,
       due_date: data.due_date,
       animal_id: data.animal_id,
       pen_id: data.pen_id,
       action_required: data.action_required,
       alert_id: data.alert_id,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      created_at: fullTaskData?.created_at || new Date().toISOString(),
+      updated_at: fullTaskData?.updated_at || new Date().toISOString()
     };
 
-    console.log('🔄 Task létrehozás:', newTask.title);
+    console.log('✅ Új task object létrehozva:', newTask);
 
-    // FUNCTIONAL UPDATE - localStorage mentéssel
+    // ✅ 3. State frissítése
     setTasks(prevTasks => {
       const updatedTasks = [newTask, ...prevTasks];
-      localStorage.setItem('mootracker_tasks', JSON.stringify(updatedTasks));
-      console.log('✅ Task mentve localStorage-ba:', updatedTasks.length);
+      
+      // ✅ localStorage mentés debug-gal
+      try {
+        localStorage.setItem('mootracker_tasks', JSON.stringify(updatedTasks));
+        console.log('✅ localStorage frissítve, task count:', updatedTasks.length);
+      } catch (localStorageError) {
+        console.error('❌ localStorage mentési hiba:', localStorageError);
+      }
+      
       return updatedTasks;
     });
-
-    // Supabase próba (opcionális)
-    try {
-      await supabase.from('tasks').insert([{
-        title: newTask.title,
-        description: newTask.description,
-        priority: mapPriorityToNumber(newTask.priority),
-        status: newTask.status,
-        due_date: newTask.due_date,
-        animal_id: newTask.animal_id,
-        pen_id: newTask.pen_id,
-        action_required: newTask.action_required,
-        alert_id: newTask.alert_id
-      }]);
-      console.log('✅ Task szinkronizálva Supabase-be');
-    } catch (supabaseError) {
-      console.log('Supabase szinkronizálás sikertelen (normális)');
-    }
 
     return newTask;
   }, []);
 
-  // Task frissítése
+  // ✅ TASK FRISSÍTÉSE
   const updateTask = useCallback(async (id: string, data: UpdateTaskRequest): Promise<Task> => {
+    console.log('🔄 Task frissítés:', id, data);
+
     let updatedTask: Task | null = null;
 
+    // ✅ 1. State frissítése
     setTasks(prevTasks => {
       const newTasks = prevTasks.map(task => {
         if (task.id === id) {
@@ -164,22 +291,71 @@ export const useTasks = (): UseTasksReturn => {
       return newTasks;
     });
 
+    // ✅ 2. Supabase szinkronizálás
+    if (updatedTask) {
+      try {
+        const dbUpdateData: any = {};
+        
+        if (data.title) dbUpdateData.title = data.title;
+        if (data.description !== undefined) dbUpdateData.description = data.description;
+        if (data.priority) dbUpdateData.priority = mapAppPriorityToDb(data.priority);
+        if (data.status) dbUpdateData.status = mapAppStatusToDb(data.status);
+        // if (data.category) dbUpdateData.category = data.category; // ❌ TÖRÖLVE
+        if (data.due_date !== undefined) dbUpdateData.due_date = data.due_date;
+        if (data.action_required !== undefined) dbUpdateData.action_required = data.action_required;
+        if (data.notes !== undefined) dbUpdateData.notes = data.notes;
+        if (data.completed_at !== undefined) dbUpdateData.completed_at = data.completed_at;
+
+        const { error: updateError } = await supabase
+          .from('tasks')
+          .update(dbUpdateData)
+          .eq('id', id);
+
+        if (updateError) {
+          console.warn('Supabase update hiba:', updateError.message);
+        } else {
+          console.log('✅ Task frissítve Supabase-ben');
+        }
+      } catch (supabaseError) {
+        console.log('Supabase update sikertelen');
+      }
+    }
+
     return updatedTask!;
   }, []);
 
-  // Task törlése
+  // ✅ TASK TÖRLÉSE
   const deleteTask = useCallback(async (id: string): Promise<void> => {
+    console.log('🗑️ Task törlése:', id);
+
+    // ✅ 1. State frissítése
     setTasks(prevTasks => {
       const newTasks = prevTasks.filter(task => task.id !== id);
       localStorage.setItem('mootracker_tasks', JSON.stringify(newTasks));
       return newTasks;
     });
+
+    // ✅ 2. Supabase szinkronizálás
+    try {
+      const { error: deleteError } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', id);
+
+      if (deleteError) {
+        console.warn('Supabase delete hiba:', deleteError.message);
+      } else {
+        console.log('✅ Task törölve Supabase-ből');
+      }
+    } catch (supabaseError) {
+      console.log('Supabase delete sikertelen');
+    }
   }, []);
 
-  // Task befejezése
+  // ✅ TASK BEFEJEZÉSE
   const completeTask = useCallback(async (id: string, notes?: string): Promise<Task> => {
     return updateTask(id, {
-      status: 'completed',
+      status: 'befejezve',
       completed_at: new Date().toISOString(),
       notes: notes
     });
@@ -204,12 +380,12 @@ export const useTasks = (): UseTasksReturn => {
       title: alert.title,
       description: alert.description,
       priority: alert.priority as TaskPriority,
-      category: 'general',
+      category: 'altalanos',
       due_date: alert.due_date || new Date(Date.now() + (7 * 24 * 60 * 60 * 1000)).toISOString(),
       animal_id: alert.animal_id,
       action_required: alert.action_required,
       alert_id: alert.id,
-      status: 'pending'
+      status: 'fuggőben'
     };
 
     const task = await createTask(taskData);
@@ -227,7 +403,7 @@ export const useTasks = (): UseTasksReturn => {
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
       return task.title.toLowerCase().includes(searchLower) ||
-             task.description.toLowerCase().includes(searchLower);
+             (task.description || '').toLowerCase().includes(searchLower);
     }
     return true;
   });
@@ -247,18 +423,18 @@ export const useTasks = (): UseTasksReturn => {
     }));
   }, []);
 
-  // Statistikák
+  // ✅ MAGYAR STATISTIKÁK
   const taskStats = {
-    total: tasks.length,
-    pending: tasks.filter(t => t.status === 'pending').length,
-    in_progress: tasks.filter(t => t.status === 'in_progress').length,
-    completed: tasks.filter(t => t.status === 'completed').length,
-    overdue: tasks.filter(t => 
+    osszes: tasks.length,
+    fuggőben: tasks.filter(t => t.status === 'fuggőben').length,
+    folyamatban: tasks.filter(t => t.status === 'folyamatban').length,
+    befejezve: tasks.filter(t => t.status === 'befejezve').length,
+    lejart: tasks.filter(t => 
       t.due_date && 
       new Date(t.due_date) < new Date() && 
-      t.status !== 'completed'
+      t.status !== 'befejezve'
     ).length,
-    critical: tasks.filter(t => t.priority === 'critical').length
+    kritikus: tasks.filter(t => t.priority === 'kritikus').length
   };
 
   return {

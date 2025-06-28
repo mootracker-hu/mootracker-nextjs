@@ -124,7 +124,7 @@ export function usePenAlerts() {
     // 6 hónapos borjak (választás)
     const calves6Months = calvesWithMother.filter(animal => {
       const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-      return ageInMonths >= 6;
+      return ageInMonths >= 6 && ageInMonths <= 8; // Csak 6-8 hónapos borjakra
     });
 
     if (calves6Months.length > 0) {

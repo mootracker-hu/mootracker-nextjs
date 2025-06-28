@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { EnhancedAlertActionPanel } from '@/components/EnhancedAlertActionPanel';
 import {
   Users,
   FileSpreadsheet,
@@ -23,13 +24,21 @@ import {
 } from 'lucide-react';
 
 // Alert és Task rendszer
-import { useAlerts } from '@/hooks/useAlerts';
+import { usePenAlerts } from '@/app/dashboard/pens/hooks/usePenAlerts';
 import { useTasks } from '@/hooks/useTasks';
-import { CreateTaskRequest, TaskPriority, TaskCategory, AlertPriority, TaskStatus } from '@/types/alert-task-types';
+import { CreateTaskRequest, TaskPriority, TaskCategory, TaskStatus } from '@/types/alert-task-types';
 
 export default function DashboardPage() {
-  // Alert rendszer
-  const { alerts, alertStats, loading: alertsLoading, error: alertsError, createTaskFromAlert } = useAlerts();
+  // Alert rendszer - Pen Alerts használata
+  const { alerts, loading: alertsLoading, error: alertsError } = usePenAlerts();
+
+  // Console debug
+  console.log('🔍 DASHBOARD PEN ALERTS DEBUG:', {
+    alerts,
+    alertsLength: alerts?.length || 0,
+    alertsLoading,
+    alertsError
+  });
 
   // Task rendszer
   const {
@@ -54,19 +63,42 @@ export default function DashboardPage() {
     action_required: ''
   });
 
-  // Legutóbbi riasztások (top 5)
-  const recentAlerts = alerts
-    .filter(alert => !alert.is_resolved)
-    .sort((a, b) => {
-      const priorityOrder: Record<AlertPriority, number> = { 
-        kritikus: 5, 
-        surgos: 4, 
-        magas: 3, 
-        kozepes: 2, 
-        alacsony: 1 
-      };
-      return (priorityOrder[b.priority] || 1) - (priorityOrder[a.priority] || 1);
+  // ✅ PEN ALERTS ALAPÚ ALERT STATS SZÁMÍTÁS
+  const alertStats = {
+    osszes: alerts?.length || 0,
+    aktiv: alerts?.length || 0,
+    kritikus: alerts?.filter(a => a.priority === 4)?.length || 0,
+    magas: alerts?.filter(a => a.priority === 3)?.length || 0,
+    kozepes: alerts?.filter(a => a.priority === 2)?.length || 0,
+    alacsony: alerts?.filter(a => a.priority === 1)?.length || 0,
+    lejart: alerts?.filter(a => a.dueDate && new Date(a.dueDate) < new Date())?.length || 0
+  };
+
+  // ✅ PEN ALERTS FORMÁTUM ÁTALAKÍTÁSA DASHBOARD FORMÁTUMRA
+  const recentAlerts = (alerts || [])
+    .filter((penAlert: any) => {
+      // ❌ Üres karám riasztások kiszűrése
+      return penAlert.alertType !== 'pen_empty' &&
+        penAlert.alertType !== 'pen_underutilized' &&
+        penAlert.alertType !== 'cleaning';
     })
+    .map(penAlert => ({
+      id: penAlert.id,
+      type: penAlert.alertType,
+      priority: penAlert.priority === 4 ? 'kritikus' :
+        penAlert.priority === 3 ? 'magas' :
+          penAlert.priority === 2 ? 'kozepes' : 'alacsony',
+      title: penAlert.title,
+      description: penAlert.message,
+      due_date: penAlert.dueDate,
+      is_resolved: false,
+      animal: {
+        enar: penAlert.affectedAnimals?.[0] || 'N/A'
+      },
+      penNumber: penAlert.penNumber,
+      animalCount: penAlert.animalCount,
+      related_task_id: undefined
+    }))
     .slice(0, 5);
 
   // Legutóbbi task-ok (top 5)
@@ -74,31 +106,66 @@ export default function DashboardPage() {
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 5);
 
-  // 🇭🇺 MAGYAR ALERT LOKALIZÁCIÓ
+  // ✅ IDEIGLENESI SNOOZE ÉS RESOLVE FUNKCIÓK
+  const snoozeAlert = async (alertId: string, duration: string) => {
+    console.log(`⏰ Alert snooze: ${alertId} for ${duration}`);
+    alert(`Riasztás halasztva ${duration}-re!`);
+  };
+
+  const resolveAlert = async (alertId: string, reason?: string) => {
+    console.log(`✅ Alert resolved: ${alertId}`, reason ? `Reason: ${reason}` : '');
+    alert('Riasztás megoldva!');
+  };
+
+  // ✅ CREATETASKFROMALERT FUNKCIÓ - PEN ALERTS KOMPATIBILIS
+  const createTaskFromAlert = async (alert: any): Promise<string> => {
+    try {
+      const taskId = `task-${Date.now()}`;
+
+      console.log('Creating task from pen alert:', {
+        alertId: alert.id,
+        taskId,
+        penNumber: alert.penNumber,
+        animalCount: alert.animalCount
+      });
+
+      // Task létrehozás a useTasks hook-kal
+      const taskData: CreateTaskRequest = {
+        title: alert.title,
+        description: `${alert.description} (Karám: ${alert.penNumber}, Érintett állatok: ${alert.animalCount})`,
+        priority: alert.priority as TaskPriority,
+        category: 'karam' as TaskCategory,
+        action_required: alert.description,
+        due_date: alert.due_date || new Date(Date.now() + (7 * 24 * 60 * 60 * 1000)).toISOString(),
+        alert_id: alert.id
+      };
+
+      await createTask(taskData);
+
+      return taskId;
+    } catch (error) {
+      console.error('Task creation error:', error);
+      throw error;
+    }
+  };
+
+  // 🇭🇺 MAGYAR ALERT LOKALIZÁCIÓ - PEN ALERTS KOMPATIBILIS
   const getAlertTypeLabel = (type: string): string => {
     const labels: Record<string, string> = {
-      'vakcinazas_esedékes': 'Vakcinázás esedékes',
-      'valasztas_ideje': 'Választás ideje', 
-      'karam_valtas_szukseges': 'Karám váltás szükséges',
-      'tenyesztesi_emlekezeto': 'Tenyésztési emlékeztető',
-      'piaci_lehetoseg': 'Piaci lehetőség',
-      'vemhessegvizsgalat': 'Vemhességvizsgálat',
-      'rcc_vakcina_esedékes': 'RCC vakcina esedékes',
-      'bovipast_vakcina_esedékes': 'BoviPast vakcina esedékes', 
-      'abrak_elvetel_esedékes': 'Abrak elvétel esedékes',
-      'elleto_karam_athelyezes': 'Ellető karámba áthelyezés',
-      'elles_kozeledik': 'Ellés közeledik',
-      'elles_kesesben': 'Ellés késésben',
-      'vemhessegvizsgalat_ismetles': 'VV ismétlés',
-      'selejtezesi_javaslat': 'Selejtezési javaslat'
+      'calf_6months': 'Borjú választás szükséges',
+      'pen_overcrowded': 'Karám túlzsúfolt',
+      'pen_empty': 'Karám üres',
+      'function_change_needed': 'Funkció váltás szükséges',
+      'capacity_warning': 'Kapacitás figyelmeztetés',
+      'maintenance_due': 'Karbantartás esedékes'
     };
     return labels[type] || type;
   };
 
-  const getPriorityLabel = (priority: AlertPriority): string => {
-    const labels: Record<AlertPriority, string> = {
+  const getPriorityLabel = (priority: string): string => {
+    const labels: Record<string, string> = {
       'alacsony': 'Alacsony',
-      'kozepes': 'Közepes', 
+      'kozepes': 'Közepes',
       'magas': 'Magas',
       'kritikus': 'Kritikus',
       'surgos': 'Sürgős'
@@ -109,30 +176,30 @@ export default function DashboardPage() {
   const getStatusLabel = (status: TaskStatus): string => {
     const labels: Record<TaskStatus, string> = {
       'fuggőben': 'Függőben',
-      'folyamatban': 'Folyamatban', 
+      'folyamatban': 'Folyamatban',
       'befejezve': 'Befejezve',
       'torolve': 'Törölve'
     };
     return labels[status] || status;
   };
 
-  const getAlertIcon = (priority: AlertPriority) => {
+  const getAlertIcon = (priority: string) => {
     switch (priority) {
-      case 'kritikus': return <AlertTriangle className="w-4 h-4 text-red-600" />;
+      case 'kritikus': return <AlertTriangle className="w-4 h-4 text-rose-600" />;
       case 'surgos': return <AlertTriangle className="w-4 h-4 text-red-600" />;
-      case 'magas': return <AlertTriangle className="w-4 h-4 text-orange-600" />;
+      case 'magas': return <AlertTriangle className="w-4 h-4 text-amber-600" />;
       case 'kozepes': return <Clock className="w-4 h-4 text-yellow-600" />;
-      default: return <CheckCircle2 className="w-4 h-4 text-green-600" />;
+      default: return <CheckCircle2 className="w-4 h-4 text-emerald-600" />;
     }
   };
 
-  const getAlertColor = (priority: AlertPriority) => {
+  const getAlertColor = (priority: string) => {
     switch (priority) {
-      case 'kritikus': return 'bg-red-50 border-red-200';
-      case 'surgos': return 'bg-red-50 border-red-200';
-      case 'magas': return 'bg-orange-50 border-orange-200';
-      case 'kozepes': return 'bg-yellow-50 border-yellow-200';
-      default: return 'bg-green-50 border-green-200';
+      case 'kritikus': return 'bg-rose-50 border-rose-200 hover:bg-rose-100';
+      case 'surgos': return 'bg-red-50 border-red-200 hover:bg-red-100';
+      case 'magas': return 'bg-amber-50 border-amber-200 hover:bg-amber-100';
+      case 'kozepes': return 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100';
+      default: return 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100';
     }
   };
 
@@ -146,10 +213,10 @@ export default function DashboardPage() {
 
   const getTaskColor = (priority: TaskPriority) => {
     switch (priority) {
-      case 'kritikus': return 'bg-red-50 border-red-200';
-      case 'magas': return 'bg-orange-50 border-orange-200';
-      case 'kozepes': return 'bg-yellow-50 border-yellow-200';
-      default: return 'bg-gray-50 border-gray-200';
+      case 'kritikus': return 'bg-rose-50 border-rose-200 hover:bg-rose-100';
+      case 'magas': return 'bg-amber-50 border-amber-200 hover:bg-amber-100';
+      case 'kozepes': return 'bg-cyan-50 border-cyan-200 hover:bg-cyan-100';
+      default: return 'bg-slate-50 border-slate-200 hover:bg-slate-100';
     }
   };
 
@@ -235,28 +302,28 @@ export default function DashboardPage() {
       description: 'Aktív riasztások és teendők kezelése',
       href: '/dashboard/tasks',
       icon: AlertTriangle,
-      color: 'bg-red-500 hover:bg-red-600'
+      color: 'bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700'
     },
     {
       title: 'Új Állat Hozzáadása',
       description: 'Új állat rögzítése a rendszerben',
       href: '/dashboard/animals/add',
       icon: PlusCircle,
-      color: 'bg-green-500 hover:bg-green-600'
+      color: 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700'
     },
     {
       title: 'Karám Kezelés',
       description: 'Karamok és állatok áttekintése',
       href: '/dashboard/pens',
       icon: Home,
-      color: 'bg-orange-500 hover:bg-orange-600'
+      color: 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700'
     },
     {
       title: 'Állomány Áttekintés',
       description: 'Teljes állomány listázása és keresés',
       href: '/dashboard/animals',
       icon: Users,
-      color: 'bg-purple-500 hover:bg-purple-600'
+      color: 'bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700'
     }
   ];
 
@@ -271,26 +338,31 @@ export default function DashboardPage() {
       </div>
 
       {/* 🔘 KEREK GOMBOK - MAGYAR Alert Számlálók */}
-      {!alertsLoading && !alertsError && alertStats && (
+      {!alertsLoading && !alertsError && (
         <div className="flex justify-center gap-4 mb-6">
-          <div className="bg-blue-500 text-white rounded-full w-16 h-16 flex flex-col items-center justify-center">
-            <div className="text-xl font-bold">{alertStats.osszes || 0}</div>
+          {/* Összes - Deep Blue → Vibrant Purple */}
+          <div className="bg-purple-600 text-white rounded-full w-16 h-16 flex flex-col items-center justify-center shadow-lg">
+            <div className="text-xl font-bold">{alertStats.osszes}</div>
             <div className="text-xs">Összes</div>
           </div>
-          <div className="bg-green-500 text-white rounded-full w-16 h-16 flex flex-col items-center justify-center">
-            <div className="text-xl font-bold">{alertStats.aktiv || 0}</div>
+          {/* Aktív - Green → Emerald */}
+          <div className="bg-emerald-500 text-white rounded-full w-16 h-16 flex flex-col items-center justify-center shadow-lg">
+            <div className="text-xl font-bold">{alertStats.aktiv}</div>
             <div className="text-xs">Aktív</div>
           </div>
-          <div className="bg-red-500 text-white rounded-full w-16 h-16 flex flex-col items-center justify-center">
-            <div className="text-xl font-bold">{alertStats.kritikus || 0}</div>
+          {/* Kritikus - Red → Rose */}
+          <div className="bg-rose-500 text-white rounded-full w-16 h-16 flex flex-col items-center justify-center shadow-lg">
+            <div className="text-xl font-bold">{alertStats.kritikus}</div>
             <div className="text-xs">Kritikus</div>
           </div>
-          <div className="bg-orange-500 text-white rounded-full w-16 h-16 flex flex-col items-center justify-center">
-            <div className="text-xl font-bold">{alertStats.magas || 0}</div>
+          {/* Magas - Orange → Amber */}
+          <div className="bg-amber-500 text-white rounded-full w-16 h-16 flex flex-col items-center justify-center shadow-lg">
+            <div className="text-xl font-bold">{alertStats.magas}</div>
             <div className="text-xs">Magas</div>
           </div>
-          <div className="bg-purple-500 text-white rounded-full w-16 h-16 flex flex-col items-center justify-center">
-            <div className="text-xl font-bold">{alertStats.lejart || 0}</div>
+          {/* Lejárt - Purple → Indigo */}
+          <div className="bg-indigo-500 text-white rounded-full w-16 h-16 flex flex-col items-center justify-center shadow-lg">
+            <div className="text-xl font-bold">{alertStats.lejart}</div>
             <div className="text-xs">Lejárt</div>
           </div>
         </div>
@@ -298,10 +370,11 @@ export default function DashboardPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        {/* Összes Állat - Green → Teal */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <Users className="h-8 w-8 text-green-600" />
+              <Users className="h-8 w-8 text-teal-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Összes Állat</p>
@@ -310,10 +383,10 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <TrendingUp className="h-8 w-8 text-blue-600" />
+              <TrendingUp className="h-8 w-8 text-cyan-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Aktív Állat</p>
@@ -322,10 +395,10 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <Heart className="h-8 w-8 text-pink-600" />
+              <Heart className="h-8 w-8 text-rose-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Vemhes Tehén</p>
@@ -334,10 +407,10 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <Calendar className="h-8 w-8 text-yellow-600" />
+              <Calendar className="h-8 w-8 text-violet-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Aktív Feladat</p>
@@ -372,11 +445,11 @@ export default function DashboardPage() {
       {/* 📋 KÉTOSZLOPOS LAYOUT - Riasztások és Feladatok */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {/* BAL OSZLOP - RIASZTÁSOK (MAGYAR) */}
+        {/* BAL OSZLOP - RIASZTÁSOK (PEN ALERTS) */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-orange-500" />
+              <AlertTriangle className="w-5 h-5 text-amber-500" />
               Riasztások
             </h2>
             <Link
@@ -404,45 +477,54 @@ export default function DashboardPage() {
               {recentAlerts.map(alert => (
                 <div
                   key={alert.id}
-                  className={`p-3 rounded-lg border ${getAlertColor(alert.priority)} hover:shadow-sm transition-shadow`}
+                  className={`rounded-lg border ${getAlertColor(alert.priority)} hover:shadow-sm transition-shadow`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-2 flex-1">
-                      {getAlertIcon(alert.priority)}
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`px-2 py-1 text-xs font-medium rounded ${
-                            alert.priority === 'kritikus' ? 'bg-red-100 text-red-800' :
-                            alert.priority === 'surgos' ? 'bg-red-100 text-red-800' :
-                            alert.priority === 'magas' ? 'bg-orange-100 text-orange-800' :
-                            alert.priority === 'kozepes' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {getPriorityLabel(alert.priority)}
-                          </span>
-                          {alert.animal?.enar && (
-                            <span className="text-xs text-gray-500">
-                              {alert.animal.enar}
+                  {/* ✅ ALERT TARTALOM */}
+                  <div className="p-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-2 flex-1">
+                        {getAlertIcon(alert.priority)}
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${alert.priority === 'kritikus' ? 'bg-rose-100 text-rose-800' :
+                              alert.priority === 'surgos' ? 'bg-red-100 text-red-800' :
+                                alert.priority === 'magas' ? 'bg-amber-100 text-amber-800' :
+                                  alert.priority === 'kozepes' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-emerald-100 text-emerald-800'
+                              }`}>
+                              {getPriorityLabel(alert.priority)}
                             </span>
-                          )}
+
+                            {alert.penNumber && (
+                              <span className="text-xs text-gray-500">
+                                Karám: {alert.penNumber}
+                              </span>
+                            )}
+                            {alert.animalCount && (
+                              <span className="text-xs text-gray-500">
+                                {alert.animalCount} állat
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm font-medium text-gray-900">
+                            {getAlertTypeLabel(alert.type)}
+                          </p>
+                          <p className="text-xs text-gray-600 mt-1">
+                            {alert.description}
+                            {alert.due_date && ` • ${new Date(alert.due_date).toLocaleDateString('hu-HU')}`}
+                          </p>
                         </div>
-                        <p className="text-sm font-medium text-gray-900">
-                          {getAlertTypeLabel(alert.type)}
-                        </p>
-                        <p className="text-xs text-gray-600 mt-1">
-                          {alert.description}
-                          {alert.due_date && ` • ${new Date(alert.due_date).toLocaleDateString('hu-HU')}`}
-                        </p>
                       </div>
                     </div>
-                    <button
-                      className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded hover:bg-blue-200 transition-colors"
-                      onClick={() => handleCreateTaskFromAlert(alert)}
-                      disabled={!!alert.related_task_id}
-                    >
-                      {alert.related_task_id ? 'Létrehozva' : 'Task'}
-                    </button>
                   </div>
+
+                  {/* ✅ ENHANCED ALERT ACTION PANEL */}
+                  <EnhancedAlertActionPanel
+                    alert={alert}
+                    onCreateTask={handleCreateTaskFromAlert}
+                    onSnoozeAlert={snoozeAlert}
+                    onResolveAlert={resolveAlert}
+                  />
                 </div>
               ))}
             </div>
@@ -454,11 +536,11 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* JOBB OSZLOP - FELADATOK (MAGYAR) */}
+        {/* JOBB OSZLOP - FELADATOK */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <CheckSquare className="w-5 h-5 text-blue-500" />
+              <CheckSquare className="w-5 h-5 text-violet-500" />
               Feladatok
             </h2>
             <div className="flex gap-2">
@@ -570,11 +652,10 @@ export default function DashboardPage() {
                               Auto
                             </span>
                           )}
-                          <span className={`text-xs px-2 py-0.5 rounded ${
-                            task.status === 'befejezve' ? 'bg-green-100 text-green-800' :
-                            task.status === 'folyamatban' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${task.status === 'befejezve' ? 'bg-emerald-100 text-emerald-800' :
+                            task.status === 'folyamatban' ? 'bg-amber-100 text-amber-800' :
+                              'bg-slate-100 text-slate-800'
+                            }`}>
                             {getStatusLabel(task.status)}
                           </span>
                         </div>
@@ -597,7 +678,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Új feladat hozzáadása gomb (ha nincs form) */}
+          {/* Új feladat hozzáadása gomb */}
           {!showNewTaskForm && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <button
@@ -620,7 +701,7 @@ export default function DashboardPage() {
               Rendszer Állapot: Működőképes
             </h3>
             <p className="text-green-700 mt-1">
-              MooTracker v8.2 - Magyar Alert rendszer és új karám típusok aktívak.
+              MooTracker v8.3 - Pen Alerts rendszer aktív Enhanced Action Panel-lel.
             </p>
           </div>
           <div className="mt-4 sm:mt-0 sm:ml-4 flex gap-2">
