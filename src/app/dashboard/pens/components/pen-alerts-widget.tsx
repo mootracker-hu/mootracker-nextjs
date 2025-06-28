@@ -94,9 +94,17 @@ export function PenAlertsWidget({ penId, alerts, className = '' }: PenAlertsWidg
   };
 
   // Legmagasabb prioritású riasztás kiválasztása megjelenítéshez
-  const topAlert = penAlerts.reduce((prev, current) => 
-    current.priority > prev.priority ? current : prev
-  );
+  const topAlert = penAlerts.reduce((prev, current) => {
+  const getPriorityValue = (priority: any) => {
+    if (typeof priority === 'string') {
+      const order: { [key: string]: number } = { 'surgos': 5, 'kritikus': 4, 'magas': 3, 'kozepes': 2, 'alacsony': 1 };
+      return order[priority] || 0;
+    }
+    return priority as number || 0;
+  };
+  
+  return getPriorityValue(current.priority) > getPriorityValue(prev.priority) ? current : prev;
+});
 
   const style = getPriorityStyle(topAlert.priority);
   const IconComponent = style.icon;
@@ -134,9 +142,9 @@ export function PenAlertsWidget({ penId, alerts, className = '' }: PenAlertsWidg
               {penAlerts.slice(1).map((alert, index) => (
                 <div key={alert.id} className="flex items-center gap-2">
                   <div className={`w-2 h-2 rounded-full ${
-                    alert.priority === 4 ? 'bg-red-400' :
-                    alert.priority === 3 ? 'bg-orange-400' :
-                    alert.priority === 2 ? 'bg-yellow-400' : 'bg-blue-400'
+                    (alert.priority === 4 || (alert.priority as any) === 'kritikus' || (alert.priority as any) === 'surgos') ? 'bg-red-400' :
+(alert.priority === 3 || (alert.priority as any) === 'magas') ? 'bg-orange-400' :
+(alert.priority === 2 || (alert.priority as any) === 'kozepes') ? 'bg-yellow-400' : 'bg-blue-400'
                   }`} />
                   <p className={`text-xs ${style.textColor} opacity-75`}>
                     {alert.message}

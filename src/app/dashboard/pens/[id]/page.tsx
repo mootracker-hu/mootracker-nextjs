@@ -23,7 +23,7 @@ import {
     Download,
     MoreHorizontal
 } from 'lucide-react';
-import { usePenAlerts } from '../hooks/usePenAlerts';
+import { useAlertsNew } from '@/hooks/useAlertsNew';
 import { PenAlertsWidget } from '../components/pen-alerts-widget';
 
 // TypeScript interfaces - egyértelműen definiálva
@@ -76,7 +76,7 @@ export default function PenDetailsPage() {
     const [showFunctionManager, setShowFunctionManager] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     // Riasztások hook hozzáadása
-    const { alerts, getAlertsForPen } = usePenAlerts();
+    const { alerts } = useAlertsNew();
 
     console.log('🔍 PEN DETAILS RENDER:', {
         pen: pen?.pen_number,
@@ -512,10 +512,10 @@ export default function PenDetailsPage() {
                         </div>
                     )}
                     <PenAlertsWidget
-                        penId={pen.id}
-                        alerts={alerts}
-                        className="mt-6"
-                    />
+    penId={pen.id}
+    alerts={alerts as any}
+    className="mt-6"
+/>
                 </div>
             </div>
 

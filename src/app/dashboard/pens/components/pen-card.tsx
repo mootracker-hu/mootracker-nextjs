@@ -4,7 +4,7 @@
 import { useRouter } from 'next/navigation';
 import { MapPin, AlertTriangle } from 'lucide-react';
 import { PenAlertsWidget } from './pen-alerts-widget';
-import { usePenAlerts } from '../hooks/usePenAlerts';
+import { useAlertsNew } from '@/hooks/useAlertsNew';
 
 interface Pen {
   id: string;
@@ -29,7 +29,8 @@ interface PenCardProps {
 }
 
 export default function PenCard({ pen }: PenCardProps) {
-  const { alerts } = usePenAlerts();
+  const { alerts } = useAlertsNew();
+const penSpecificAlerts = alerts.filter(alert => alert.pen_id === pen.id);
   const router = useRouter();
 
   // Funkció emoji és színek
@@ -157,7 +158,7 @@ export default function PenCard({ pen }: PenCardProps) {
         {/* ÚJ specializált riasztások widget */}
         <PenAlertsWidget
           penId={pen.id}
-          alerts={alerts}
+          alerts={alerts as any}
         />
       </div>
     </div>
