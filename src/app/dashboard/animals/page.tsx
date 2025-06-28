@@ -124,7 +124,7 @@ export default function AnimalsPage() {
       // FUNKCIÓK KÜLÖN LEKÉRÉSE
       const { data: functionsData, error: functionsError } = await supabase
         .from('pen_functions')
-        .select('pen_id, function_name')
+        .select('pen_id, function_type')
         .is('end_date', null);
 
       console.log('🔧 Funkciók query:', { functionsData, functionsError });
@@ -135,7 +135,7 @@ export default function AnimalsPage() {
         return {
           ...pen,
           current_function: currentFunction ? {
-            function_name: currentFunction.function_name
+            function_type: currentFunction.function_type
           } : null
         };
       });
