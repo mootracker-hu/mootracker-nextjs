@@ -131,15 +131,15 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
   // 🐄 VÁLASZTÁS (6 hónapos) - IVAR-SPECIFIKUS KARÁM VÁLTÁS
   {
     type: 'valasztas_ideje',
-    priority: 'magas',
+    priority: 'kritikus',
     title: 'Választási idő - Karám szétválasztás',
     description: '6 hónapos borjú választása és karám szétválasztása - ENAR: {enar}',
     checkCondition: (animal) => {
-      const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-      return ageInMonths >= 6 && ageInMonths <= 6.5 && 
-             animal.kategoria.includes('borjú') && 
-             animal.statusz === 'aktív';
-    },
+    const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+    return ageInMonths >= 6 && ageInMonths <= 12 &&
+           animal.kategoria.includes('borjú') &&
+           animal.statusz === 'aktív';
+},
     daysFromBirth: 180,
     suggestedActions: [
       'Borjú leválasztása anyjáról',

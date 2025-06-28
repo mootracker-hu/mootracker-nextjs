@@ -149,8 +149,8 @@ export async function getAllAnimalsWithPens(): Promise<Animal[]> {
       .select(`
         id, enar, szuletesi_datum, ivar, kategoria, statusz,
         pairing_date, vv_date, vv_result_days, pregnancy_status, expected_birth_date,
-        kplsz_szam, anya_enar, apa_enar, has_given_birth, last_birth_date,
-        notes, birth_location, breed, acquisition_date
+        kplsz, anya_enar, apa_enar, has_given_birth, last_birth_date,
+        notes, birth_location, breed, acquisition_date, jelenlegi_karam
       `)
       .eq('statusz', 'aktív')
       .order('enar');
@@ -271,7 +271,7 @@ export async function getPenWithAnimals(penId: string): Promise<PenWithAnimals |
         animals!inner(
           id, enar, szuletesi_datum, ivar, kategoria, statusz,
           pairing_date, vv_date, vv_result_days, pregnancy_status, expected_birth_date,
-          kplsz_szam, anya_enar, apa_enar, has_given_birth, last_birth_date,
+          kplsz, anya_enar, apa_enar, has_given_birth, last_birth_date,
           notes, birth_location, breed, acquisition_date
         )
       `)

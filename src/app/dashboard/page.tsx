@@ -24,13 +24,13 @@ import {
 } from 'lucide-react';
 
 // Alert és Task rendszer
-import { usePenAlerts } from '@/app/dashboard/pens/hooks/usePenAlerts';
+import { useAlertsNew } from '@/hooks/useAlertsNew';
 import { useTasks } from '@/hooks/useTasks';
 import { CreateTaskRequest, TaskPriority, TaskCategory, TaskStatus } from '@/types/alert-task-types';
 
 export default function DashboardPage() {
   // Alert rendszer - Pen Alerts használata
-  const { alerts, loading: alertsLoading, error: alertsError } = usePenAlerts();
+  const { alerts, loading: alertsLoading, error: alertsError } = useAlertsNew();
 
   // Console debug
   console.log('🔍 DASHBOARD PEN ALERTS DEBUG:', {
@@ -67,36 +67,33 @@ export default function DashboardPage() {
   const alertStats = {
     osszes: alerts?.length || 0,
     aktiv: alerts?.length || 0,
-    kritikus: alerts?.filter(a => a.priority === 4)?.length || 0,
-    magas: alerts?.filter(a => a.priority === 3)?.length || 0,
-    kozepes: alerts?.filter(a => a.priority === 2)?.length || 0,
-    alacsony: alerts?.filter(a => a.priority === 1)?.length || 0,
-    lejart: alerts?.filter(a => a.dueDate && new Date(a.dueDate) < new Date())?.length || 0
+    kritikus: alerts?.filter(a => a.priority === 'kritikus' || a.priority === 'surgos')?.length || 0,
+    magas: alerts?.filter(a => a.priority === 'magas')?.length || 0,
+    kozepes: alerts?.filter(a => a.priority === 'kozepes')?.length || 0,
+    alacsony: alerts?.filter(a => a.priority === 'alacsony')?.length || 0,
+    lejart: alerts?.filter(a => a.due_date && new Date(a.due_date) < new Date())?.length || 0
   };
 
   // ✅ PEN ALERTS FORMÁTUM ÁTALAKÍTÁSA DASHBOARD FORMÁTUMRA
   const recentAlerts = (alerts || [])
-    .filter((penAlert: any) => {
-      // ❌ Üres karám riasztások kiszűrése
-      return penAlert.alertType !== 'pen_empty' &&
-        penAlert.alertType !== 'pen_underutilized' &&
-        penAlert.alertType !== 'cleaning';
+    .filter((alert: any) => {
+      return alert.type !== 'urez_karam' &&
+        alert.type !== 'alulhasznaltsag' &&
+        alert.type !== 'takaritas';
     })
-    .map(penAlert => ({
-      id: penAlert.id,
-      type: penAlert.alertType,
-      priority: penAlert.priority === 4 ? 'kritikus' :
-        penAlert.priority === 3 ? 'magas' :
-          penAlert.priority === 2 ? 'kozepes' : 'alacsony',
-      title: penAlert.title,
-      description: penAlert.message,
-      due_date: penAlert.dueDate,
+    .map(alert => ({
+      id: alert.id,
+      type: alert.type,
+      priority: alert.priority,
+      title: alert.title,
+      description: alert.description,
+      due_date: alert.due_date,
       is_resolved: false,
       animal: {
-        enar: penAlert.affectedAnimals?.[0] || 'N/A'
+        enar: alert.animal_id || 'N/A'
       },
-      penNumber: penAlert.penNumber,
-      animalCount: penAlert.animalCount,
+      penNumber: 'N/A',
+      animalCount: 0,
       related_task_id: undefined
     }))
     .slice(0, 5);
@@ -473,7 +470,7 @@ export default function DashboardPage() {
               </div>
             </div>
           ) : recentAlerts.length > 0 ? (
-            <div className="space-y-3 max-h-96 overflow-y-auto">
+            <div className="space-y-3 max-h-[500px] overflow-y-auto">
               {recentAlerts.map(alert => (
                 <div
                   key={alert.id}
