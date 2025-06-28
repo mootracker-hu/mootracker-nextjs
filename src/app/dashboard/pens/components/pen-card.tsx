@@ -29,8 +29,25 @@ interface PenCardProps {
 }
 
 export default function PenCard({ pen }: PenCardProps) {
-  const { alerts } = useAlertsNew();
-const penSpecificAlerts = alerts.filter(alert => alert.pen_id === pen.id);
+  const { alerts, animalPenMap } = useAlertsNew();
+
+// Állat alertek hozzárendelése ehhez a karámhoz
+const penSpecificAlerts = alerts.filter(alert => {
+  if (!pen?.id) return false;
+  
+  // 1. Karám-specifikus alertek
+  if (alert.pen_id === pen.id) return true;
+  
+  // 2. Állat alertek - mapping alapján
+  if (alert.animal_id && animalPenMap) {
+    return animalPenMap[alert.animal_id] === pen.id;
+  }
+  
+  return false;
+});
+
+console.log('FILTERED ALERTS for pen', pen.id, ':', penSpecificAlerts);
+
   const router = useRouter();
 
   // Funkció emoji és színek
@@ -157,8 +174,8 @@ const penSpecificAlerts = alerts.filter(alert => alert.pen_id === pen.id);
         )}
         {/* ÚJ specializált riasztások widget */}
         <PenAlertsWidget
-          penId={pen.id}
-          alerts={alerts as any}
+  penId={pen.id}
+  alerts={penSpecificAlerts as any}
         />
       </div>
     </div>

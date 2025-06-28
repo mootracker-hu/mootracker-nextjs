@@ -524,7 +524,7 @@ export class MagyarAlertEngine {
 
     for (const rule of this.rules) {
       if (rule.checkCondition(animal)) {
-        const alert: Alert = {
+        const alert: any = {
           id: `alert-${animal.id}-${rule.type}-${Date.now()}`,
           type: rule.type,
           priority: rule.priority,
@@ -533,6 +533,8 @@ export class MagyarAlertEngine {
           message: `${rule.title} - ${animal.enar}`,
           animal_id: animal.id,
           enar: animal.enar,
+          pen_id: (animal as any).jelenlegi_karam || null,
+          pen_number: (animal as any).jelenlegi_karam || null,  
           animal: {
   id: parseInt(animal.id) || 0,  // ← konverzió string→number
   enar: animal.enar
@@ -562,7 +564,7 @@ export class MagyarAlertEngine {
           }
         };
 
-        alerts.push(alert);
+        alerts.push(alert as any);
       }
     }
 
@@ -604,7 +606,7 @@ export class MagyarAlertEngine {
     for (const pen of pens) {
       for (const rule of KARAM_ALERT_SZABALYOK) {
         if (rule.checkCondition(pen)) {
-          const alert: Alert = {
+          const alert: any = {
             id: `pen-alert-${pen.id}-${rule.type}-${Date.now()}`,
             type: rule.type as AlertType,
             priority: rule.priority as AlertPriority,

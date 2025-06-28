@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { MagyarAlertEngine, magyarAlertEngine, Alert, AlertPriority, AlertType, Animal, PenInfo } from '@/lib/alerts/MagyarAlertEngine';
 import { getAllAnimalsWithPens, getPensWithCounts, clearCache } from '@/lib/data/PenQueries';
 
+
 // ============================================
 // HOOK INTERFACE
 // ============================================
@@ -14,6 +15,7 @@ export interface UseAlertsReturn {
   alerts: Alert[];
   animalAlerts: Alert[];
   penAlerts: Alert[];
+  animalPenMap?: Record<string, string>;
   loading: boolean;
   error: string | null;
   
@@ -68,7 +70,8 @@ export const useAlertsNew = (): UseAlertsReturn => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-
+  const [animalPenMap, setAnimalPenMap] = useState<Record<string, string>>({});
+  
   // ============================================
   // DATA LOADING
   // ============================================
@@ -86,10 +89,31 @@ export const useAlertsNew = (): UseAlertsReturn => {
         getPensWithCounts()
       ]);
       
+
+
       console.log(`📊 Loaded ${animals.length} animals and ${pens.length} pens`);
       
       // Generate all alerts using MagyarAlertEngine
       const generatedAlerts = magyarAlertEngine.generateAllAlerts(animals, pens);
+
+      console.log(`🚨 Generated ${generatedAlerts.length} alerts`);
+
+     // Debug: nézzük meg az első állat struktúráját
+if (animals.length > 0) {
+  console.log('🐄 First animal structure:', animals[0]);
+}
+
+// Állat-Karám mapping létrehozása a meglévő animals tömbből
+const mapping = animals.reduce((map: Record<string, string>, animal: any) => {
+  // JAVÍTÁS: pen_id helyett current_pen_id!
+  if (animal.id && animal.pen_id) {
+    map[animal.id] = animal.pen_id;
+  }
+  return map;
+}, {} as Record<string, string>);
+
+setAnimalPenMap(mapping);
+console.log('🗺️ Animal-Pen mapping sample:', Object.entries(mapping).slice(0, 5));
       
       console.log(`🚨 Generated ${generatedAlerts.length} alerts`);
       console.log('📈 Alert breakdown:', {
@@ -332,6 +356,7 @@ export const useAlertsNew = (): UseAlertsReturn => {
     alerts,
     animalAlerts,
     penAlerts,
+    animalPenMap, // ← ÚJ!
     loading,
     error,
     

@@ -76,7 +76,32 @@ export default function PenDetailsPage() {
     const [showFunctionManager, setShowFunctionManager] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     // Riasztások hook hozzáadása
-    const { alerts } = useAlertsNew();
+    const { alerts, animalPenMap } = useAlertsNew();
+
+// Állat alertek hozzárendelése ehhez a karámhoz (ugyanaz mint pen-card.tsx-ben)
+// Állat alertek hozzárendelése ehhez a karámhoz
+const penSpecificAlerts = alerts.filter(alert => {
+  if (!pen?.id) return false;
+  
+  console.log('🔍 Checking alert:', alert.id, 'animal_id:', alert.animal_id, 'pen_id:', alert.pen_id);
+  
+  // 1. Karám-specifikus alertek
+  if (alert.pen_id === pen.id) {
+    console.log('✅ Pen alert match!');
+    return true;
+  }
+  
+  // 2. Állat alertek - mapping alapján
+  if (alert.animal_id && animalPenMap) {
+    const animalPenId = animalPenMap[alert.animal_id];
+    console.log('🗺️ Animal', alert.animal_id, 'is in pen:', animalPenId, 'current pen:', pen.id);
+    return animalPenId === pen.id;
+  }
+  
+  return false;
+});
+
+console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
 
     console.log('🔍 PEN DETAILS RENDER:', {
         pen: pen?.pen_number,
@@ -513,7 +538,7 @@ export default function PenDetailsPage() {
                     )}
                     <PenAlertsWidget
     penId={pen.id}
-    alerts={alerts as any}
+    alerts={penSpecificAlerts as any}
     className="mt-6"
 />
                 </div>

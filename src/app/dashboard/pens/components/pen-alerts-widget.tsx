@@ -23,7 +23,7 @@ interface PenAlertsWidgetProps {
 
 export function PenAlertsWidget({ penId, alerts, className = '' }: PenAlertsWidgetProps) {
   // Csak az adott karámhoz tartozó riasztások
-  const penAlerts = alerts.filter(alert => alert.penId === penId);
+  const penAlerts = alerts; 
 
   // Ha nincsenek riasztások, ne jelenítsen meg semmit
   if (penAlerts.length === 0) {
@@ -93,8 +93,6 @@ export function PenAlertsWidget({ penId, alerts, className = '' }: PenAlertsWidg
     }
   };
 
-  // Legmagasabb prioritású riasztás kiválasztása megjelenítéshez
-  const topAlert = penAlerts.reduce((prev, current) => {
   const getPriorityValue = (priority: any) => {
     if (typeof priority === 'string') {
       const order: { [key: string]: number } = { 'surgos': 5, 'kritikus': 4, 'magas': 3, 'kozepes': 2, 'alacsony': 1 };
@@ -102,6 +100,10 @@ export function PenAlertsWidget({ penId, alerts, className = '' }: PenAlertsWidg
     }
     return priority as number || 0;
   };
+
+  // Legmagasabb prioritású riasztás kiválasztása megjelenítéshez
+  const topAlert = penAlerts.reduce((prev, current) => {
+  
   
   return getPriorityValue(current.priority) > getPriorityValue(prev.priority) ? current : prev;
 });
@@ -178,10 +180,21 @@ interface AlertsSummaryProps {
 }
 
 export function AlertsSummary({ alerts, className = '' }: AlertsSummaryProps) {
-  const criticalCount = alerts.filter(alert => alert.priority === 4).length;
-  const highCount = alerts.filter(alert => alert.priority === 3).length;
-  const mediumCount = alerts.filter(alert => alert.priority === 2).length;
-  const lowCount = alerts.filter(alert => alert.priority === 1).length;
+  const criticalCount = alerts.filter(alert => 
+  alert.priority === 4 || (alert.priority as any) === 'kritikus' || (alert.priority as any) === 'surgos'
+).length;
+
+const highCount = alerts.filter(alert => 
+  alert.priority === 3 || (alert.priority as any) === 'magas'
+).length;
+
+const mediumCount = alerts.filter(alert => 
+  alert.priority === 2 || (alert.priority as any) === 'kozepes'
+).length;
+
+const lowCount = alerts.filter(alert => 
+  alert.priority === 1 || (alert.priority as any) === 'alacsony'
+).length;
 
   if (alerts.length === 0) {
     return (
