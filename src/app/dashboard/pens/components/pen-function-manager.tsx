@@ -2,7 +2,6 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Settings, AlertTriangle, CheckCircle, Calendar, User, Heart, Clock, Shield, Package } from 'lucide-react';
 import { PenFunctionType, PEN_FUNCTION_LABELS, NOTES_TEMPLATES, KorhazMetadata, AtmenetiMetadata, KarantenMetadata, SelejtMetadata } from '@/types/alert-task-types';
 
 interface Pen {
@@ -67,22 +66,22 @@ export default function PenFunctionManager({
   const [plannedDisposal, setPlannedDisposal] = useState<SelejtMetadata['planned_disposal']>('ertekesites');
   const [disposalDeadline, setDisposalDeadline] = useState('');
 
-  // ✅ BŐVÍTETT FUNKCIÓ TÍPUSOK
+  // ✅ BŐVÍTETT FUNKCIÓ TÍPUSOK - EMOJI IKONOKKAL
   const functionTypes = [
-    { value: 'bölcsi' as PenFunctionType, label: '🐮 Bölcsi', description: '0-12 hónapos borjak nevelése', color: 'blue' },
-    { value: 'óvi' as PenFunctionType, label: '🐄 Óvi', description: '12-24 hónapos üszők nevelése', color: 'green' },
-    { value: 'hárem' as PenFunctionType, label: '🐄💕 Hárem', description: 'Tenyésztésben lévő üszők/tehenek', color: 'pink' },
-    { value: 'vemhes' as PenFunctionType, label: '🐄💖 Vemhes', description: 'Vemhes állatok ellésre várva', color: 'purple' },
-    { value: 'hízóbika' as PenFunctionType, label: '🐂 Hízóbika', description: 'Hústermelés céljából tartott bikák', color: 'orange' },
-    { value: 'ellető' as PenFunctionType, label: '🐄🍼 Ellető', description: 'Ellés körül lévő tehenek', color: 'red' },
-    { value: 'tehén' as PenFunctionType, label: '🐄🍼 Tehén', description: 'Borjával együtt tartott tehenek', color: 'yellow' },
-    { value: 'üres' as PenFunctionType, label: '⭕ Üres', description: 'Jelenleg nincs használatban', color: 'gray' },
+    { value: 'bölcsi' as PenFunctionType, label: '🐮 Bölcsi', description: '0-12 hónapos borjak nevelése', color: 'bg-green-100 text-green-800 border-green-200' },
+    { value: 'óvi' as PenFunctionType, label: '🐄 Óvi', description: '12-24 hónapos üszők nevelése', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+    { value: 'hárem' as PenFunctionType, label: '💕 Hárem', description: 'Tenyésztésben lévő üszők/tehenek', color: 'bg-pink-100 text-pink-800 border-pink-200' },
+    { value: 'vemhes' as PenFunctionType, label: '🤰 Vemhes', description: 'Vemhes állatok ellésre várva', color: 'bg-purple-100 text-purple-800 border-purple-200' },
+    { value: 'hízóbika' as PenFunctionType, label: '🐂 Hízóbika', description: 'Hústermelés céljából tartott bikák', color: 'bg-red-100 text-red-800 border-red-200' },
+    { value: 'ellető' as PenFunctionType, label: '🍼 Ellető', description: 'Ellés körül lévő tehenek', color: 'bg-orange-100 text-orange-800 border-orange-200' },
+    { value: 'tehén' as PenFunctionType, label: '🐄🍼 Tehén', description: 'Borjával együtt tartott tehenek', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+    { value: 'üres' as PenFunctionType, label: '⭕ Üres', description: 'Jelenleg nincs használatban', color: 'bg-gray-100 text-gray-800 border-gray-200' },
     
     // ✅ ÚJ KARÁM TÍPUSOK
-    { value: 'átmeneti' as PenFunctionType, label: '🔄 Átmeneti', description: 'Ideiglenes elhelyezés, döntés alatt', color: 'indigo' },
-    { value: 'kórház' as PenFunctionType, label: '🏥 Kórház', description: 'Kezelés alatt lévő állatok', color: 'red' },
-    { value: 'karantén' as PenFunctionType, label: '🔒 Karantén', description: 'Elkülönített állatok', color: 'yellow' },
-    { value: 'selejt' as PenFunctionType, label: '📦 Selejt', description: 'Értékesítésre/vágásra váró állatok', color: 'slate' }
+    { value: 'átmeneti' as PenFunctionType, label: '🔄 Átmeneti', description: 'Ideiglenes elhelyezés, döntés alatt', color: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
+    { value: 'kórház' as PenFunctionType, label: '🏥 Kórház', description: 'Kezelés alatt lévő állatok', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+    { value: 'karantén' as PenFunctionType, label: '🔒 Karantén', description: 'Elkülönített állatok', color: 'bg-amber-100 text-amber-800 border-amber-200' },
+    { value: 'selejt' as PenFunctionType, label: '📦 Selejt', description: 'Értékesítésre/vágásra váró állatok', color: 'bg-slate-100 text-slate-800 border-slate-200' }
   ];
 
   // Ellető karamokra csak ellető és üres funkció
@@ -240,10 +239,10 @@ export default function PenFunctionManager({
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
       <div className="relative top-10 mx-auto p-0 border max-w-4xl shadow-lg rounded-lg bg-white">
-        {/* Header */}
+        {/* Header - DESIGN SYSTEM MODERNIZED */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center">
-            <Settings className="h-6 w-6 text-green-600 mr-3" />
+            <span className="text-2xl mr-3">⚙️</span>
             <h3 className="text-lg font-medium text-gray-900">
               Karám {pen.pen_number} - Funkció Kezelés
             </h3>
@@ -252,7 +251,7 @@ export default function PenFunctionManager({
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <X className="h-6 w-6" />
+            <span className="text-xl">❌</span>
           </button>
         </div>
 
@@ -260,18 +259,21 @@ export default function PenFunctionManager({
         <div className="p-6 max-h-[80vh] overflow-y-auto">
           {/* Jelenlegi állapot */}
           <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <h4 className="font-medium text-gray-900 mb-2">Jelenlegi Állapot:</h4>
+            <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+              <span className="text-lg mr-2">📊</span>
+              Jelenlegi Állapot:
+            </h4>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="text-gray-600">Funkció:</span>
+                <span className="text-gray-600">🏠 Funkció:</span>
                 <p className="font-medium">{PEN_FUNCTION_LABELS[pen.current_function?.function_type || 'üres']}</p>
               </div>
               <div>
-                <span className="text-gray-600">Kapacitás:</span>
+                <span className="text-gray-600">📊 Kapacitás:</span>
                 <p className="font-medium">{pen.animal_count}/{pen.capacity} állat</p>
               </div>
               <div>
-                <span className="text-gray-600">Funkció kezdete:</span>
+                <span className="text-gray-600">📅 Funkció kezdete:</span>
                 <p className="font-medium">
                   {pen.current_function?.start_date ? 
                     new Date(pen.current_function.start_date).toLocaleDateString('hu-HU') : 
@@ -280,7 +282,7 @@ export default function PenFunctionManager({
                 </p>
               </div>
               <div>
-                <span className="text-gray-600">Lokáció:</span>
+                <span className="text-gray-600">📍 Lokáció:</span>
                 <p className="font-medium">{pen.location}</p>
               </div>
             </div>
@@ -289,7 +291,8 @@ export default function PenFunctionManager({
           <div className="space-y-6">
             {/* Új funkció választás */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
+              <label className="block text-sm font-medium text-gray-700 mb-3 flex items-center">
+                <span className="text-lg mr-2">🔄</span>
                 Új funkció: *
               </label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -313,7 +316,8 @@ export default function PenFunctionManager({
                           <div className="text-sm font-medium text-gray-900">{funcType.label}</div>
                           <div className="text-xs text-gray-500">{funcType.description}</div>
                           {newFunction === funcType.value && (
-                            <div className="text-xs text-green-600 mt-1">
+                            <div className="text-xs text-green-600 mt-1 flex items-center">
+                              <span className="mr-1">📊</span>
                               Új kapacitás: {newCapacity} állat
                             </div>
                           )}
@@ -330,9 +334,11 @@ export default function PenFunctionManager({
               <div className={`p-4 rounded-lg flex items-start ${
                 capacityWarning.includes('túllépi') ? 'bg-red-50 border border-red-200' : 'bg-yellow-50 border border-yellow-200'
               }`}>
-                <AlertTriangle className={`h-5 w-5 mt-0.5 mr-3 ${
-                  capacityWarning.includes('túllépi') ? 'text-red-600' : 'text-yellow-600'
-                }`} />
+                <span className={`text-xl mr-3 ${
+                  capacityWarning.includes('túllépi') ? '' : ''
+                }`}>
+                  {capacityWarning.includes('túllépi') ? '🚨' : '⚠️'}
+                </span>
                 <div>
                   <div className={`text-sm font-medium ${
                     capacityWarning.includes('túllépi') ? 'text-red-800' : 'text-yellow-800'
@@ -354,13 +360,13 @@ export default function PenFunctionManager({
             {newFunction === 'hárem' && (
               <div className="p-4 bg-pink-50 border border-pink-200 rounded-lg">
                 <h4 className="font-medium text-pink-900 mb-4 flex items-center">
-                  <Heart className="h-4 w-4 mr-2" />
+                  <span className="text-lg mr-2">💕</span>
                   Hárem Beállítások
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-pink-700 mb-1">
-                      Tenyészbika neve:
+                      🐂 Tenyészbika neve:
                     </label>
                     <input
                       type="text"
@@ -372,7 +378,7 @@ export default function PenFunctionManager({
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-pink-700 mb-1">
-                      Tenyészbika ENAR:
+                      🏷️ Tenyészbika ENAR:
                     </label>
                     <input
                       type="text"
@@ -384,7 +390,7 @@ export default function PenFunctionManager({
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-pink-700 mb-1">
-                      Párzás kezdete:
+                      📅 Párzás kezdete:
                     </label>
                     <input
                       type="date"
@@ -401,28 +407,28 @@ export default function PenFunctionManager({
             {newFunction === 'kórház' && (
               <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                 <h4 className="font-medium text-red-900 mb-4 flex items-center">
-                  <Heart className="h-4 w-4 mr-2" />
+                  <span className="text-lg mr-2">🏥</span>
                   Kórház Beállítások
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-red-700 mb-1">
-                      Kezelés típusa:
+                      💊 Kezelés típusa:
                     </label>
                     <select
                       value={treatmentType}
                       onChange={(e) => setTreatmentType(e.target.value as KorhazMetadata['treatment_type'])}
                       className="w-full border border-red-300 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500"
                     >
-                      <option value="megfigyeles">Megfigyelés</option>
-                      <option value="gyogykezeles">Gyógykezelés</option>
-                      <option value="vakcinazas">Vakcinázás</option>
-                      <option value="sebezes">Sebészet</option>
+                      <option value="megfigyeles">👁️ Megfigyelés</option>
+                      <option value="gyogykezeles">💊 Gyógykezelés</option>
+                      <option value="vakcinazas">💉 Vakcinázás</option>
+                      <option value="sebezes">🔪 Sebészet</option>
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-red-700 mb-1">
-                      Állatorvos:
+                      👨‍⚕️ Állatorvos:
                     </label>
                     <input
                       type="text"
@@ -434,7 +440,7 @@ export default function PenFunctionManager({
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-red-700 mb-1">
-                      Várható gyógyulás:
+                      📅 Várható gyógyulás:
                     </label>
                     <input
                       type="date"
@@ -445,7 +451,7 @@ export default function PenFunctionManager({
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-red-700 mb-1">
-                      Visszahelyezés karám ID:
+                      🔄 Visszahelyezés karám ID:
                     </label>
                     <input
                       type="text"
@@ -463,27 +469,27 @@ export default function PenFunctionManager({
             {newFunction === 'átmeneti' && (
               <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
                 <h4 className="font-medium text-indigo-900 mb-4 flex items-center">
-                  <Clock className="h-4 w-4 mr-2" />
+                  <span className="text-lg mr-2">🔄</span>
                   Átmeneti Beállítások
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-indigo-700 mb-1">
-                      Ide kerülés oka:
+                      ❓ Ide kerülés oka:
                     </label>
                     <select
                       value={atmenetiReason}
                       onChange={(e) => setAtmenetiReason(e.target.value as AtmenetiMetadata['reason'])}
                       className="w-full border border-indigo-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
                     >
-                      <option value="besorolás_alatt">Besorolás alatt</option>
-                      <option value="funkció_váltás_alatt">Funkció váltás alatt</option>
-                      <option value="vizsgálat_alatt">Vizsgálat alatt</option>
+                      <option value="besorolás_alatt">📋 Besorolás alatt</option>
+                      <option value="funkció_váltás_alatt">🔄 Funkció váltás alatt</option>
+                      <option value="vizsgálat_alatt">🔍 Vizsgálat alatt</option>
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-indigo-700 mb-1">
-                      Döntési határidő:
+                      📅 Döntési határidő:
                     </label>
                     <input
                       type="date"
@@ -494,7 +500,7 @@ export default function PenFunctionManager({
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-indigo-700 mb-1">
-                      Döntési kritériumok:
+                      📝 Döntési kritériumok:
                     </label>
                     <input
                       type="text"
@@ -513,7 +519,10 @@ export default function PenFunctionManager({
               {/* Template preview */}
               {selectedTemplate && (
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h4 className="font-medium text-blue-900 mb-2">📝 Javasolt mezők ({PEN_FUNCTION_LABELS[newFunction]}):</h4>
+                  <h4 className="font-medium text-blue-900 mb-2 flex items-center">
+                    <span className="text-lg mr-2">📝</span>
+                    Javasolt mezők ({PEN_FUNCTION_LABELS[newFunction]}):
+                  </h4>
                   <pre className="text-sm text-blue-800 whitespace-pre-wrap font-mono bg-white p-3 rounded border">
                     {selectedTemplate}
                   </pre>
@@ -522,7 +531,8 @@ export default function PenFunctionManager({
 
               {/* Szabad megjegyzések */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                  <span className="text-lg mr-2">💬</span>
                   Egyedi megjegyzések:
                 </label>
                 <textarea 
@@ -536,7 +546,8 @@ export default function PenFunctionManager({
 
               {/* Általános megjegyzések */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                  <span className="text-lg mr-2">📋</span>
                   Funkció váltási megjegyzés:
                 </label>
                 <textarea 
@@ -556,14 +567,15 @@ export default function PenFunctionManager({
           <button
             onClick={onClose}
             disabled={loading}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 disabled:opacity-50"
+            className="bg-white hover:bg-gray-50 text-gray-700 font-medium px-6 py-3 rounded-lg border border-gray-300 transition-colors inline-flex items-center"
           >
+            <span className="mr-2">❌</span>
             Mégse
           </button>
           <button
             onClick={handleFunctionChange}
             disabled={!newFunction || newFunction === pen.current_function?.function_type || loading}
-            className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center"
           >
             {loading ? (
               <>
@@ -572,7 +584,7 @@ export default function PenFunctionManager({
               </>
             ) : (
               <>
-                <Settings className="h-4 w-4 mr-2" />
+                <span className="text-lg mr-2">⚙️</span>
                 Funkció Váltása
               </>
             )}

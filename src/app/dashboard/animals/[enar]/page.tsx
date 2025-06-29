@@ -11,21 +11,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import VVForm from '@/components/vv-form';
-// A többi import után add hozzá:
 import CurrentStatusTab from './components/current-status-tab';
-import {
-  ArrowLeft,
-  Edit,
-  Calendar,
-  MapPin,
-  Users,
-  Heart,
-  Activity,
-  FileText,
-  Save,
-  Check,
-  X
-} from 'lucide-react';
 
 interface Animal {
   id: number;
@@ -48,9 +34,9 @@ function SzaporitasTab({ animal }: { animal: any }) {
   const [showVVForm, setShowVVForm] = React.useState(false);
   const [vvResults, setVvResults] = React.useState<any[]>([]);
   const [loadingVV, setLoadingVV] = React.useState(true);
-  const [selectedVV, setSelectedVV] = React.useState<any>(null); // Kiválasztott VV eredmény
-  const [editingVV, setEditingVV] = React.useState<any>(null); // Szerkesztendő VV
-  const [deletingVV, setDeletingVV] = React.useState<any>(null); // Törlendő VV
+  const [selectedVV, setSelectedVV] = React.useState<any>(null);
+  const [editingVV, setEditingVV] = React.useState<any>(null);
+  const [deletingVV, setDeletingVV] = React.useState<any>(null);
 
   // VV eredmények betöltése
   React.useEffect(() => {
@@ -90,20 +76,18 @@ function SzaporitasTab({ animal }: { animal: any }) {
 
     setVvResults(data || []);
   };
-  // VV Edit handler
+
   const handleEditVV = (vvResult: any) => {
     console.log('Edit VV:', vvResult);
     setEditingVV(vvResult);
     setShowVVForm(true);
   };
 
-  // VV Delete handler  
   const handleDeleteVV = (vvResult: any) => {
     console.log('Delete VV:', vvResult);
     setDeletingVV(vvResult);
   };
 
-  // Delete confirmation
   const confirmDeleteVV = async () => {
     if (!deletingVV) return;
 
@@ -115,7 +99,6 @@ function SzaporitasTab({ animal }: { animal: any }) {
 
       if (error) throw error;
 
-      // Refresh VV data
       window.location.reload();
       setDeletingVV(null);
 
@@ -125,15 +108,20 @@ function SzaporitasTab({ animal }: { animal: any }) {
       alert('Hiba történt a törlés során!');
     }
   };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-medium text-gray-900">🔬 Szaporítási adatok</h3>
+        <div className="flex items-center">
+          <span className="text-2xl mr-3">🔬</span>
+          <h3 className="text-lg font-semibold text-gray-900">Szaporítási adatok</h3>
+        </div>
         <button
           onClick={() => setShowVVForm(true)}
-          className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
+          className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg transition-colors inline-flex items-center"
         >
-          + Új VV eredmény
+          <span className="mr-2">➕</span>
+          Új VV eredmény
         </button>
       </div>
 
@@ -142,12 +130,12 @@ function SzaporitasTab({ animal }: { animal: any }) {
           animalEnar={String(animal?.enar || 'ISMERETLEN')}
           onSubmit={() => {
             setShowVVForm(false);
-            setEditingVV(null); // Reset edit mode
-            refreshVVResults(); // Frissítjük a listát
+            setEditingVV(null);
+            refreshVVResults();
           }}
           onCancel={() => {
             setShowVVForm(false);
-            setEditingVV(null); // Reset edit mode
+            setEditingVV(null);
           }}
           editMode={editingVV ? true : false}
           editData={editingVV}
@@ -155,13 +143,16 @@ function SzaporitasTab({ animal }: { animal: any }) {
       )}
 
       {/* VV Történet Táblázat */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">📊 VV Történet</h4>
+      <div className="bg-white rounded-lg shadow-sm border p-6">
+        <div className="flex items-center mb-4">
+          <span className="text-2xl mr-3">📊</span>
+          <h4 className="text-lg font-semibold text-gray-900">VV Történet</h4>
+        </div>
 
         {loadingVV ? (
-          <div className="text-center py-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
-            <p className="text-gray-600 mt-2">VV eredmények betöltése...</p>
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">VV eredmények betöltése...</p>
           </div>
         ) : vvResults.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
@@ -174,25 +165,25 @@ function SzaporitasTab({ animal }: { animal: any }) {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    VV Dátuma
+                    📅 VV Dátuma
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Eredmény
+                    ✅ Eredmény
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Napok
+                    ⏱️ Napok
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tenyészbika
+                    🐂 Tenyészbika
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Ellés
+                    🐄 Ellés
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Állatorvos
+                    👨‍⚕️ Állatorvos
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Műveletek
+                    ⚙️ Műveletek
                   </th>
                 </tr>
               </thead>
@@ -229,24 +220,24 @@ function SzaporitasTab({ animal }: { animal: any }) {
                       {result.veterinarian || '-'}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <div className="flex space-x-2">
+                      <div className="flex gap-2">
                         <button
                           onClick={() => setSelectedVV(result)}
-                          className="text-blue-600 hover:text-blue-900 font-medium text-xs px-2 py-1 rounded"
+                          className="text-blue-600 hover:text-blue-800 font-medium text-xs px-2 py-1 rounded transition-colors"
                           title="Részletek megtekintése"
                         >
                           👁️ Részletek
                         </button>
                         <button
                           onClick={() => handleEditVV(result)}
-                          className="text-green-600 hover:text-green-900 font-medium text-xs px-2 py-1 rounded"
+                          className="text-green-600 hover:text-green-800 font-medium text-xs px-2 py-1 rounded transition-colors"
                           title="VV eredmény szerkesztése"
                         >
                           ✏️ Szerkesztés
                         </button>
                         <button
                           onClick={() => handleDeleteVV(result)}
-                          className="text-red-600 hover:text-red-900 font-medium text-xs px-2 py-1 rounded"
+                          className="text-red-600 hover:text-red-800 font-medium text-xs px-2 py-1 rounded transition-colors"
                           title="VV eredmény törlése"
                         >
                           🗑️ Törlés
@@ -261,26 +252,30 @@ function SzaporitasTab({ animal }: { animal: any }) {
         )}
       </div>
 
-      {/* VV Részletek Modal */}
+      {/* VV Részletek Modal - DESIGN SYSTEM */}
       {selectedVV && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-sm border max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-gray-900">
-                  🔬 VV Eredmény Részletei
-                </h3>
+                <div className="flex items-center">
+                  <span className="text-2xl mr-3">🔬</span>
+                  <h3 className="text-xl font-bold text-gray-900">VV Eredmény Részletei</h3>
+                </div>
                 <button
                   onClick={() => setSelectedVV(null)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 p-2 transition-colors"
                 >
-                  <X className="h-6 w-6" />
+                  ❌
                 </button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <h4 className="font-semibold text-gray-900 mb-3">📅 Alapadatok</h4>
+                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                    <span className="mr-2">📅</span>
+                    Alapadatok
+                  </h4>
                   <div className="space-y-2 text-sm">
                     <p><strong>VV dátuma:</strong> {new Date(selectedVV.vv_date).toLocaleDateString('hu-HU')}</p>
                     <p><strong>VV eredmény:</strong> {selectedVV.vv_result_days} nap</p>
@@ -298,11 +293,14 @@ function SzaporitasTab({ animal }: { animal: any }) {
 
                 {selectedVV.pregnancy_status === 'vemhes' && (
                   <div>
-                    <h4 className="font-semibold text-gray-900 mb-3">🐂 Lehetséges apá{selectedVV.possible_fathers && selectedVV.possible_fathers.length > 1 ? 'k' : ''}</h4>
+                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                      <span className="mr-2">🐂</span>
+                      Lehetséges apá{selectedVV.possible_fathers && selectedVV.possible_fathers.length > 1 ? 'k' : ''}
+                    </h4>
                     <div className="space-y-3 text-sm">
                       {selectedVV.possible_fathers && selectedVV.possible_fathers.length > 0 ? (
                         selectedVV.possible_fathers.map((father: Father, index: number) => (
-                          <div key={index} className={`p-3 border rounded-md ${index === 0 ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+                          <div key={index} className={`p-3 border rounded-lg ${index === 0 ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
                             <div className="flex justify-between items-center mb-2">
                               <span className="font-medium text-gray-900">
                                 🐂 {father.name || `${index + 1}. lehetséges apa`}
@@ -314,7 +312,7 @@ function SzaporitasTab({ animal }: { animal: any }) {
                           </div>
                         ))
                       ) : (
-                        <div className="p-3 border rounded-md bg-gray-50">
+                        <div className="p-3 border rounded-lg bg-gray-50">
                           <p><strong>Név:</strong> {selectedVV.father_name || '-'}</p>
                           <p><strong>ENAR:</strong> {selectedVV.father_enar || '-'}</p>
                           <p><strong>KPLSZ:</strong> {selectedVV.father_kplsz || '-'}</p>
@@ -335,7 +333,10 @@ function SzaporitasTab({ animal }: { animal: any }) {
 
                 {selectedVV.expected_birth_date && (
                   <div>
-                    <h4 className="font-semibold text-gray-900 mb-3">📅 Ellési előrejelzés</h4>
+                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                      <span className="mr-2">📅</span>
+                      Ellési előrejelzés
+                    </h4>
                     <div className="space-y-2 text-sm">
                       <p><strong>Várható ellés:</strong> {new Date(selectedVV.expected_birth_date).toLocaleDateString('hu-HU')}</p>
                     </div>
@@ -343,7 +344,10 @@ function SzaporitasTab({ animal }: { animal: any }) {
                 )}
 
                 <div>
-                  <h4 className="font-semibold text-gray-900 mb-3">👨‍⚕️ Egyéb adatok</h4>
+                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                    <span className="mr-2">👨‍⚕️</span>
+                    Egyéb adatok
+                  </h4>
                   <div className="space-y-2 text-sm">
                     <p><strong>Állatorvos:</strong> {selectedVV.veterinarian || '-'}</p>
                     <p><strong>Rögzítés dátuma:</strong> {new Date(selectedVV.created_at).toLocaleDateString('hu-HU')}</p>
@@ -353,8 +357,11 @@ function SzaporitasTab({ animal }: { animal: any }) {
 
               {selectedVV.notes && (
                 <div className="mt-6">
-                  <h4 className="font-semibold text-gray-900 mb-2">📝 Megjegyzések</h4>
-                  <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded">
+                  <h4 className="font-semibold text-gray-900 mb-2 flex items-center">
+                    <span className="mr-2">📝</span>
+                    Megjegyzések
+                  </h4>
+                  <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">
                     {selectedVV.notes}
                   </p>
                 </div>
@@ -363,8 +370,9 @@ function SzaporitasTab({ animal }: { animal: any }) {
               <div className="mt-6 flex justify-end">
                 <button
                   onClick={() => setSelectedVV(null)}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                  className="bg-gray-600 hover:bg-gray-700 text-white font-medium px-6 py-3 rounded-lg transition-colors inline-flex items-center"
                 >
+                  <span className="mr-2">✅</span>
                   Bezárás
                 </button>
               </div>
@@ -372,10 +380,11 @@ function SzaporitasTab({ animal }: { animal: any }) {
           </div>
         </div>
       )}
-      {/* Delete Confirmation Modal */}
+
+      {/* Delete Confirmation Modal - DESIGN SYSTEM */}
       {deletingVV && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4">
+          <div className="bg-white rounded-lg shadow-sm border max-w-md w-full mx-4">
             <div className="p-6">
               <div className="flex items-center mb-4">
                 <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
@@ -387,7 +396,7 @@ function SzaporitasTab({ animal }: { animal: any }) {
                 </div>
               </div>
 
-              <div className="bg-gray-50 p-3 rounded mb-4">
+              <div className="bg-gray-50 p-3 rounded-lg mb-4">
                 <p className="text-sm"><strong>VV dátuma:</strong> {new Date(deletingVV.vv_date).toLocaleDateString('hu-HU')}</p>
                 <p className="text-sm"><strong>Eredmény:</strong> {deletingVV.vv_result_days} nap ({deletingVV.pregnancy_status})</p>
                 <p className="text-sm"><strong>Bika:</strong> {deletingVV.father_name || deletingVV.father_enar}</p>
@@ -397,18 +406,20 @@ function SzaporitasTab({ animal }: { animal: any }) {
                 Biztosan törölni szeretnéd ezt a VV eredményt? Ez a művelet nem visszafordítható.
               </p>
 
-              <div className="flex justify-end space-x-3">
+              <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setDeletingVV(null)}
-                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                  className="bg-white hover:bg-gray-50 text-gray-700 font-medium px-6 py-3 rounded-lg border border-gray-300 transition-colors inline-flex items-center"
                 >
+                  <span className="mr-2">❌</span>
                   Mégse
                 </button>
                 <button
                   onClick={confirmDeleteVV}
-                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                  className="bg-red-500 hover:bg-red-600 text-white font-medium px-6 py-3 rounded-lg transition-colors inline-flex items-center"
                 >
-                  🗑️ Törlés
+                  <span className="mr-2">🗑️</span>
+                  Törlés
                 </button>
               </div>
             </div>
@@ -430,7 +441,7 @@ export default function AnimalDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Manual URL parsing (working solution)
+  // Manual URL parsing
   useEffect(() => {
     console.log('🔍 ENAR Extraction Starting...');
 
@@ -458,7 +469,7 @@ export default function AnimalDetailPage() {
     }
   }, []);
 
-  // Fetch animal data - FIXED VERSION
+  // Fetch animal data
   const fetchAnimal = async (enar: string) => {
     try {
       setLoading(true);
@@ -500,14 +511,11 @@ export default function AnimalDetailPage() {
       }
 
       console.log('✅ Animal loaded successfully:', data);
-      console.log('🔍 ANIMAL_PEN_ASSIGNMENTS:', data.animal_pen_assignments);
 
-      // 🔧 FIX: Csak akkor frissítjük az animal state-et, ha nincs szerkesztés folyamatban
       if (!isEditing) {
         setAnimal(data);
         setEditedAnimal(data);
       } else {
-        // Ha szerkesztés folyamatban, csak az original animal-t frissítjük
         setAnimal(data);
         console.log('🔒 Editing in progress - preserving edited state');
       }
@@ -519,7 +527,7 @@ export default function AnimalDetailPage() {
     }
   };
 
-  // Save changes - CLEAN VERSION (no debug logs)
+  // Save changes
   const handleSave = async () => {
     if (!editedAnimal || !animal) return;
 
@@ -547,11 +555,9 @@ export default function AnimalDetailPage() {
         return;
       }
 
-      // ✅ State update
       setAnimal(editedAnimal);
       setIsEditing(false);
 
-      // 🔧 Force refresh prevention
       await new Promise(resolve => setTimeout(resolve, 50));
 
     } catch (err) {
@@ -577,16 +583,13 @@ export default function AnimalDetailPage() {
     try {
       console.log(`🔄 Karám változtatás: ${animal.jelenlegi_karam} → ${newPenId}`);
 
-      // A. Régi assignment lezárása
       await supabase
         .from('animal_pen_assignments')
         .update({ removed_at: new Date().toISOString() })
         .eq('animal_id', animal.id)
         .is('removed_at', null);
 
-      // B. Új assignment létrehozása (ha van új karám)
       if (newPenId) {
-        // Pen ID megkeresése pen_number alapján
         const { data: penData } = await supabase
           .from('pens')
           .select('id')
@@ -606,10 +609,8 @@ export default function AnimalDetailPage() {
         }
       }
 
-      // C. Frontend state frissítés
       updateField('jelenlegi_karam', newPenId);
 
-      // D. Oldal újratöltése
       setTimeout(() => {
         window.location.reload();
       }, 500);
@@ -732,8 +733,9 @@ export default function AnimalDetailPage() {
           <p className="text-gray-600 mb-4">{error || 'Ismeretlen hiba'}</p>
           <button
             onClick={() => router.back()}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg transition-colors inline-flex items-center"
           >
+            <span className="mr-2">⬅️</span>
             Vissza
           </button>
         </div>
@@ -741,56 +743,61 @@ export default function AnimalDetailPage() {
     );
   }
 
-  const tabs: { id: string; name: string; icon: any }[] = [
-    { id: 'reszletek', name: '📋 Részletek', icon: null },
-    { id: 'szuletesi', name: '📅 Születési adatok', icon: null },
-    { id: 'helyzet', name: '📍 Jelenlegi helyzet', icon: null },
-    { id: 'csalad', name: '🐄💕🐂 Család', icon: null },
-    { id: 'szaporitas', name: '🔬 Szaporítás', icon: null },
-    { id: 'egeszseg', name: '❤️ Egészség', icon: null },
-    { id: 'esemenynaplo', name: '📊 Eseménynapló', icon: null }
+  // MODERNIZÁLT TABOK - EMOJI IKONOKKAL
+  const tabs: { id: string; name: string }[] = [
+    { id: 'reszletek', name: '📋 Részletek' },
+    { id: 'szuletesi', name: '📅 Születési adatok' },
+    { id: 'helyzet', name: '📍 Jelenlegi helyzet' },
+    { id: 'csalad', name: '🐄💕🐂 Család' },
+    { id: 'szaporitas', name: '🔬 Szaporítás' },
+    { id: 'egeszseg', name: '❤️ Egészség' },
+    { id: 'esemenynaplo', name: '📊 Eseménynapló' }
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        
+        {/* Header - DESIGN SYSTEM */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
               <button
                 onClick={() => router.back()}
-                className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-gray-400 hover:text-gray-600 p-2 transition-colors"
               >
-                <ArrowLeft className="h-5 w-5" />
+                ⬅️
               </button>
-              <div>
-                <h1 className="text-xl font-semibold text-gray-900">
-                  {animal.enar}
-                </h1>
-                <p className="text-sm text-gray-500">
-                  #{getShortId(animal.enar)} • {animal.kategoria}
-                </p>
+              <div className="flex items-center">
+                <span className="text-4xl mr-4">🐄</span>
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900">
+                    {animal.enar}
+                  </h1>
+                  <p className="mt-2 text-gray-600">
+                    #{getShortId(animal.enar)} • {animal.kategoria}
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div className="flex space-x-3">
+            <div className="flex gap-3">
               {isEditing && (
                 <button
                   onClick={() => {
                     setEditedAnimal(animal);
                     setIsEditing(false);
                   }}
-                  className="flex items-center px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                  className="bg-white hover:bg-gray-50 text-gray-700 font-medium px-6 py-3 rounded-lg border border-gray-300 transition-colors inline-flex items-center"
                 >
-                  <X className="h-4 w-4 mr-2" />
+                  <span className="mr-2">❌</span>
                   Mégse
                 </button>
               )}
               <button
                 onClick={isEditing ? handleSave : () => setIsEditing(true)}
                 disabled={saving}
-                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg transition-colors disabled:opacity-50 inline-flex items-center"
               >
                 {saving ? (
                   <>
@@ -799,12 +806,12 @@ export default function AnimalDetailPage() {
                   </>
                 ) : isEditing ? (
                   <>
-                    <Save className="h-4 w-4 mr-2" />
+                    <span className="mr-2">💾</span>
                     Mentés
                   </>
                 ) : (
                   <>
-                    <Edit className="h-4 w-4 mr-2" />
+                    <span className="mr-2">✏️</span>
                     Szerkesztés
                   </>
                 )}
@@ -812,52 +819,47 @@ export default function AnimalDetailPage() {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Tab Navigation */}
-      <div className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-8 overflow-x-auto">
+        {/* Tab Navigation - DESIGN SYSTEM */}
+        <div className="bg-white rounded-lg shadow-sm border mb-6">
+          <div className="flex overflow-x-auto">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center px-3 py-4 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${activeTab === tab.id
-                  ? 'border-green-500 text-green-600'
+                className={`flex items-center px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${activeTab === tab.id
+                  ? 'border-green-500 text-green-600 bg-green-50'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
               >
-                {tab.icon && (tab.icon as any)({ className: "h-4 w-4 mr-2" })}
                 {tab.name}
               </button>
             ))}
           </div>
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Content */}
         {/* Részletek Tab */}
         {activeTab === 'reszletek' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Alapadatok Kártya */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <FileText className="h-5 w-5 mr-2 text-green-600" />
-                Alapadatok
-              </h3>
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="flex items-center mb-4">
+                <span className="text-2xl mr-3">📋</span>
+                <h3 className="text-lg font-semibold text-gray-900">Alapadatok</h3>
+              </div>
 
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    ENAR azonosító
+                    🏷️ ENAR azonosító
                   </label>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center gap-2">
                     <input
                       type="text"
                       value={animal.enar}
                       disabled
-                      className="flex-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-500"
+                      className="flex-1 block w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
                     />
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                       #{getShortId(animal.enar)}
@@ -867,13 +869,13 @@ export default function AnimalDetailPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Kategória
+                    🏷️ Kategória
                   </label>
                   {isEditing ? (
                     <select
                       value={editedAnimal.kategoria}
                       onChange={(e) => updateField('kategoria', e.target.value)}
-                      className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white"
                     >
                       {categoryOptions.map(option => (
                         <option key={option.value} value={option.value}>
@@ -890,13 +892,13 @@ export default function AnimalDetailPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Ivar
+                    ⚥ Ivar
                   </label>
                   {isEditing ? (
                     <select
                       value={editedAnimal.ivar}
                       onChange={(e) => updateField('ivar', e.target.value)}
-                      className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white"
                     >
                       {genderOptions.map(option => (
                         <option key={option.value} value={option.value}>
@@ -913,35 +915,35 @@ export default function AnimalDetailPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Életkor
+                    ⏰ Életkor
                   </label>
                   <input
                     type="text"
                     value={calculateAge(animal.szuletesi_datum)}
                     disabled
-                    className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
                   />
                 </div>
               </div>
             </div>
 
             {/* Állapot Kártya */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <Activity className="h-5 w-5 mr-2 text-blue-600" />
-                Jelenlegi állapot
-              </h3>
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="flex items-center mb-4">
+                <span className="text-2xl mr-3">📊</span>
+                <h3 className="text-lg font-semibold text-gray-900">Jelenlegi állapot</h3>
+              </div>
 
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Státusz
+                    ✅ Státusz
                   </label>
                   {isEditing ? (
                     <select
                       value={editedAnimal.statusz}
                       onChange={(e) => updateField('statusz', e.target.value)}
-                      className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white"
                     >
                       {statusOptions.map(option => (
                         <option key={option.value} value={option.value}>
@@ -962,13 +964,13 @@ export default function AnimalDetailPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Jelenlegi karám
+                    📍 Jelenlegi karám
                   </label>
                   {isEditing ? (
                     <select
                       value={editedAnimal.jelenlegi_karam || ''}
                       onChange={(e) => handlePenChange(e.target.value)}
-                      className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white"
                     >
                       {penOptions.map(option => (
                         <option key={option.value} value={option.value}>
@@ -977,76 +979,72 @@ export default function AnimalDetailPage() {
                       ))}
                     </select>
                   ) : (
-                    <div className="flex items-center">
-                      <MapPin className="h-4 w-4 mr-2 text-gray-400" />
-                      <span>
-                        {(() => {
-                          // Jelenlegi karám megkeresése az animal_pen_assignments-ből
-                          const assignment = (animal as any).animal_pen_assignments?.find(
-                            (a: any) => a.removed_at === null
+                    <div>
+                      {(() => {
+                        const assignment = (animal as any).animal_pen_assignments?.find(
+                          (a: any) => a.removed_at === null
+                        );
+
+                        const penInfo = assignment?.pens;
+
+                        if (penInfo?.pen_number) {
+                          return (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                              📍 {penInfo.pen_number} - {penInfo.location}
+                            </span>
                           );
-
-                          const penInfo = assignment?.pens;
-
-                          if (penInfo?.pen_number) {
-                            return (
-                              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                                📍 {penInfo.pen_number} - {penInfo.location}
-                              </span>
-                            );
-                          } else {
-                            return (
-                              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
-                                🏠 Nincs karám hozzárendelés
-                              </span>
-                            );
-                          }
-                        })()}
-                      </span>
+                        } else {
+                          return (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                              🏠 Nincs karám hozzárendelés
+                            </span>
+                          );
+                        }
+                      })()}
                     </div>
                   )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Születési dátum
+                    📅 Születési dátum
                   </label>
                   <input
                     type="text"
                     value={animal.szuletesi_datum}
                     disabled
-                    className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Bekerülés dátuma
+                    📅 Bekerülés dátuma
                   </label>
                   <input
                     type="text"
                     value={animal.bekerules_datum}
                     disabled
-                    className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Származás
+                    🌍 Származás
                   </label>
                   {isEditing ? (
                     <select
                       value={editedAnimal?.birth_location || 'ismeretlen'}
                       onChange={() => { }}
-                      className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white"
                     >
                       <option value="nálunk">🏠 Nálunk született</option>
                       <option value="vásárolt">🛒 Vásárolt</option>
                       <option value="ismeretlen">❓ Ismeretlen</option>
                     </select>
                   ) : (
-                    <div className={`inline-flex items-center px-3 py-2 rounded-md text-sm font-medium ${animal?.birth_location === 'nálunk'
+                    <div className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium ${animal?.birth_location === 'nálunk'
                       ? 'bg-green-100 text-green-800'
                       : 'bg-blue-100 text-blue-800'
                       }`}>
@@ -1061,16 +1059,16 @@ export default function AnimalDetailPage() {
 
         {/* Születési adatok Tab */}
         {activeTab === 'szuletesi' && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
-              <Calendar className="h-5 w-5 mr-2 text-blue-600" />
-              Születési adatok
-            </h3>
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center mb-6">
+              <span className="text-2xl mr-3">📅</span>
+              <h3 className="text-lg font-semibold text-gray-900">Születési adatok</h3>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Születési dátum
+                  📅 Születési dátum
                 </label>
                 <input
                   type="date"
@@ -1081,13 +1079,13 @@ export default function AnimalDetailPage() {
                     setEditedAnimal(prev => prev ? { ...prev, szuletesi_datum: newValue } : null);
                   }}
                   disabled={!isEditing}
-                  className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors disabled:bg-gray-50 disabled:text-gray-500"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Bekerülés dátuma
+                  📅 Bekerülés dátuma
                 </label>
                 <input
                   type="date"
@@ -1098,19 +1096,19 @@ export default function AnimalDetailPage() {
                     setEditedAnimal(prev => prev ? { ...prev, bekerules_datum: newValue } : null);
                   }}
                   disabled={!isEditing}
-                  className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors disabled:bg-gray-50 disabled:text-gray-500"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Életkor
+                  ⏰ Életkor
                 </label>
                 <input
                   type="text"
                   value={calculateAge(animal?.szuletesi_datum)}
                   disabled
-                  className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
                 />
               </div>
             </div>
@@ -1124,17 +1122,16 @@ export default function AnimalDetailPage() {
 
         {/* Család Tab */}
         {activeTab === 'csalad' && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
-              <span className="mr-2">🐄💕🐂</span>
-              Szülők és családfa
-            </h3>
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center mb-6">
+              <span className="text-2xl mr-3">🐄💕🐂</span>
+              <h3 className="text-lg font-semibold text-gray-900">Szülők és családfa</h3>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                  <span className="mr-2">🐄</span>
-                  Anya ENAR
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  🐄 Anya ENAR
                 </label>
                 {isEditing ? (
                   <input
@@ -1142,19 +1139,18 @@ export default function AnimalDetailPage() {
                     value={editedAnimal.anya_enar || ''}
                     onChange={(e) => updateField('anya_enar', e.target.value)}
                     placeholder="Pl. HU 30223 0444 9"
-                    className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                   />
                 ) : (
-                  <div className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-500">
+                  <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
                     {animal.anya_enar || 'Nincs megadva'}
                   </div>
                 )}
               </div>
 
               <div>
-                <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                  <span className="mr-2">🐂</span>
-                  Apa ENAR
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  🐂 Apa ENAR
                 </label>
                 {isEditing ? (
                   <input
@@ -1162,10 +1158,10 @@ export default function AnimalDetailPage() {
                     value={editedAnimal.apa_enar || ''}
                     onChange={(e) => updateField('apa_enar', e.target.value)}
                     placeholder="Pl. HU 30223 0444 9"
-                    className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                   />
                 ) : (
-                  <div className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-500">
+                  <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
                     {animal.apa_enar || 'Nincs megadva'}
                   </div>
                 )}
@@ -1173,9 +1169,8 @@ export default function AnimalDetailPage() {
 
               {(animal.kplsz || isEditing) && (
                 <div>
-                  <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                    <span className="mr-2">📋</span>
-                    KPLSZ szám
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    📋 KPLSZ szám
                   </label>
                   {isEditing ? (
                     <input
@@ -1183,10 +1178,10 @@ export default function AnimalDetailPage() {
                       value={editedAnimal.kplsz || ''}
                       onChange={(e) => updateField('kplsz', e.target.value)}
                       placeholder="KPLSZ azonosító"
-                      className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                     />
                   ) : (
-                    <div className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-500">
+                    <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
                       {animal.kplsz || 'Nincs megadva'}
                     </div>
                   )}
@@ -1203,7 +1198,7 @@ export default function AnimalDetailPage() {
 
         {/* Placeholder tabs */}
         {['egeszseg', 'esemenynaplo'].includes(activeTab) && (
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+          <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
             <div className="text-gray-400 text-6xl mb-4">🐄</div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               Hamarosan elérhető

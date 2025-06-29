@@ -5,7 +5,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
-import { ArrowLeft, Plus, MapPin, Users, Home } from 'lucide-react';
 
 interface NewPenData {
   pen_number: string;
@@ -95,11 +94,12 @@ export default function AddPenPage() {
             <div className="flex items-center">
               <Link
                 href="/dashboard/pens"
-                className="mr-4 p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100"
+                className="mr-4 p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 inline-flex items-center"
               >
-                <ArrowLeft className="h-5 w-5" />
+                <span className="mr-1">⬅️</span>
               </Link>
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+                <span className="text-3xl mr-3">➕</span>
                 Új Karám Hozzáadása
               </h1>
             </div>
@@ -111,7 +111,10 @@ export default function AddPenPage() {
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white shadow-sm rounded-lg">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-gray-900">Karám Adatok</h2>
+            <h2 className="text-lg font-medium text-gray-900 flex items-center">
+              <span className="text-xl mr-2">📋</span>
+              Karám Adatok
+            </h2>
             <p className="mt-1 text-sm text-gray-600">
               Add meg az új karám alapvető információit.
             </p>
@@ -121,7 +124,7 @@ export default function AddPenPage() {
             {/* Karám száma */}
             <div>
               <label htmlFor="pen_number" className="block text-sm font-medium text-gray-700 mb-2">
-                <Home className="inline h-4 w-4 mr-1" />
+                <span className="text-lg mr-2">🏠</span>
                 Karám száma *
               </label>
               <input
@@ -131,13 +134,14 @@ export default function AddPenPage() {
                 value={formData.pen_number}
                 onChange={(e) => handleInputChange('pen_number', e.target.value)}
                 placeholder="pl. 15, E2, Új-1"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
               />
             </div>
 
             {/* Karám típusa */}
             <div>
               <label htmlFor="pen_type" className="block text-sm font-medium text-gray-700 mb-2">
+                <span className="text-lg mr-2">🏗️</span>
                 Karám típusa *
               </label>
               <select
@@ -145,7 +149,7 @@ export default function AddPenPage() {
                 required
                 value={formData.pen_type}
                 onChange={(e) => handleInputChange('pen_type', e.target.value as 'outdoor' | 'barn' | 'birthing')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white"
               >
                 <option value="outdoor">🌤️ Kültéri</option>
                 <option value="barn">🏠 Istálló</option>
@@ -156,7 +160,7 @@ export default function AddPenPage() {
             {/* Kapacitás */}
             <div>
               <label htmlFor="capacity" className="block text-sm font-medium text-gray-700 mb-2">
-                <Users className="inline h-4 w-4 mr-1" />
+                <span className="text-lg mr-2">👥</span>
                 Kapacitás (állatok száma) *
               </label>
               <input
@@ -167,14 +171,14 @@ export default function AddPenPage() {
                 max="100"
                 value={formData.capacity}
                 onChange={(e) => handleInputChange('capacity', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
               />
             </div>
 
             {/* Helye */}
             <div>
               <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
-                <MapPin className="inline h-4 w-4 mr-1" />
+                <span className="text-lg mr-2">📍</span>
                 Helye *
               </label>
               <input
@@ -184,7 +188,7 @@ export default function AddPenPage() {
                 value={formData.location}
                 onChange={(e) => handleInputChange('location', e.target.value)}
                 placeholder="pl. Bal oldal, Jobb oldal, Ellető istálló"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
               />
             </div>
 
@@ -192,16 +196,17 @@ export default function AddPenPage() {
             <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
               <Link
                 href="/dashboard/pens"
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                className="bg-white hover:bg-gray-50 text-gray-700 font-medium px-6 py-3 rounded-lg border border-gray-300 transition-colors inline-flex items-center"
               >
+                <span className="mr-2">❌</span>
                 Mégse
               </Link>
               <button
                 type="submit"
                 disabled={loading}
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400 rounded-md transition-colors"
+                className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg transition-colors disabled:bg-gray-400 inline-flex items-center"
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <span className="mr-2">➕</span>
                 {loading ? 'Létrehozás...' : 'Karám Létrehozása'}
               </button>
             </div>
@@ -209,13 +214,28 @@ export default function AddPenPage() {
         </div>
 
         {/* Info panel */}
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-blue-800 mb-2">📝 Tudnivalók:</h3>
-          <ul className="text-sm text-blue-700 space-y-1">
-            <li>• Az új karám alapértelmezetten "üres" funkcióval jön létre</li>
-            <li>• A funkciót később a Funkció Kezelés gombbal változtathatod</li>
-            <li>• A karám száma egyedi kell legyen</li>
-            <li>• Az állatokat a karám létrehozása után tudod hozzáadni</li>
+        <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-6">
+          <h3 className="text-sm font-medium text-green-800 mb-3 flex items-center">
+            <span className="text-lg mr-2">💡</span>
+            Tudnivalók:
+          </h3>
+          <ul className="text-sm text-green-700 space-y-2">
+            <li className="flex items-start">
+              <span className="mr-2">•</span>
+              Az új karám alapértelmezetten "üres" funkcióval jön létre
+            </li>
+            <li className="flex items-start">
+              <span className="mr-2">•</span>
+              A funkciót később a Funkció Kezelés gombbal változtathatod
+            </li>
+            <li className="flex items-start">
+              <span className="mr-2">•</span>
+              A karám száma egyedi kell legyen
+            </li>
+            <li className="flex items-start">
+              <span className="mr-2">•</span>
+              Az állatokat a karám létrehozása után tudod hozzáadni
+            </li>
           </ul>
         </div>
       </div>

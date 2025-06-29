@@ -1,4 +1,4 @@
-// src/app/dashboard/pens/page.tsx
+// src/app/dashboard/pens/page.tsx - ÉS TOVÁBBÁ A getFunctionColor JAVÍTÁS
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,17 +6,6 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import PenCard from './components/pen-card';
 import PenStats from './components/pen-stats';
-import {
-  Home,
-  Users,
-  Search,
-  Filter,
-  Plus,
-  AlertTriangle,
-  Calendar,
-  MapPin,
-  TrendingUp
-} from 'lucide-react';
 import { useAlertsNew } from '@/hooks/useAlertsNew';
 import { AlertsSummary } from './components/pen-alerts-widget';
 
@@ -31,7 +20,7 @@ export default function PensPage() {
   // Riasztások hook hozzáadása
   const { alerts, loading: alertsLoading } = useAlertsNew();
 
-  // Karám funkció emoji és színek
+  // Karám funkció emoji és színek - ✅ VÉGLEGESEN JAVÍTOTT VERZIÓ
   const getFunctionEmoji = (functionType: string): string => {
     const emojiMap: Record<string, string> = {
       'bölcsi': '🐮',
@@ -51,20 +40,31 @@ export default function PensPage() {
     return emojiMap[functionType] || '❓';
   };
 
+  // ✅ JAVÍTOTT SZÍNPALETTA - MINDEN FUNKCIÓ EGYSÉGESEN!
   const getFunctionColor = (functionType: string): string => {
     const colorMap = {
-      'bölcsi': 'bg-green-100 text-green-800 border-green-200',
-      'óvi': 'bg-blue-100 text-blue-800 border-blue-200',
+      // 🐮 BORJÚ FUNKCIÓK - Kék árnyalatok (fiatal állatok)
+      'bölcsi': 'bg-blue-100 text-blue-800 border-blue-200',
+      
+      // 🐄 FEJLŐDÉSI FUNKCIÓK - Indigo (növekedés) ← JAVÍTVA!  
+      'óvi': 'bg-indigo-100 text-indigo-800 border-indigo-200',
+      
+      // 💕 TENYÉSZTÉSI FUNKCIÓK - Pink/Rose (KÜLÖNBÖZŐEK!)
       'hárem': 'bg-pink-100 text-pink-800 border-pink-200',
-      'vemhes': 'bg-purple-100 text-purple-800 border-purple-200',
-      'hízóbika': 'bg-red-100 text-red-800 border-red-200',
-      'ellető': 'bg-orange-100 text-orange-800 border-orange-200',
-      'tehén': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      'vemhes': 'bg-rose-100 text-rose-800 border-rose-200', // ← JAVÍTVA!
+      
+      // 🍼 ANYASÁG FUNKCIÓK - Zöld árnyalatok (természet/élet)
+      'ellető': 'bg-emerald-100 text-emerald-800 border-emerald-200',
+      'tehén': 'bg-green-100 text-green-800 border-green-200',
+      
+      // 🐂 HÍZÓBIKA - Narancs (erő/munka)
+      'hízóbika': 'bg-orange-100 text-orange-800 border-orange-200',
+      
+      // ⭕ SPECIÁLIS FUNKCIÓK - ✅ ÖSSZES ÚJ TÍPUS HOZZÁADVA!
       'üres': 'bg-gray-100 text-gray-800 border-gray-200',
-      // ✅ ÚJ KARÁM TÍPUSOK SZÍNEI
-      'átmeneti': 'bg-indigo-100 text-indigo-800 border-indigo-200',
-      'kórház': 'bg-emerald-100 text-emerald-800 border-emerald-200',
-      'karantén': 'bg-amber-100 text-amber-800 border-amber-200',
+      'átmeneti': 'bg-teal-100 text-teal-800 border-teal-200',
+      'kórház': 'bg-red-100 text-red-800 border-red-200',
+      'karantén': 'bg-amber-100 text-amber-800 border-amber-200', // ← JAVÍTVA!
       'selejt': 'bg-slate-100 text-slate-800 border-slate-200'
     } as const;
 
@@ -288,8 +288,8 @@ export default function PensPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Karamok betöltése...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Karamok betöltése...</p>
         </div>
       </div>
     );
@@ -299,167 +299,179 @@ export default function PensPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <AlertTriangle className="h-12 w-12 text-red-600 mx-auto" />
-          <p className="mt-4 text-red-600">{error}</p>
+          <span className="text-6xl mb-4 block">⚠️</span>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Hiba történt</h1>
+          <p className="text-red-600 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg transition-colors inline-flex items-center"
+          >
+            <span className="mr-2">🔄</span>
+            Újratöltés
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-                <Home className="h-6 w-6 mr-2 text-green-600" />
-                Karám Kezelés
-              </h1>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        
+        {/* Header - DESIGN SYSTEM */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <span className="text-4xl mr-4">🏠</span>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Karám Kezelés</h1>
+                <p className="mt-2 text-gray-600">
+                  {pens.length} karám • {totalAnimals}/{totalCapacity} állat ({utilizationPercentage.toFixed(1)}% kihasználtság)
+                </p>
+              </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.push('/dashboard/pens/add')}
-                className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Új Karám
-              </button>
-            </div>
+            <button
+              onClick={() => router.push('/dashboard/pens/add')}
+              className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg transition-colors inline-flex items-center"
+            >
+              <span className="mr-2">➕</span>
+              Új Karám
+            </button>
           </div>
         </div>
-      </div>
 
-      {/* Riasztások összesítő */}
-      <AlertsSummary alerts={alerts as any} className="mb-6" />
+        {/* Riasztások összesítő */}
+        <AlertsSummary alerts={alerts as any} className="mb-6" />
 
-      {/* Statisztika Widget */}
-      <PenStats />
+        {/* Statisztika Widget */}
+        <PenStats />
 
-      {/* ✅ JAVÍTOTT SZŰRŐK - MINDEN MŰKÖDIK! */}
-      <div className="bg-white p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-
+        {/* Szűrők - DESIGN SYSTEM */}
+        <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+          <div className="flex items-center mb-4">
+            <span className="text-2xl mr-3">🔍</span>
+            <h2 className="text-lg font-semibold text-gray-900">Szűrők és Keresés</h2>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
             {/* Keresés - ENAR + Karám szám + Helyszín */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <div className="relative md:col-span-2">
               <input
                 type="text"
-                placeholder="Keresés: karám szám, helyszín vagy ENAR (pl. 1, 12A, 36050)..."
+                placeholder="🔎 Keresés: karám szám, helyszín vagy ENAR..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
               />
               {searchTerm && (
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                  <button
-                    onClick={() => setSearchTerm('')}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    ×
-                  </button>
-                </div>
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xl"
+                >
+                  ❌
+                </button>
               )}
             </div>
 
             {/* Funkció szűrő */}
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <select
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-                className="pl-10 pr-8 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 bg-white min-w-[150px]"
-              >
-                {functionTypes.map(type => (
-                  <option key={type} value={type}>
-                    {type === 'mind' ? 'Összes funkció' : `${getFunctionEmoji(type)} ${type.charAt(0).toUpperCase() + type.slice(1)}`}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white"
+            >
+              {functionTypes.map(type => (
+                <option key={type} value={type}>
+                  {type === 'mind' ? '🏠 Összes funkció' : `${getFunctionEmoji(type)} ${type.charAt(0).toUpperCase() + type.slice(1)}`}
+                </option>
+              ))}
+            </select>
 
             {/* Helyszín szűrő */}
-            <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <select
-                value={selectedLocation}
-                onChange={(e) => setSelectedLocation(e.target.value)}
-                className="pl-10 pr-8 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 bg-white min-w-[150px]"
-              >
-                <option value="mind">Összes helyszín</option>
-                <option value="bal oldal">📍 Bal oldal</option>
-                <option value="jobb oldal">📍 Jobb oldal</option>
-                <option value="konténereknél">📦 Konténereknél</option>
-                <option value="nagy karám">🔙 Nagy karamok</option>
-                <option value="ellető istálló">🏠 Ellető istálló</option>
-              </select>
-            </div>
+            <select
+              value={selectedLocation}
+              onChange={(e) => setSelectedLocation(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white"
+            >
+              <option value="mind">📍 Összes helyszín</option>
+              <option value="bal oldal">📍 Bal oldal</option>
+              <option value="jobb oldal">📍 Jobb oldal</option>
+              <option value="konténereknél">📦 Konténereknél</option>
+              <option value="nagy karám">🔙 Nagy karamok</option>
+              <option value="ellető istálló">🏠 Ellető istálló</option>
+            </select>
+          </div>
 
-            {/* Szűrők törlése */}
+          {/* Szűrők törlése gomb */}
+          <div className="flex justify-end">
             <button
               onClick={() => {
                 setSearchTerm('');
                 setSelectedType('mind');
                 setSelectedLocation('mind');
               }}
-              className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors whitespace-nowrap"
+              className="bg-teal-500 hover:bg-teal-600 text-white font-medium px-4 py-2 rounded-lg transition-colors inline-flex items-center text-sm"
             >
-              🔄 Törlés
+              <span className="mr-1">🔄</span>
+              Szűrők törlése
             </button>
           </div>
 
           {/* Aktív szűrők megjelenítése */}
           {(searchTerm || selectedType !== 'mind' || selectedLocation !== 'mind') && (
-            <div className="flex flex-wrap gap-2 mb-4">
+            <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-200">
               {searchTerm && (
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  Keresés: "{searchTerm}"
+                  🔍 Keresés: "{searchTerm}"
                   <button
                     onClick={() => setSearchTerm('')}
                     className="ml-2 text-green-600 hover:text-green-800"
                   >
-                    ×
+                    ❌
                   </button>
                 </span>
               )}
               {selectedType !== 'mind' && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  Funkció: {selectedType}
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getFunctionColor(selectedType)}`}>
+                  🏠 Funkció: {selectedType}
                   <button
                     onClick={() => setSelectedType('mind')}
-                    className="ml-2 text-blue-600 hover:text-blue-800"
+                    className="ml-2 opacity-60 hover:opacity-100"
                   >
-                    ×
+                    ❌
                   </button>
                 </span>
               )}
               {selectedLocation !== 'mind' && (
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                  Helyszín: {selectedLocation}
+                  📍 Helyszín: {selectedLocation}
                   <button
                     onClick={() => setSelectedLocation('mind')}
                     className="ml-2 text-purple-600 hover:text-purple-800"
                   >
-                    ×
+                    ❌
                   </button>
                 </span>
               )}
               <span className="text-xs text-gray-500 self-center">
-                {sortedFilteredPens.length} találat
+                📊 {sortedFilteredPens.length} találat
               </span>
             </div>
           )}
+        </div>
 
-          {/* Funkció statisztikák */}
-          <div className="flex flex-wrap gap-2 mb-6">
+        {/* Funkció statisztikák - DESIGN SYSTEM */}
+        <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
+          <div className="flex items-center mb-3">
+            <span className="text-2xl mr-3">📊</span>
+            <h3 className="text-lg font-semibold text-gray-900">Funkció Statisztikák</h3>
+          </div>
+          <div className="flex flex-wrap gap-2">
             {Object.entries(functionStats).map(([funcType, count]) => (
               <button
                 key={funcType}
                 onClick={() => setSelectedType(funcType === selectedType ? 'mind' : funcType)}
-                className={`px-3 py-1 rounded-full text-sm font-medium cursor-pointer transition-all hover:scale-105 ${selectedType === funcType
-                    ? 'ring-2 ring-blue-400 ' + getFunctionColor(funcType)
+                className={`px-3 py-2 rounded-lg text-sm font-medium cursor-pointer transition-all hover:scale-105 ${selectedType === funcType
+                    ? 'ring-2 ring-green-500 ' + getFunctionColor(funcType)
                     : getFunctionColor(funcType)
                   }`}
               >
@@ -468,39 +480,47 @@ export default function PensPage() {
             ))}
           </div>
         </div>
-      </div>
 
-      {/* Karám Grid */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+        {/* Karám Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {sortedFilteredPens.map((pen: any) => (
             <PenCard key={pen.id} pen={pen} />
           ))}
         </div>
 
+        {/* No Results State */}
         {sortedFilteredPens.length === 0 && (
-          <div className="text-center py-12">
-            <Home className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">
+          <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
+            <span className="text-6xl mb-4 block">🏠</span>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
               {searchTerm || selectedType !== 'mind' || selectedLocation !== 'mind'
                 ? 'Nincs találat a szűrési feltételekre'
                 : 'Nincsenek karamok'}
             </h3>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="text-gray-500 mb-6">
               {searchTerm || selectedType !== 'mind' || selectedLocation !== 'mind'
                 ? 'Próbáljon meg más keresési feltételeket vagy törölje a szűrőket.'
                 : 'Kezdjen el egy új karám hozzáadásával.'}
             </p>
-            {(searchTerm || selectedType !== 'mind' || selectedLocation !== 'mind') && (
+            {(searchTerm || selectedType !== 'mind' || selectedLocation !== 'mind') ? (
               <button
                 onClick={() => {
                   setSearchTerm('');
                   setSelectedType('mind');
                   setSelectedLocation('mind');
                 }}
-                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg transition-colors inline-flex items-center"
               >
-                🔄 Összes szűrő törlése
+                <span className="mr-2">🔄</span>
+                Összes szűrő törlése
+              </button>
+            ) : (
+              <button
+                onClick={() => router.push('/dashboard/pens/add')}
+                className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg transition-colors inline-flex items-center"
+              >
+                <span className="mr-2">➕</span>
+                Új karám hozzáadása
               </button>
             )}
           </div>

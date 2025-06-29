@@ -2,6 +2,7 @@
 
 import { useRouter, usePathname } from 'next/navigation';
 import { ReactNode, useState } from 'react';
+import { Users } from 'lucide-react'
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -20,7 +21,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: 'Egészségügy', href: '/dashboard/health', icon: '💊' },
     { name: 'Takarmányozás', href: '/dashboard/feeding', icon: '🌾' },
     { name: 'Megfigyelések', href: '/dashboard/observations', icon: '👁️' },
-    { name: 'Vemhesség', href: '/dashboard/breeding', icon: '🤱' },
+    { name: 'Vemhesség', href: '/dashboard/breeding', icon: '🍼' },
+    { name: 'Csapat', href: '/dashboard/team', icon: '👥' },
+    { name: 'Beállítások', href: '/dashboard/settings/farm', icon: '⚙️' },
     { name: 'Import/Export', href: '/dashboard/import-export', icon: '📋' },
   ];
 

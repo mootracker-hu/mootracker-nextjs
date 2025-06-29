@@ -2,7 +2,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { MapPin, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { PenAlertsWidget } from './pen-alerts-widget';
 import { useAlertsNew } from '@/hooks/useAlertsNew';
 
@@ -18,7 +18,7 @@ interface Pen {
 
 interface PenFunction {
   id: string;
-  function_type: 'bölcsi' | 'óvi' | 'hárem' | 'vemhes' | 'hízóbika' | 'ellető' | 'üres' | 'tehén';
+  function_type: 'bölcsi' | 'óvi' | 'hárem' | 'vemhes' | 'hízóbika' | 'ellető' | 'üres' | 'tehén' | 'átmeneti' | 'kórház' | 'karantén' | 'selejt';
   start_date: string;
   metadata: any;
   notes?: string;
@@ -50,7 +50,7 @@ console.log('FILTERED ALERTS for pen', pen.id, ':', penSpecificAlerts);
 
   const router = useRouter();
 
-  // Funkció emoji és színek
+  // Funkció emoji és színek - ✅ VÉGLEGESEN JAVÍTOTT VERZIÓ
   const getFunctionEmoji = (functionType: string): string => {
     const emojiMap: { [key: string]: string } = {
       'bölcsi': '🐮',
@@ -60,26 +60,47 @@ console.log('FILTERED ALERTS for pen', pen.id, ':', penSpecificAlerts);
       'hízóbika': '🐂',
       'ellető': '🐄🍼',
       'tehén': '🐄🍼',
-      'üres': '⭕'
+      'üres': '⭕',
+      'átmeneti': '🔄',
+      'kórház': '🏥',
+      'karantén': '🔒',
+      'selejt': '📦'
     };
     return emojiMap[functionType] || '❓';
   };
 
+  // ✅ JAVÍTOTT SZÍNPALETTA - MINDEN FUNKCIÓ EGYSÉGESEN!
   const getFunctionColor = (functionType: string): string => {
-    const colorMap: { [key: string]: string } = {
+    const colorMap = {
+      // 🐮 BORJÚ FUNKCIÓK - Kék árnyalatok (fiatal állatok)
       'bölcsi': 'bg-blue-100 text-blue-800 border-blue-200',
-      'óvi': 'bg-green-100 text-green-800 border-green-200',
+      
+      // 🐄 FEJLŐDÉSI FUNKCIÓK - Indigo (növekedés) ← JAVÍTVA!  
+      'óvi': 'bg-indigo-100 text-indigo-800 border-indigo-200',
+      
+      // 💕 TENYÉSZTÉSI FUNKCIÓK - Pink/Rose (KÜLÖNBÖZŐEK!)
       'hárem': 'bg-pink-100 text-pink-800 border-pink-200',
-      'vemhes': 'bg-purple-100 text-purple-800 border-purple-200',
-      'hízóbika': 'bg-orange-100 text-orange-800 border-orange-200',
-      'ellető': 'bg-red-100 text-red-800 border-red-200',
+      'vemhes': 'bg-rose-100 text-rose-800 border-rose-200', // ← JAVÍTVA!
+      
+      // 🍼 ANYASÁG FUNKCIÓK - Zöld árnyalatok (természet/élet)
+      'ellető': 'bg-emerald-100 text-emerald-800 border-emerald-200',
       'tehén': 'bg-green-100 text-green-800 border-green-200',
-      'üres': 'bg-gray-100 text-gray-800 border-gray-200'
-    };
-    return colorMap[functionType] || 'bg-gray-100 text-gray-800 border-gray-200';
+      
+      // 🐂 HÍZÓBIKA - Narancs (erő/munka)
+      'hízóbika': 'bg-orange-100 text-orange-800 border-orange-200',
+      
+      // ⭕ SPECIÁLIS FUNKCIÓK - ✅ ÖSSZES ÚJ TÍPUS HOZZÁADVA!
+      'üres': 'bg-gray-100 text-gray-800 border-gray-200',
+      'átmeneti': 'bg-teal-100 text-teal-800 border-teal-200',
+      'kórház': 'bg-red-100 text-red-800 border-red-200',
+      'karantén': 'bg-amber-100 text-amber-800 border-amber-200', // ← JAVÍTVA!
+      'selejt': 'bg-slate-100 text-slate-800 border-slate-200'
+    } as const;
+
+    return colorMap[functionType as keyof typeof colorMap] || 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
-  // Karám típus megjelenítés
+  // Karám típus megjelenítés - EMOJI MODERNIZED
   const getPenTypeDisplay = (penType: string): string => {
     const typeMap: { [key: string]: string } = {
       'outdoor': '🏞️ Külső',
@@ -110,12 +131,15 @@ console.log('FILTERED ALERTS for pen', pen.id, ':', penSpecificAlerts);
       {/* Karám Header */}
       <div className="p-4 border-b border-gray-100">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">{pen.pen_number}</h3>
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+            <span className="text-xl mr-2">🏠</span>
+            {pen.pen_number}
+          </h3>
           <span className="text-sm text-gray-500">{getPenTypeDisplay(pen.pen_type)}</span>
         </div>
         {pen.location && (
           <div className="flex items-center mt-1 text-sm text-gray-500">
-            <MapPin className="h-3 w-3 mr-1" />
+            <span className="text-base mr-1">📍</span>
             {pen.location}
           </div>
         )}
@@ -125,7 +149,7 @@ console.log('FILTERED ALERTS for pen', pen.id, ':', penSpecificAlerts);
       <div className="p-4">
         {pen.current_function ? (
           <div className={`mb-3 px-3 py-2 rounded-full text-sm font-medium border ${getFunctionColor(pen.current_function.function_type)}`}>
-            {getFunctionEmoji(pen.current_function.function_type)} {(pen.current_function.function_type || 'üres').charAt(0).toUpperCase() + (pen.current_function.function_type || 'üres').slice(1)}
+            {getFunctionEmoji(pen.current_function.function_type)} <span className="ml-1">{(pen.current_function.function_type || 'üres').charAt(0).toUpperCase() + (pen.current_function.function_type || 'üres').slice(1)}</span>
           </div>
         ) : (
           <div className="mb-3 px-3 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-600 border border-gray-200">
@@ -135,7 +159,10 @@ console.log('FILTERED ALERTS for pen', pen.id, ':', penSpecificAlerts);
 
         {/* Kapacitás */}
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-gray-600">Kapacitás:</span>
+          <span className="text-sm text-gray-600 flex items-center">
+            <span className="text-base mr-1">👥</span>
+            Kapacitás:
+          </span>
           <span className={`text-sm font-medium px-2 py-1 rounded ${getCapacityColor(pen.animal_count, pen.capacity)}`}>
             {pen.animal_count} / {pen.capacity}
           </span>
@@ -153,14 +180,16 @@ console.log('FILTERED ALERTS for pen', pen.id, ':', penSpecificAlerts);
 
         {/* Hárem extra info */}
         {pen.current_function?.function_type === 'hárem' && pen.current_function.metadata?.tenyeszbika_name && (
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-gray-500 flex items-center">
+            <span className="text-sm mr-1">🐂</span>
             Tenyészbika: {pen.current_function.metadata.tenyeszbika_name}
           </div>
         )}
 
         {/* Notes extra info */}
         {pen.current_function?.notes && (
-          <div className="text-xs text-gray-500 mt-1">
+          <div className="text-xs text-gray-500 mt-1 flex items-center">
+            <span className="text-sm mr-1">📝</span>
             {pen.current_function.notes}
           </div>
         )}

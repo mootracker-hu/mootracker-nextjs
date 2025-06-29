@@ -1,4 +1,4 @@
-// src/app/dashboard/pens/[id]/page.tsx
+// src/app/dashboard/pens/[id]/page.tsx - ✅ JAVÍTOTT getFunctionColor
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -9,19 +9,7 @@ import AnimalMovementPanel from '../components/animal-movement-panel';
 import PenFunctionManager from '../components/pen-function-manager';
 import PenSpecificAnimalTable from '../components/pen-specific-animal-table';
 import {
-    ArrowLeft,
-    Users,
-    Settings,
-    AlertTriangle,
-    Calendar,
-    MapPin,
-    Edit3,
-    Move,
-    Plus,
-    Filter,
-    Search,
-    Download,
-    MoreHorizontal
+    AlertTriangle
 } from 'lucide-react';
 import { useAlertsNew } from '@/hooks/useAlertsNew';
 import { PenAlertsWidget } from '../components/pen-alerts-widget';
@@ -55,7 +43,7 @@ interface PenDetailsType {
 
 interface PenFunctionType {
     id: string;
-    function_type: 'bölcsi' | 'óvi' | 'hárem' | 'vemhes' | 'hízóbika' | 'ellető' | 'üres' | 'tehén';
+    function_type: 'bölcsi' | 'óvi' | 'hárem' | 'vemhes' | 'hízóbika' | 'ellető' | 'üres' | 'tehén' | 'átmeneti' | 'kórház' | 'karantén' | 'selejt';
     start_date: string;
     metadata: any;
     notes?: string;
@@ -286,31 +274,52 @@ console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
             'hízóbika': '🐂',
             'ellető': '🐄🍼',
             'tehén': '🐄🍼',
-            'üres': '⭕'
+            'üres': '⭕',
+            'átmeneti': '🔄',
+            'kórház': '🏥',
+            'karantén': '🔒',
+            'selejt': '📦'
         };
         return emojiMap[functionType] || '❓';
     };
 
+    // ✅ JAVÍTOTT SZÍNPALETTA - MINDEN FUNKCIÓ EGYSÉGESEN MINT A TÖBBI FÁJLBAN!
     const getFunctionColor = (functionType: string): string => {
-        const colorMap: { [key: string]: string } = {
+        const colorMap = {
+            // 🐮 BORJÚ FUNKCIÓK - Kék árnyalatok (fiatal állatok)
             'bölcsi': 'bg-blue-100 text-blue-800 border-blue-200',
-            'óvi': 'bg-green-100 text-green-800 border-green-200',
+            
+            // 🐄 FEJLŐDÉSI FUNKCIÓK - Indigo (növekedés)  
+            'óvi': 'bg-indigo-100 text-indigo-800 border-indigo-200',
+            
+            // 💕 TENYÉSZTÉSI FUNKCIÓK - Pink/Rose (KÜLÖNBÖZŐEK!)
             'hárem': 'bg-pink-100 text-pink-800 border-pink-200',
-            'vemhes': 'bg-purple-100 text-purple-800 border-purple-200',
-            'hízóbika': 'bg-orange-100 text-orange-800 border-orange-200',
-            'ellető': 'bg-red-100 text-red-800 border-red-200',
+            'vemhes': 'bg-rose-100 text-rose-800 border-rose-200',
+            
+            // 🍼 ANYASÁG FUNKCIÓK - Zöld árnyalatok (természet/élet)
+            'ellető': 'bg-emerald-100 text-emerald-800 border-emerald-200',
             'tehén': 'bg-green-100 text-green-800 border-green-200',
-            'üres': 'bg-gray-100 text-gray-800 border-gray-200'
-        };
-        return colorMap[functionType] || 'bg-gray-100 text-gray-800 border-gray-200';
+            
+            // 🐂 HÍZÓBIKA - Narancs (erő/munka)
+            'hízóbika': 'bg-orange-100 text-orange-800 border-orange-200',
+            
+            // ⭕ SPECIÁLIS FUNKCIÓK - ✅ ÖSSZES ÚJ TÍPUS HOZZÁADVA!
+            'üres': 'bg-gray-100 text-gray-800 border-gray-200',
+            'átmeneti': 'bg-teal-100 text-teal-800 border-teal-200',
+            'kórház': 'bg-red-100 text-red-800 border-red-200',
+            'karantén': 'bg-amber-100 text-amber-800 border-amber-200',
+            'selejt': 'bg-slate-100 text-slate-800 border-slate-200'
+        } as const;
+
+        return colorMap[functionType as keyof typeof colorMap] || 'bg-gray-100 text-gray-800 border-gray-200';
     };
 
     const getCapacityColor = (current: number, capacity: number): string => {
         const percentage = (current / capacity) * 100;
         if (percentage < 60) return 'text-green-600';
-        if (percentage < 80) return 'text-yellow-600';
+        if (percentage < 80) return 'text-orange-500';
         if (percentage < 100) return 'text-orange-600';
-        return 'text-red-600';
+        return 'text-red-500';
     };
 
     const calculateAge = (birthDate: string): string => {
@@ -374,7 +383,7 @@ console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
                         href="/dashboard/pens"
                         className="mt-4 inline-flex items-center text-blue-600 hover:text-blue-800"
                     >
-                        <ArrowLeft className="h-4 w-4 mr-1" />
+                        <span className="mr-1">⬅️</span>
                         Vissza a karamokhoz
                     </Link>
                 </div>
@@ -393,7 +402,7 @@ console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
                         href="/dashboard/pens"
                         className="mt-4 inline-flex items-center text-blue-600 hover:text-blue-800"
                     >
-                        <ArrowLeft className="h-4 w-4 mr-1" />
+                        <span className="mr-1">⬅️</span>
                         Vissza a karamokhoz
                     </Link>
                 </div>
@@ -412,11 +421,12 @@ console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
                         <div className="flex items-center">
                             <Link
                                 href="/dashboard/pens"
-                                className="mr-4 p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100"
+                                className="mr-4 p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 inline-flex items-center"
                             >
-                                <ArrowLeft className="h-5 w-5" />
+                                <span className="mr-1">⬅️</span>
                             </Link>
-                            <h1 className="text-2xl font-bold text-gray-900">
+                            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+                                <span className="text-3xl mr-3">🏠</span>
                                 Karám {pen.pen_number}
                             </h1>
                         </div>
@@ -424,17 +434,17 @@ console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
                             {selectedAnimals.length > 0 && (
                                 <button
                                     onClick={() => setShowMovementPanel(true)}
-                                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                                    className="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg transition-colors inline-flex items-center"
                                 >
-                                    <Move className="h-4 w-4 mr-2" />
+                                    <span className="mr-2">🔄</span>
                                     Mozgatás ({selectedAnimals.length})
                                 </button>
                             )}
                             <button
                                 onClick={() => setShowFunctionManager(true)}
-                                className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+                                className="bg-teal-500 hover:bg-teal-600 text-white font-medium px-4 py-2 rounded-lg transition-colors inline-flex items-center"
                             >
-                                <Settings className="h-4 w-4 mr-2" />
+                                <span className="mr-2">⚙️</span>
                                 Funkció Kezelés
                             </button>
                         </div>
@@ -448,21 +458,21 @@ console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                         {/* Alapadatok */}
                         <div className="md:col-span-2">
-                            <div className="bg-gray-50 rounded-lg p-4">
+                            <div className="bg-gray-50 rounded-lg p-6">
                                 <h3 className="text-lg font-medium text-gray-900 mb-3">Karám Adatok</h3>
                                 <div className="space-y-2">
                                     <div className="flex items-center">
-                                        <MapPin className="h-4 w-4 text-gray-400 mr-2" />
+                                        <span className="text-lg mr-2">📍</span>
                                         <span className="text-sm text-gray-600">Helye: {pen.location}</span>
                                     </div>
                                     <div className="flex items-center">
-                                        <Users className="h-4 w-4 text-gray-400 mr-2" />
+                                        <span className="text-lg mr-2">👥</span>
                                         <span className={`text-sm font-medium ${getCapacityColor(pen.animal_count, pen.capacity)}`}>
                                             {pen.animal_count} / {pen.capacity} állat
                                         </span>
                                     </div>
                                     <div className="flex items-center">
-                                        <Calendar className="h-4 w-4 text-gray-400 mr-2" />
+                                        <span className="text-lg mr-2">📅</span>
                                         <span className="text-sm text-gray-600">
                                             Funkció kezdete: {pen.current_function?.start_date ?
                                                 new Date(pen.current_function.start_date).toLocaleDateString('hu-HU') :
@@ -476,25 +486,27 @@ console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
 
                         {/* Jelenlegi funkció */}
                         <div>
-                            <div className="bg-gray-50 rounded-lg p-4">
+                            <div className="bg-gray-50 rounded-lg p-6">
                                 <h3 className="text-lg font-medium text-gray-900 mb-3">Jelenlegi Funkció</h3>
-                                <div className={`px-3 py-2 rounded-full text-sm font-medium border ${getFunctionColor(pen.current_function?.function_type || 'tehén')}`}>
+                                <div className={`px-3 py-2 rounded-full text-sm font-medium border ${getFunctionColor(pen.current_function?.function_type || 'üres')}`}>
                                     {getFunctionEmoji(pen.current_function?.function_type || 'üres')}
-                                    {pen.current_function?.function_type ?
-                                        pen.current_function.function_type.charAt(0).toUpperCase() + pen.current_function.function_type.slice(1)
-                                        : 'üres'}
+                                    <span className="ml-2">
+                                        {pen.current_function?.function_type ?
+                                            pen.current_function.function_type.charAt(0).toUpperCase() + pen.current_function.function_type.slice(1)
+                                            : 'üres'}
+                                    </span>
                                 </div>
                             </div>
                         </div>
 
                         {/* Kapacitás kihasználtság */}
                         <div>
-                            <div className="bg-gray-50 rounded-lg p-4">
+                            <div className="bg-gray-50 rounded-lg p-6">
                                 <h3 className="text-lg font-medium text-gray-900 mb-3">Kihasználtság</h3>
                                 <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
                                     <div
                                         className={`h-3 rounded-full transition-all ${pen.animal_count / pen.capacity > 0.8 ? 'bg-red-500' :
-                                            pen.animal_count / pen.capacity > 0.6 ? 'bg-yellow-500' : 'bg-green-500'
+                                            pen.animal_count / pen.capacity > 0.6 ? 'bg-orange-500' : 'bg-green-500'
                                             }`}
                                         style={{ width: `${Math.min((pen.animal_count / pen.capacity) * 100, 100)}%` }}
                                     />
@@ -508,31 +520,42 @@ console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
 
                     {/* Hárem extra információk */}
                     {pen.current_function?.function_type === 'hárem' && pen.current_function.metadata && (
-                        <div className="mt-6 bg-pink-50 border border-pink-200 rounded-lg p-4">
-                            <h4 className="font-medium text-pink-800 mb-2">Hárem Információk</h4>
+                        <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-6">
+                            <h4 className="font-medium text-green-800 mb-3 flex items-center">
+                                <span className="text-xl mr-2">🐄💕</span>
+                                Hárem Információk
+                            </h4>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                                 {pen.current_function.metadata.tenyeszbika_name && (
                                     <div>
-                                        <span className="text-pink-600">Tenyészbika:</span>
+                                        <span className="text-green-600 flex items-center">
+                                            <span className="mr-1">🐂</span>
+                                            Tenyészbika:
+                                        </span>
                                         <p className="font-medium">{pen.current_function.metadata.tenyeszbika_name}</p>
                                         {pen.current_function.metadata.tenyeszbika_enar && (
-                                            <p className="text-xs text-pink-600">{pen.current_function.metadata.tenyeszbika_enar}</p>
+                                            <p className="text-xs text-green-600">{pen.current_function.metadata.tenyeszbika_enar}</p>
                                         )}
                                     </div>
                                 )}
                                 {pen.current_function.metadata.parozas_kezdete && (
                                     <div>
-                                        <span className="text-pink-600">Párzás kezdete:</span>
+                                        <span className="text-green-600 flex items-center">
+                                            <span className="mr-1">💕</span>
+                                            Párzás kezdete:
+                                        </span>
                                         <p className="font-medium">{new Date(pen.current_function.metadata.parozas_kezdete).toLocaleDateString('hu-HU')}</p>
                                     </div>
                                 )}
-                                {pen.current_function.metadata.vv_esedekessege && (
+                                {pen.current_function.metadata.vv_esedekssege && (
                                     <div>
-                                        <span className="text-pink-600">VV esedékessége:</span>
-                                        <p className="font-medium">{new Date(pen.current_function.metadata.vv_esedekessege).toLocaleDateString('hu-HU')}</p>
+                                        <span className="text-green-600 flex items-center">
+                                            <span className="mr-1">🔬</span>
+                                            VV esedékessége:
+                                        </span>
+                                        <p className="font-medium">{new Date(pen.current_function.metadata.vv_esedekssege).toLocaleDateString('hu-HU')}</p>
                                     </div>
                                 )}
-
                             </div>
                         </div>
                     )}
@@ -549,7 +572,8 @@ console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
                 {/* Vezérlők */}
                 <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
                     <div className="flex items-center space-x-4 mb-4 sm:mb-0">
-                        <h2 className="text-xl font-semibold text-gray-900">
+                        <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                            <span className="text-2xl mr-2">🐄</span>
                             Állatok ({filteredAnimals.length})
                         </h2>
                         {selectedAnimals.length > 0 && (
@@ -569,13 +593,12 @@ console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
                     <div className="flex items-center space-x-4">
                         {/* Keresés */}
                         <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                             <input
                                 type="text"
-                                placeholder="Keresés ENAR vagy kategória..."
+                                placeholder="🔎 ENAR vagy kategória keresése..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 w-64"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                             />
                         </div>
                         {/* Kiválasztás vezérlők */}
@@ -585,8 +608,8 @@ console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
                         >
                             Mind kiválaszt
                         </button>
-                        <button className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm bg-white hover:bg-gray-50">
-                            <Download className="h-4 w-4 mr-2" />
+                        <button className="bg-white hover:bg-gray-50 text-gray-700 font-medium px-4 py-2 rounded-lg border border-gray-300 transition-colors inline-flex items-center">
+                            <span className="mr-2">📥</span>
                             Export
                         </button>
                     </div>
@@ -607,7 +630,7 @@ console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
 
 {filteredAnimals.length === 0 && (
     <div className="text-center py-12">
-        <Users className="mx-auto h-12 w-12 text-gray-400" />
+        <span className="text-6xl mb-4 block">🐄</span>
         <h3 className="mt-2 text-sm font-medium text-gray-900">Nincsenek állatok</h3>
         <p className="mt-1 text-sm text-gray-500">
             {searchTerm ? 'Nincs találat a keresési feltételre.' : 'Ez a karám jelenleg üres.'}
