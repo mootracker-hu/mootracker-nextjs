@@ -43,6 +43,7 @@ const VVForm: React.FC<VVFormProps> = ({
   editData = null
 }) => {
   const [loading, setLoading] = useState(false);
+  const [isHistorical, setIsHistorical] = useState(false);
   const [availableBulls, setAvailableBulls] = useState<TenyeszbikaOption[]>([]);
   const [formData, setFormData] = useState<VVFormData>(() => {
     // Edit mode esetén előre kitöltjük a form-ot
@@ -201,6 +202,7 @@ formData.possible_fathers.forEach((enar, index) => {
   vv_date: formData.vv_date,
   vv_result_days: formData.vv_result_days,
   pregnancy_status: formData.pregnancy_status,
+  historical: isHistorical,
   father_enar: formData.father_enar || null,
   father_kplsz: formData.father_kplsz || null,
   father_name: formData.father_name || null,
@@ -255,7 +257,7 @@ console.log('🔍 UNCERTAIN PATERNITY:', dataToSave.uncertain_paternity);
       }
 
       // Ha vemhes, akkor frissítjük az állat adatait is
-      if (formData.pregnancy_status === 'vemhes') {
+      if (formData.pregnancy_status === 'vemhes' && !isHistorical) {
         const { error: updateError } = await supabase
           .from('animals')
           .update({
@@ -293,6 +295,20 @@ console.log('🔍 UNCERTAIN PATERNITY:', dataToSave.uncertain_paternity);
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Történeti VV mód */}
+        <div className="flex items-center space-x-2 mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <input
+            type="checkbox"
+            id="historical"
+            checked={isHistorical}
+            onChange={(e) => setIsHistorical(e.target.checked)}
+            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          <label htmlFor="historical" className="text-sm font-medium text-blue-800">
+            📚 Történeti VV eredmény (múltbeli adat rögzítése - nem generál riasztásokat)
+          </label>
+        </div>
+
         {/* VV Alapadatok */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
