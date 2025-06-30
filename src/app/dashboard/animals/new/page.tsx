@@ -4,6 +4,14 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { mockStorage } from '@/lib/mockStorage';
 
+const BREEDS = [
+  'Blonde d\'aquitaine',
+  'Limousin', 
+  'Magyartarka',
+  'Egyéb húshasznú',
+  'Egyéb tejhasznú'
+];
+
 interface Animal {
   enar: string;
   szuletesi_datum: string;
@@ -16,6 +24,8 @@ interface Animal {
   kplsz?: string;
   bekerules_datum?: string;
   fotok?: string[];
+  name?: string;
+  breed?: string;
   utolso_modositas: string;
   letrehozva: string;
 }
@@ -32,24 +42,26 @@ export default function NewAnimalPage() {
     szuletesi_datum: '',
     ivar: '' as '' | 'hímivar' | 'nőivar',
     eredet: '' as '' | 'nalunk_szuletett' | 'vasarolt',
-    
+    name: '',
+    breed: '',
+
     // Szülők (nálunk született)
     anya_enar: '',
     apa_enar: '',
     apa_tipus: '' as '' | 'termeszetes' | 'mesterseges' | 'ismeretlen',
     kplsz: '',
-    
+
     // Szülők (vásárolt)
     anya_enar_manual: '',
     apa_enar_manual: '',
-    
+
     // Elhelyezés
     jelenlegi_karam: '',
     bekerules_datum: '',
     statusz: 'egészséges'
   });
 
-  const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     const animals = mockStorage.getAllAnimals();
@@ -63,7 +75,7 @@ export default function NewAnimalPage() {
     const ageInMonths = (now.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
 
     if (ageInMonths < 6) return 'növarú_borjú';
-    
+
     if (gender === 'hímivar') {
       if (ageInMonths >= 24) return 'tenyészbika';
       return 'hízóbika';
@@ -88,23 +100,23 @@ export default function NewAnimalPage() {
 
   // Potenciális anyák (nőivar + megfelelő kategória)
   const getPotentialMothers = (): Animal[] => {
-    return existingAnimals.filter(animal => 
-      animal.ivar === 'nőivar' && 
+    return existingAnimals.filter(animal =>
+      animal.ivar === 'nőivar' &&
       ['tehén', 'szűz_üsző', 'vemhes_üsző'].includes(animal.kategoria)
     );
   };
 
   // Potenciális apák (hímivar + tenyészbika)
   const getPotentialFathers = (): Animal[] => {
-    return existingAnimals.filter(animal => 
-      animal.ivar === 'hímivar' && 
+    return existingAnimals.filter(animal =>
+      animal.ivar === 'hímivar' &&
       animal.kategoria === 'tenyészbika'
     );
   };
 
   // Validációs függvények
   const validateStep1 = (): boolean => {
-    const newErrors: {[key: string]: string} = {};
+    const newErrors: { [key: string]: string } = {};
 
     if (!formData.enar) {
       newErrors.enar = 'ENAR megadása kötelező';
@@ -126,20 +138,24 @@ export default function NewAnimalPage() {
       newErrors.eredet = 'Eredet megadása kötelező';
     }
 
+    if (!formData.breed) {
+      newErrors.breed = 'Fajta megadása kötelező';
+    }
+
     // Szülők validáció nálunk született esetén
     if (formData.eredet === 'nalunk_szuletett') {
       if (!formData.anya_enar && formData.anya_enar !== 'ismeretlen') {
         newErrors.anya_enar = 'Anya megadása kötelező';
       }
-      
+
       if (!formData.apa_tipus) {
         newErrors.apa_tipus = 'Apa típus megadása kötelező';
       }
-      
+
       if (formData.apa_tipus === 'termeszetes' && !formData.apa_enar) {
         newErrors.apa_enar = 'Apa megadása kötelező természetes szaporításnál';
       }
-      
+
       if (formData.apa_tipus === 'mesterseges' && !formData.kplsz) {
         newErrors.kplsz = 'Spermakód megadása kötelező mesterséges termékenyítésnél';
       }
@@ -150,7 +166,7 @@ export default function NewAnimalPage() {
   };
 
   const validateStep2 = (): boolean => {
-    const newErrors: {[key: string]: string} = {};
+    const newErrors: { [key: string]: string } = {};
 
     if (!formData.jelenlegi_karam) {
       newErrors.jelenlegi_karam = 'Karám megadása kötelező';
@@ -195,7 +211,7 @@ export default function NewAnimalPage() {
       }
 
       const category = calculateCategory(formData.szuletesi_datum, formData.ivar as 'hímivar' | 'nőivar');
-      
+
       const newAnimal: Animal = {
         enar: formData.enar,
         szuletesi_datum: formData.szuletesi_datum,
@@ -214,7 +230,7 @@ export default function NewAnimalPage() {
         if (formData.anya_enar && formData.anya_enar !== 'ismeretlen') {
           newAnimal.anya_enar = formData.anya_enar;
         }
-        
+
         if (formData.apa_tipus === 'termeszetes' && formData.apa_enar) {
           newAnimal.apa_enar = formData.apa_enar;
         } else if (formData.apa_tipus === 'mesterseges' && formData.kplsz) {
@@ -239,18 +255,18 @@ export default function NewAnimalPage() {
 
   // Kategória előnézet
   const previewCategory = (formData.szuletesi_datum && formData.ivar && formData.ivar.length > 0)
-  ? calculateCategory(formData.szuletesi_datum, formData.ivar)
-  : '';
+    ? calculateCategory(formData.szuletesi_datum, formData.ivar)
+    : '';
 
   // Karám javaslatok
- const karamSuggestions = (previewCategory && typeof previewCategory === 'string') 
-  ? getKaramSuggestions(previewCategory) 
-  : [];
+  const karamSuggestions = (previewCategory && typeof previewCategory === 'string')
+    ? getKaramSuggestions(previewCategory)
+    : [];
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-5xl mx-auto">
-        
+
         {/* Header - DESIGN SYSTEM */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
@@ -274,26 +290,23 @@ export default function NewAnimalPage() {
         <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-4 w-full">
-              <div className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium ${
-                step >= 1 ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-600'
-              }`}>
+              <div className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium ${step >= 1 ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-600'
+                }`}>
                 {step > 1 ? '✅' : '1'}
               </div>
               <div className={`h-2 flex-1 max-w-20 rounded-full ${step >= 2 ? 'bg-green-600' : 'bg-gray-200'}`}></div>
-              <div className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium ${
-                step >= 2 ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-600'
-              }`}>
+              <div className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium ${step >= 2 ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-600'
+                }`}>
                 {step > 2 ? '✅' : '2'}
               </div>
               <div className={`h-2 flex-1 max-w-20 rounded-full ${step >= 3 ? 'bg-green-600' : 'bg-gray-200'}`}></div>
-              <div className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium ${
-                step >= 3 ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-600'
-              }`}>
+              <div className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium ${step >= 3 ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-600'
+                }`}>
                 {step > 3 ? '✅' : '3'}
               </div>
             </div>
           </div>
-          
+
           <div className="flex justify-between text-sm text-gray-600">
             <span className={step >= 1 ? 'text-green-600 font-medium' : ''}>
               🐄 Alapadatok
@@ -328,9 +341,8 @@ export default function NewAnimalPage() {
                     value={formData.enar}
                     onChange={(e) => setFormData(prev => ({ ...prev, enar: e.target.value.toUpperCase() }))}
                     placeholder="HU1234567890"
-                    className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
-                      errors.enar ? 'border-red-500' : ''
-                    }`}
+                    className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${errors.enar ? 'border-red-500' : ''
+                      }`}
                   />
                   {errors.enar && <p className="text-red-500 text-sm mt-1">{errors.enar}</p>}
                 </div>
@@ -344,9 +356,8 @@ export default function NewAnimalPage() {
                     type="date"
                     value={formData.szuletesi_datum}
                     onChange={(e) => setFormData(prev => ({ ...prev, szuletesi_datum: e.target.value }))}
-                    className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
-                      errors.szuletesi_datum ? 'border-red-500' : ''
-                    }`}
+                    className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${errors.szuletesi_datum ? 'border-red-500' : ''
+                      }`}
                   />
                   {errors.szuletesi_datum && <p className="text-red-500 text-sm mt-1">{errors.szuletesi_datum}</p>}
                 </div>
@@ -359,9 +370,8 @@ export default function NewAnimalPage() {
                   <select
                     value={formData.ivar}
                     onChange={(e) => setFormData(prev => ({ ...prev, ivar: e.target.value as 'hímivar' | 'nőivar' }))}
-                    className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white ${
-                      errors.ivar ? 'border-red-500' : ''
-                    }`}
+                    className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white ${errors.ivar ? 'border-red-500' : ''
+                      }`}
                   >
                     <option value="">Válasszon...</option>
                     <option value="hímivar">♂️ Hímivar</option>
@@ -379,6 +389,41 @@ export default function NewAnimalPage() {
                     <div className="px-4 py-3 bg-green-50 border border-green-200 rounded-lg text-green-800 font-medium">
                       {previewCategory}
                     </div>
+
+                    {/* Név */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        📝 Név
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="Állat neve (opcionális)"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                      />
+                    </div>
+
+                    {/* Fajta */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        🐄 Fajta *
+                      </label>
+                      <select
+                        value={formData.breed}
+                        onChange={(e) => setFormData(prev => ({ ...prev, breed: e.target.value }))}
+                        className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white ${errors.breed ? 'border-red-500' : ''
+                          }`}
+                      >
+                        <option value="">Válasszon fajtát...</option>
+                        {BREEDS.map(breed => (
+                          <option key={breed} value={breed}>
+                            {breed}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.breed && <p className="text-red-500 text-sm mt-1">{errors.breed}</p>}
+                    </div>
                   </div>
                 )}
               </div>
@@ -389,11 +434,10 @@ export default function NewAnimalPage() {
                   🌍 Az állat eredete *
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className={`cursor-pointer p-6 border-2 rounded-lg transition-colors ${
-                    formData.eredet === 'nalunk_szuletett' 
-                      ? 'border-green-500 bg-green-50' 
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}>
+                  <label className={`cursor-pointer p-6 border-2 rounded-lg transition-colors ${formData.eredet === 'nalunk_szuletett'
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                    }`}>
                     <input
                       type="radio"
                       name="eredet"
@@ -411,11 +455,10 @@ export default function NewAnimalPage() {
                     </div>
                   </label>
 
-                  <label className={`cursor-pointer p-6 border-2 rounded-lg transition-colors ${
-                    formData.eredet === 'vasarolt' 
-                      ? 'border-green-500 bg-green-50' 
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}>
+                  <label className={`cursor-pointer p-6 border-2 rounded-lg transition-colors ${formData.eredet === 'vasarolt'
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                    }`}>
                     <input
                       type="radio"
                       name="eredet"
@@ -453,9 +496,8 @@ export default function NewAnimalPage() {
                       <select
                         value={formData.anya_enar}
                         onChange={(e) => setFormData(prev => ({ ...prev, anya_enar: e.target.value }))}
-                        className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white ${
-                          errors.anya_enar ? 'border-red-500' : ''
-                        }`}
+                        className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white ${errors.anya_enar ? 'border-red-500' : ''
+                          }`}
                       >
                         <option value="">Válasszon anyát...</option>
                         <option value="ismeretlen">❓ Ismeretlen</option>
@@ -476,9 +518,8 @@ export default function NewAnimalPage() {
                       <select
                         value={formData.apa_tipus}
                         onChange={(e) => setFormData(prev => ({ ...prev, apa_tipus: e.target.value as 'termeszetes' | 'mesterseges' | 'ismeretlen' }))}
-                        className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white ${
-                          errors.apa_tipus ? 'border-red-500' : ''
-                        }`}
+                        className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white ${errors.apa_tipus ? 'border-red-500' : ''
+                          }`}
                       >
                         <option value="">Válasszon...</option>
                         <option value="termeszetes">🐂 Természetes fedeztetés</option>
@@ -498,9 +539,8 @@ export default function NewAnimalPage() {
                       <select
                         value={formData.apa_enar}
                         onChange={(e) => setFormData(prev => ({ ...prev, apa_enar: e.target.value }))}
-                        className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white ${
-                          errors.apa_enar ? 'border-red-500' : ''
-                        }`}
+                        className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white ${errors.apa_enar ? 'border-red-500' : ''
+                          }`}
                       >
                         <option value="">Válasszon apát...</option>
                         {getPotentialFathers().map(animal => (
@@ -524,9 +564,8 @@ export default function NewAnimalPage() {
                         value={formData.kplsz}
                         onChange={(e) => setFormData(prev => ({ ...prev, kplsz: e.target.value }))}
                         placeholder="pl. KPLSZ123456"
-                        className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
-                          errors.kplsz ? 'border-red-500' : ''
-                        }`}
+                        className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${errors.kplsz ? 'border-red-500' : ''
+                          }`}
                       />
                       {errors.kplsz && <p className="text-red-500 text-sm mt-1">{errors.kplsz}</p>}
                     </div>
@@ -591,9 +630,8 @@ export default function NewAnimalPage() {
                   <select
                     value={formData.jelenlegi_karam}
                     onChange={(e) => setFormData(prev => ({ ...prev, jelenlegi_karam: e.target.value }))}
-                    className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white ${
-                      errors.jelenlegi_karam ? 'border-red-500' : ''
-                    }`}
+                    className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white ${errors.jelenlegi_karam ? 'border-red-500' : ''
+                      }`}
                   >
                     <option value="">Válasszon karámot...</option>
                     {karamSuggestions.length > 0 && (
@@ -634,9 +672,8 @@ export default function NewAnimalPage() {
                     type="date"
                     value={formData.bekerules_datum}
                     onChange={(e) => setFormData(prev => ({ ...prev, bekerules_datum: e.target.value }))}
-                    className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
-                      errors.bekerules_datum ? 'border-red-500' : ''
-                    }`}
+                    className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${errors.bekerules_datum ? 'border-red-500' : ''
+                      }`}
                   />
                   {errors.bekerules_datum && <p className="text-red-500 text-sm mt-1">{errors.bekerules_datum}</p>}
                   {formData.eredet === 'nalunk_szuletett' && (
@@ -688,11 +725,10 @@ export default function NewAnimalPage() {
                       <button
                         key={karam}
                         onClick={() => setFormData(prev => ({ ...prev, jelenlegi_karam: karam }))}
-                        className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
-                          formData.jelenlegi_karam === karam
-                            ? 'bg-green-600 text-white border-green-600'
-                            : 'bg-white text-green-700 border-green-300 hover:bg-green-100'
-                        }`}
+                        className={`px-3 py-2 text-sm rounded-lg border transition-colors ${formData.jelenlegi_karam === karam
+                          ? 'bg-green-600 text-white border-green-600'
+                          : 'bg-white text-green-700 border-green-300 hover:bg-green-100'
+                          }`}
                       >
                         {karam}
                       </button>
@@ -749,27 +785,27 @@ export default function NewAnimalPage() {
                     {formData.eredet === 'nalunk_szuletett' ? (
                       <>
                         <div>
-                          <span className="text-gray-600">🐮 Anya:</span> 
+                          <span className="text-gray-600">🐮 Anya:</span>
                           <span className="font-medium ml-2">
                             {formData.anya_enar === 'ismeretlen' ? 'Ismeretlen' : formData.anya_enar || 'Nincs megadva'}
                           </span>
                         </div>
                         <div>
-                          <span className="text-gray-600">🐂 Apa:</span> 
+                          <span className="text-gray-600">🐂 Apa:</span>
                           <span className="font-medium ml-2">
                             {formData.apa_tipus === 'termeszetes' ? formData.apa_enar || 'Nincs megadva' :
-                             formData.apa_tipus === 'mesterseges' ? `🧪 ${formData.kplsz}` : 'Ismeretlen'}
+                              formData.apa_tipus === 'mesterseges' ? `🧪 ${formData.kplsz}` : 'Ismeretlen'}
                           </span>
                         </div>
                       </>
                     ) : (
                       <>
                         <div>
-                          <span className="text-gray-600">🐮 Anya:</span> 
+                          <span className="text-gray-600">🐮 Anya:</span>
                           <span className="font-medium ml-2">{formData.anya_enar_manual || 'Nincs megadva'}</span>
                         </div>
                         <div>
-                          <span className="text-gray-600">🐂 Apa:</span> 
+                          <span className="text-gray-600">🐂 Apa:</span>
                           <span className="font-medium ml-2">{formData.apa_enar_manual || 'Nincs megadva'}</span>
                         </div>
                       </>

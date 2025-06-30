@@ -27,7 +27,17 @@ interface Animal {
   bekerules_datum: string;
   created_at: string;
   birth_location?: 'nálunk' | 'vásárolt' | 'ismeretlen';
+  name?: string;
+  breed?: string;
 }
+
+const BREEDS = [
+  'Blonde d\'aquitaine',
+  'Limousin',
+  'Magyartarka',
+  'Egyéb húshasznú',
+  'Egyéb tejhasznú'
+];
 
 // SzaporitasTab komponens definíció
 function SzaporitasTab({ animal }: { animal: any }) {
@@ -545,7 +555,9 @@ export default function AnimalDetailPage() {
           apa_enar: editedAnimal.apa_enar,
           kplsz: editedAnimal.kplsz,
           szuletesi_datum: editedAnimal.szuletesi_datum,
-          bekerules_datum: editedAnimal.bekerules_datum
+          bekerules_datum: editedAnimal.bekerules_datum,
+          name: editedAnimal.name,
+          breed: editedAnimal.breed
         })
         .eq('enar', animal.enar);
 
@@ -757,7 +769,7 @@ export default function AnimalDetailPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
-        
+
         {/* Header - DESIGN SYSTEM */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
@@ -865,6 +877,25 @@ export default function AnimalDetailPage() {
                       #{getShortId(animal.enar)}
                     </span>
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    📝 Név
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editedAnimal.name || ''}
+                      onChange={(e) => updateField('name', e.target.value)}
+                      placeholder="Állat neve (opcionális)"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                    />
+                  ) : (
+                    <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
+                      {animal.name || 'Nincs név megadva'}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -1052,6 +1083,31 @@ export default function AnimalDetailPage() {
                     </div>
                   )}
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    🐄 Fajta
+                  </label>
+                  {isEditing ? (
+                    <select
+                      value={editedAnimal.breed || ''}
+                      onChange={(e) => updateField('breed', e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white"
+                    >
+                      <option value="">Válasszon fajtát...</option>
+                      {BREEDS.map(breed => (
+                        <option key={breed} value={breed}>
+                          {breed}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
+                      {animal.breed || 'Nincs fajta megadva'}
+                    </div>
+                  )}
+                </div>
+
               </div>
             </div>
           </div>
