@@ -31,13 +31,20 @@ export interface Alert {
   };
 }
 
-export type AlertType = 
-  | 'vakcinazas_esedékes'
+export type AlertType =
+  | 'fulszam_idealis'
+  | 'fulszam_ajanlott'
+  | 'fulszam_surgos'
+  | 'valasztas_idoszak_kezdete'
+  | 'valasztas_ajanlott'
+  | 'valasztas_surgos' 
   | 'valasztas_ideje'
   | 'karam_valtas_szukseges'
   | 'tenyesztesi_emlekezeto'
   | 'piaci_lehetoseg'
-  | 'vemhessegvizsgalat'
+  | 'vv_idoszak_kezdete'
+  | 'vv_ajanlott' 
+  | 'vv_surgos'      
   | 'rcc_vakcina_esedékes'
   | 'bovipast_vakcina_esedékes'
   | 'abrak_elvetel_esedékes'
@@ -48,6 +55,7 @@ export type AlertType =
   | 'selejtezesi_javaslat'
   | 'kapacitas_tullepes'
   | 'kapacitas_alulhasznaltsag';
+
 
 export type AlertPriority = 'surgos' | 'kritikus' | 'magas' | 'kozepes' | 'alacsony';
 
@@ -105,51 +113,145 @@ export interface AlertRule {
 // ============================================
 
 export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
-  // 🍼 BORJÚ VAKCINÁZÁS (15 napos)
+  // 🍼 BORJÚ VAKCINÁZÁS ÉS FÜLSZÁM (10-20 napos) - FOKOZATOS RIASZTÁS
   {
-    type: 'vakcinazas_esedékes',
-    priority: 'kritikus',
-    title: 'BoviPast vakcinázás esedékes',
-    description: '15 napos borjú vakcinázása szükséges - ENAR: {enar}',
+    type: 'fulszam_idealis',
+    priority: 'kozepes',
+    title: '🏷️ Fülszám időszak kezdete',
+    description: '10 napos borjú - fülszám és vakcina ideális időpontja - ENAR: {enar}',
     checkCondition: (animal) => {
       const ageInDays = calculateAgeInDays(animal.szuletesi_datum);
-      return ageInDays >= 15 && ageInDays <= 30 && 
-             animal.kategoria.includes('borjú') && 
-             animal.statusz === 'aktív';
+      return ageInDays >= 10 && ageInDays <= 14 &&
+        animal.kategoria.includes('borjú') &&
+        animal.statusz === 'aktív';
+    },
+    daysFromBirth: 10,
+    suggestedActions: [
+      'BoviPast vakcina beadása ideális időben',
+      'Fülszám felhelyezése',
+      'Szarvtalanítás elvégzése'
+    ],
+    canCreateTask: true,
+    canPostpone: true,
+    appliesTo: ['nőivarú_borjú', 'hímivarú_borjú']
+  },
+
+  {
+    type: 'fulszam_ajanlott',
+    priority: 'magas',
+    title: '⚠️ Fülszám ajánlott ideje',
+    description: '15 napos borjú - fülszám és vakcina ajánlott elvégezni - ENAR: {enar}',
+    checkCondition: (animal) => {
+      const ageInDays = calculateAgeInDays(animal.szuletesi_datum);
+      return ageInDays >= 15 && ageInDays <= 19 &&
+        animal.kategoria.includes('borjú') &&
+        animal.statusz === 'aktív';
     },
     daysFromBirth: 15,
     suggestedActions: [
-      'BoviPast vakcina beadása',
-      'Szarvtalanítás elvégzése',
-      'Fülszám felhelyezése'
+      'BoviPast vakcina beadása mielőbb',
+      'Fülszám felhelyezése ne halaszd',
+      'Szarvtalanítás elvégzése'
+    ],
+    canCreateTask: true,
+    canPostpone: true,
+    appliesTo: ['nőivarú_borjú', 'hímivarú_borjú']
+  },
+
+  {
+    type: 'fulszam_surgos',
+    priority: 'kritikus',
+    title: '🚨 Fülszám sürgős!',
+    description: '20+ napos borjú - fülszám és vakcina már késik! - ENAR: {enar}',
+    checkCondition: (animal) => {
+      const ageInDays = calculateAgeInDays(animal.szuletesi_datum);
+      return ageInDays >= 20 && ageInDays <= 30 &&
+        animal.kategoria.includes('borjú') &&
+        animal.statusz === 'aktív';
+    },
+    daysFromBirth: 20,
+    suggestedActions: [
+      'AZONNALI BoviPast vakcina beadása',
+      'SÜRGŐS fülszám felhelyezése',
+      'Szarvtalanítás halaszthatatlan'
     ],
     canCreateTask: true,
     canPostpone: false,
     appliesTo: ['nőivarú_borjú', 'hímivarú_borjú']
   },
 
-  // 🐄 VÁLASZTÁS (6 hónapos) - IVAR-SPECIFIKUS KARÁM VÁLTÁS
-  {
-    type: 'valasztas_ideje',
-    priority: 'kritikus',
-    title: 'Választási idő - Karám szétválasztás',
-    description: '6 hónapos borjú választása és karám szétválasztása - ENAR: {enar}',
-    checkCondition: (animal) => {
+  // 🐄 VÁLASZTÁS FOKOZATOS RIASZTÁS (6-8 hónap)
+{
+  type: 'valasztas_idoszak_kezdete',
+  priority: 'kozepes',
+  title: '📅 Választás időszak kezdete',
+  description: '6 hónapos állat választási időszaka megkezdődött - ENAR: {enar}',
+  checkCondition: (animal) => {
     const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-    return ageInMonths >= 6 && ageInMonths <= 12 &&
-           animal.kategoria.includes('borjú') &&
+    return ageInMonths >= 6 && ageInMonths <= 6.5 &&
+           (animal.kategoria.includes('borjú') || 
+            animal.kategoria === 'szűz_üsző' || 
+            animal.kategoria === 'hízóbika') &&
            animal.statusz === 'aktív';
-},
-    daysFromBirth: 180,
-    suggestedActions: [
-      'Borjú leválasztása anyjáról',
-      'NŐIVAR → Bölcsi karámba áthelyezés',
-      'HÍMIVAR → Hízóbika karámba áthelyezés'
-    ],
-    canCreateTask: true,
-    canPostpone: true,
-    appliesTo: ['nőivarú_borjú', 'hímivarú_borjú']
   },
+  daysFromBirth: 180,
+  suggestedActions: [
+    'Választás előkészítése',
+    'NŐIVAR → Bölcsi karámba tervezés',
+    'HÍMIVAR → Hízóbika karámba tervezés'
+  ],
+  canCreateTask: true,
+  canPostpone: true,
+  appliesTo: ['nőivarú_borjú', 'hímivarú_borjú', 'szűz_üsző', 'hízóbika']
+},
+
+{
+  type: 'valasztas_ajanlott',
+  priority: 'magas',
+  title: '⚠️ Választás ajánlott',
+  description: '7 hónapos állat választása ajánlott elvégezni - ENAR: {enar}',
+  checkCondition: (animal) => {
+    const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+    return ageInMonths >= 7 && ageInMonths <= 7.5 &&
+           (animal.kategoria.includes('borjú') || 
+            animal.kategoria === 'szűz_üsző' || 
+            animal.kategoria === 'hízóbika') &&
+           animal.statusz === 'aktív';
+  },
+  daysFromBirth: 210,
+  suggestedActions: [
+    'Választás elvégzése mielőbb',
+    'Karám szétválasztás végrehajtása',
+    'Takarmányozás átállítása'
+  ],
+  canCreateTask: true,
+  canPostpone: true,
+  appliesTo: ['nőivarú_borjú', 'hímivarú_borjú', 'szűz_üsző', 'hízóbika']
+},
+
+{
+  type: 'valasztas_surgos',
+  priority: 'kritikus',
+  title: '🚨 Választás sürgős!',
+  description: '8+ hónapos állat választása már késik! - ENAR: {enar}',
+  checkCondition: (animal) => {
+    const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+    return ageInMonths >= 8 &&
+           (animal.kategoria.includes('borjú') || 
+            animal.kategoria === 'szűz_üsző' || 
+            animal.kategoria === 'hízóbika') &&
+           animal.statusz === 'aktív';
+  },
+  daysFromBirth: 240,
+  suggestedActions: [
+    'AZONNALI választás szükséges',
+    'Túlkésett karám szétválasztás',
+    'Állatorvosi konzultáció'
+  ],
+  canCreateTask: true,
+  canPostpone: false,
+  appliesTo: ['nőivarú_borjú', 'hímivarú_borjú', 'szűz_üsző', 'hízóbika']
+},
 
   // 🐮 BÖLCSI ELHAGYÁS (12 hónapos) - CSAK NŐIVAR!
   {
@@ -159,10 +261,10 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     description: '12 hónapos nőivar óvi karámba költöztetése - ENAR: {enar}',
     checkCondition: (animal) => {
       const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-      return ageInMonths >= 12 && ageInMonths <= 12.5 && 
-             animal.ivar === 'nő' &&
-             (animal.kategoria.includes('borjú') || animal.current_pen_function === 'bölcsi') &&
-             animal.statusz === 'aktív';
+      return ageInMonths >= 12 && ageInMonths <= 12.5 &&
+        animal.ivar === 'nő' &&
+        (animal.kategoria.includes('borjú') || animal.current_pen_function === 'bölcsi') &&
+        animal.statusz === 'aktív';
     },
     daysFromBirth: 365,
     suggestedActions: [
@@ -183,10 +285,10 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     description: '24 hónapos nőivar hárem karámba helyezése - ENAR: {enar}',
     checkCondition: (animal) => {
       const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-      return ageInMonths >= 24 && ageInMonths <= 25 && 
-             animal.ivar === 'nő' && 
-             !animal.kategoria.includes('tehén') &&
-             animal.statusz === 'aktív';
+      return ageInMonths >= 24 && ageInMonths <= 25 &&
+        animal.ivar === 'nő' &&
+        !animal.kategoria.includes('tehén') &&
+        animal.statusz === 'aktív';
     },
     daysFromBirth: 730,
     suggestedActions: [
@@ -208,11 +310,11 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     description: '18-24 hónapos hízóbika értékesítésre kész - ENAR: {enar}',
     checkCondition: (animal) => {
       const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-      return ageInMonths >= 18 && ageInMonths <= 24 && 
-             animal.ivar === 'hím' && 
-             animal.kategoria === 'hízóbika' && // EXPLICIT hízóbika
-             !animal.kplsz && // NINCS KPLSZ = nem tenyészbika
-             animal.statusz === 'aktív';
+      return ageInMonths >= 18 && ageInMonths <= 24 &&
+        animal.ivar === 'hím' &&
+        animal.kategoria === 'hízóbika' && // EXPLICIT hízóbika
+        !animal.kplsz && // NINCS KPLSZ = nem tenyészbika
+        animal.statusz === 'aktív';
     },
     daysFromBirth: 550, // 18 hónap
     suggestedActions: [
@@ -226,31 +328,81 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     excludes: ['tenyészbika'] // TENYÉSZBIKA KIVÉTEL!
   },
 
-  // 🔬 VV ESEDÉKESSÉG (75 nap hárem után)
-  {
-    type: 'vemhessegvizsgalat',
-    priority: 'magas',
-    title: 'Vemhességvizsgálat esedékes',
-    description: 'Háremben 75 napja lévő állat VV vizsgálata - ENAR: {enar}',
-    checkCondition: (animal) => {
-      if (!animal.pairing_date || animal.vv_date) return false;
-      
-      const pairingDate = new Date(animal.pairing_date);
-      const daysSincePairing = Math.floor((Date.now() - pairingDate.getTime()) / (1000 * 60 * 60 * 24));
-      
-      return daysSincePairing >= 75 && 
-             (animal.kategoria.includes('tehén') || animal.kategoria.includes('üsző')) && 
-             animal.statusz === 'aktív';
-    },
-    suggestedActions: [
-      'Állatorvos meghívása VV vizsgálatra',
-      'Ultrahangos vizsgálat elvégzése',
-      'VV eredmény rögzítése a rendszerben'
-    ],
-    canCreateTask: true,
-    canPostpone: false,
-    appliesTo: ['háremben_lévő_üsző', 'tehén']
+  // 🔬 VV VIZSGÁLAT FOKOZATOS RIASZTÁS (60-90 nap)
+{
+  type: 'vv_idoszak_kezdete',
+  priority: 'kozepes',
+  title: '📅 VV időszak kezdete',
+  description: 'Háremben 60 napja lévő állat VV vizsgálati időszaka megkezdődött - ENAR: {enar}',
+  checkCondition: (animal) => {
+    if (!animal.pairing_date || animal.vv_date) return false;
+    
+    const pairingDate = new Date(animal.pairing_date);
+    const daysSincePairing = Math.floor((Date.now() - pairingDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    return daysSincePairing >= 60 && daysSincePairing <= 74 &&
+           (animal.kategoria.includes('tehén') || animal.kategoria.includes('üsző')) &&
+           animal.statusz === 'aktív';
   },
+  suggestedActions: [
+    'VV vizsgálat előkészítése',
+    'Állatorvos időpont egyeztetése',
+    'Hárem karám ellenőrzése'
+  ],
+  canCreateTask: true,
+  canPostpone: true,
+  appliesTo: ['háremben_lévő_üsző', 'tehén']
+},
+
+{
+  type: 'vv_ajanlott',
+  priority: 'magas',
+  title: '⚠️ VV ajánlott ideje',
+  description: 'Háremben 75 napja lévő állat VV vizsgálata ajánlott - ENAR: {enar}',
+  checkCondition: (animal) => {
+    if (!animal.pairing_date || animal.vv_date) return false;
+    
+    const pairingDate = new Date(animal.pairing_date);
+    const daysSincePairing = Math.floor((Date.now() - pairingDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    return daysSincePairing >= 75 && daysSincePairing <= 89 &&
+           (animal.kategoria.includes('tehén') || animal.kategoria.includes('üsző')) &&
+           animal.statusz === 'aktív';
+  },
+  suggestedActions: [
+    'Állatorvos meghívása VV vizsgálatra',
+    'Ultrahangos vizsgálat elvégzése',
+    'VV eredmény rögzítése a rendszerben'
+  ],
+  canCreateTask: true,
+  canPostpone: true,
+  appliesTo: ['háremben_lévő_üsző', 'tehén']
+},
+
+{
+  type: 'vv_surgos',
+  priority: 'kritikus',
+  title: '🚨 VV sürgős!',
+  description: 'Háremben 90+ napja lévő állat VV vizsgálata már késik! - ENAR: {enar}',
+  checkCondition: (animal) => {
+    if (!animal.pairing_date || animal.vv_date) return false;
+    
+    const pairingDate = new Date(animal.pairing_date);
+    const daysSincePairing = Math.floor((Date.now() - pairingDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    return daysSincePairing >= 90 &&
+           (animal.kategoria.includes('tehén') || animal.kategoria.includes('üsző')) &&
+           animal.statusz === 'aktív';
+  },
+  suggestedActions: [
+    'AZONNALI VV vizsgálat szükséges',
+    'Túlkésett vemhesség ellenőrzése',
+    'Reprodukciós állapot felülvizsgálata'
+  ],
+  canCreateTask: true,
+  canPostpone: false,
+  appliesTo: ['háremben_lévő_üsző', 'tehén']
+},
 
   // 💉 RCC VAKCINA (2 hónap ellés előtt)
   {
@@ -260,11 +412,11 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     description: 'RCC vakcina beadása ellés előtt 2 hónappal - ENAR: {enar}',
     checkCondition: (animal) => {
       if (!animal.expected_birth_date || animal.pregnancy_status !== 'vemhes') return false;
-      
+
       const expectedBirth = new Date(animal.expected_birth_date);
       const rccDueDate = new Date(expectedBirth.getTime() - (60 * 24 * 60 * 60 * 1000)); // 2 hónap előtte
       const today = new Date();
-      
+
       return today >= rccDueDate && today <= new Date(rccDueDate.getTime() + (7 * 24 * 60 * 60 * 1000));
     },
     suggestedActions: [
@@ -285,11 +437,11 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     description: 'BoviPast vakcina beadása ellés előtt 4 héttel - ENAR: {enar}',
     checkCondition: (animal) => {
       if (!animal.expected_birth_date || animal.pregnancy_status !== 'vemhes') return false;
-      
+
       const expectedBirth = new Date(animal.expected_birth_date);
       const boviDueDate = new Date(expectedBirth.getTime() - (28 * 24 * 60 * 60 * 1000)); // 4 hét előtte
       const today = new Date();
-      
+
       return today >= boviDueDate && today <= new Date(boviDueDate.getTime() + (7 * 24 * 60 * 60 * 1000));
     },
     suggestedActions: [
@@ -310,11 +462,11 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     description: 'Vemhes állat abrakjának megvonása ellés előtt 2 hónappal - ENAR: {enar}',
     checkCondition: (animal) => {
       if (!animal.expected_birth_date || animal.pregnancy_status !== 'vemhes') return false;
-      
+
       const expectedBirth = new Date(animal.expected_birth_date);
       const feedStopDate = new Date(expectedBirth.getTime() - (60 * 24 * 60 * 60 * 1000)); // 2 HÓNAP előtte!
       const today = new Date();
-      
+
       return today >= feedStopDate && today <= new Date(feedStopDate.getTime() + (3 * 24 * 60 * 60 * 1000));
     },
     suggestedActions: [
@@ -335,11 +487,11 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     description: 'Állat ellető karámba mozgatása ellés előtt 1 héttel - ENAR: {enar}',
     checkCondition: (animal) => {
       if (!animal.expected_birth_date || animal.pregnancy_status !== 'vemhes') return false;
-      
+
       const expectedBirth = new Date(animal.expected_birth_date);
       const moveDate = new Date(expectedBirth.getTime() - (7 * 24 * 60 * 60 * 1000)); // 1 hét előtte
       const today = new Date();
-      
+
       return today >= moveDate && today <= new Date(moveDate.getTime() + (2 * 24 * 60 * 60 * 1000));
     },
     suggestedActions: [
@@ -360,11 +512,11 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     description: 'Állat ellése napokban várható - ENAR: {enar}',
     checkCondition: (animal) => {
       if (!animal.expected_birth_date || animal.pregnancy_status !== 'vemhes') return false;
-      
+
       const expectedBirth = new Date(animal.expected_birth_date);
       const today = new Date();
       const daysUntilBirth = Math.ceil((expectedBirth.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       return daysUntilBirth >= 0 && daysUntilBirth <= 3;
     },
     suggestedActions: [
@@ -385,11 +537,11 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     description: 'Ellés határideje túllépve - azonnali vizsgálat - ENAR: {enar}',
     checkCondition: (animal) => {
       if (!animal.expected_birth_date || animal.pregnancy_status !== 'vemhes') return false;
-      
+
       const expectedBirth = new Date(animal.expected_birth_date);
       const today = new Date();
       const daysOverdue = Math.floor((today.getTime() - expectedBirth.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       return daysOverdue >= 7; // 1 hét túlhordás
     },
     suggestedActions: [
@@ -410,10 +562,10 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     description: 'Üres állat újbóli vemhességvizsgálata 2 hónap után - ENAR: {enar}',
     checkCondition: (animal) => {
       if (!animal.vv_date || animal.pregnancy_status !== 'ures') return false;
-      
+
       const vvDate = new Date(animal.vv_date);
       const daysSinceVV = Math.floor((Date.now() - vvDate.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       return daysSinceVV >= 60 && daysSinceVV <= 70; // 2 hónap után
     },
     suggestedActions: [
@@ -495,11 +647,11 @@ function calculateAgeInDays(birthDate: string): number {
 function calculateAgeInMonths(birthDate: string): number {
   const birth = new Date(birthDate);
   const today = new Date();
-  
+
   let months = (today.getFullYear() - birth.getFullYear()) * 12;
   months -= birth.getMonth();
   months += today.getMonth();
-  
+
   return months;
 }
 
@@ -534,11 +686,11 @@ export class MagyarAlertEngine {
           animal_id: animal.id,
           enar: animal.enar,
           pen_id: (animal as any).jelenlegi_karam || null,
-          pen_number: (animal as any).jelenlegi_karam || null,  
+          pen_number: (animal as any).jelenlegi_karam || null,
           animal: {
-  id: parseInt(animal.id) || 0,  // ← konverzió string→number
-  enar: animal.enar
-},
+            id: parseInt(animal.id) || 0,  // ← konverzió string→number
+            enar: animal.enar
+          },
           created_at: new Date().toISOString(),
           due_date: this.calculateDueDate(rule, animal),
           action_required: rule.suggestedActions.join(', '),
@@ -550,7 +702,7 @@ export class MagyarAlertEngine {
           is_resolved: false,
           is_snoozed: false,
           metadata: {
-            animal_age_days: rule.daysFromBirth ? 
+            animal_age_days: rule.daysFromBirth ?
               calculateAgeInDays(animal.szuletesi_datum) : undefined,
             animal_age_months: calculateAgeInMonths(animal.szuletesi_datum),
             rule_type: rule.type,
@@ -576,7 +728,7 @@ export class MagyarAlertEngine {
    */
   generateAlertsForAnimals(animals: Animal[]): Alert[] {
     const allAlerts: Alert[] = [];
-    
+
     for (const animal of animals) {
       const animalAlerts = this.generateAlertsForAnimal(animal);
       allAlerts.push(...animalAlerts);
@@ -584,7 +736,7 @@ export class MagyarAlertEngine {
 
     // Prioritás szerinti rendezés (surgos -> kritikus -> magas -> kozepes -> alacsony)
     const priorityOrder: AlertPriority[] = ['surgos', 'kritikus', 'magas', 'kozepes', 'alacsony'];
-    
+
     return allAlerts.sort((a, b) => {
       const aIndex = priorityOrder.indexOf(a.priority);
       const bIndex = priorityOrder.indexOf(b.priority);
@@ -597,11 +749,11 @@ export class MagyarAlertEngine {
    */
   generateAllAlerts(animals: Animal[], pens: PenInfo[]): Alert[] {
     const alerts: Alert[] = [];
-    
+
     // Állat alertek
     const animalAlerts = this.generateAlertsForAnimals(animals);
     alerts.push(...animalAlerts);
-    
+
     // Karám alertek
     for (const pen of pens) {
       for (const rule of KARAM_ALERT_SZABALYOK) {
@@ -632,12 +784,12 @@ export class MagyarAlertEngine {
               animal_count: pen.current_count
             }
           };
-          
+
           alerts.push(alert);
         }
       }
     }
-    
+
     return alerts.sort((a, b) => {
       const priorityOrder: AlertPriority[] = ['surgos', 'kritikus', 'magas', 'kozepes', 'alacsony'];
       const aIndex = priorityOrder.indexOf(a.priority);
@@ -653,7 +805,7 @@ export class MagyarAlertEngine {
     // VV protokoll alertek pontos dátumokkal
     if (animal.expected_birth_date) {
       const expectedBirth = new Date(animal.expected_birth_date);
-      
+
       switch (rule.type) {
         case 'rcc_vakcina_esedékes':
           return new Date(expectedBirth.getTime() - (60 * 24 * 60 * 60 * 1000)).toISOString(); // 2 hónap
@@ -667,18 +819,29 @@ export class MagyarAlertEngine {
           return expectedBirth.toISOString();
       }
     }
-    
-    // VV esedékesség (75 nap párzás után)
-    if (rule.type === 'vemhessegvizsgalat' && animal.pairing_date) {
-      const pairingDate = new Date(animal.pairing_date);
-      return addDays(pairingDate, 75).toISOString();
-    }
-    
+
+    // VV esedékesség (60-90 nap párzás után)
+if ((rule.type === 'vv_idoszak_kezdete' || 
+     rule.type === 'vv_ajanlott' || 
+     rule.type === 'vv_surgos') && animal.pairing_date) {
+  const pairingDate = new Date(animal.pairing_date);
+  
+  // Típus alapján különböző esedékesség
+  if (rule.type === 'vv_idoszak_kezdete') {
+    return addDays(pairingDate, 60).toISOString();  // 60 nap
+  } else if (rule.type === 'vv_ajanlott') {
+    return addDays(pairingDate, 75).toISOString();  // 75 nap
+  } else {
+    return addDays(pairingDate, 90).toISOString();  // 90 nap
+  }
+}
+
     // Sürgős riasztások
-    if (rule.type === 'vakcinazas_esedékes' || rule.type === 'elles_kesesben') {
+    // CSAK ezek legyenek sürgősek:
+    if (rule.type === 'fulszam_surgos' || rule.type === 'elles_kesesben') {
       return new Date(Date.now() + (3 * 24 * 60 * 60 * 1000)).toISOString();
     }
-    
+
     // Alapértelmezett esedékesség
     return new Date(Date.now() + (14 * 24 * 60 * 60 * 1000)).toISOString();
   }
@@ -692,9 +855,9 @@ export class MagyarAlertEngine {
       aktiv: alerts.filter(a => !a.is_resolved && !a.is_snoozed).length,
       megoldott: alerts.filter(a => a.is_resolved).length,
       halasztott: alerts.filter(a => a.is_snoozed).length,
-      lejart: alerts.filter(a => 
-        a.due_date && 
-        new Date(a.due_date) < new Date() && 
+      lejart: alerts.filter(a =>
+        a.due_date &&
+        new Date(a.due_date) < new Date() &&
         !a.is_resolved
       ).length,
       surgos: alerts.filter(a => a.priority === 'surgos').length,
@@ -775,8 +938,8 @@ export class MagyarAlertEngine {
   }
 
   static getCapacityAlerts(alerts: Alert[]): Alert[] {
-    return alerts.filter(alert => 
-      alert.type === 'kapacitas_tullepes' || 
+    return alerts.filter(alert =>
+      alert.type === 'kapacitas_tullepes' ||
       alert.type === 'kapacitas_alulhasznaltsag'
     );
   }

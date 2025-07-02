@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { CalfWithDetails } from '@/types/calf-types';
 import EarTagModal from '@/components/ear-tag-modal';
+import { useAlertsNew } from '@/hooks/useAlertsNew';
 
 export default function CalvesPage() {
     const [calves, setCalves] = useState<CalfWithDetails[]>([]);
@@ -14,6 +15,7 @@ export default function CalvesPage() {
     const [isEarTagModalOpen, setIsEarTagModalOpen] = useState(false);
     const [selectedCalfDetails, setSelectedCalfDetails] = useState<CalfWithDetails | null>(null);
     const [motherEnarFilter, setMotherEnarFilter] = useState('');
+    const { animalAlerts } = useAlertsNew();
 
     const supabase = createClient();
 
@@ -77,23 +79,41 @@ export default function CalvesPage() {
         return gender === 'male' ? '🐂 Bika' : '🐄 Üsző';
     };
 
-    const getProtocolStatus = (birthDate: string) => {
-        const age = calculateAge(birthDate);
-        if (age <= 15) {
-            return {
-                status: 'pending',
-                message: `${15 - age} nap múlva: BoviPast + fülszám`,
-                color: 'bg-yellow-100 text-yellow-800 border-yellow-200'
-            };
-        } else {
-            return {
-                status: 'overdue',
-                message: `${age - 15} napja túllépte: Sürgős protokoll!`,
-                color: 'bg-red-100 text-red-800 border-red-200'
-            };
-        }
+    const getCalfAlerts = (birthDate: string) => {
+    const age = calculateAge(birthDate);
+    
+    // MagyarAlertEngine szabályrendszer követése:
+    if (age >= 10 && age <= 14) {
+        return {
+            status: 'pending',
+            message: '🏷️ Fülszám időszak kezdete',
+            color: 'bg-green-100 text-green-800 border-green-200'
+        };
+    }
+    
+    if (age >= 15 && age <= 19) {
+        return {
+            status: 'pending', 
+            message: '⚠️ Fülszám ajánlott ideje',
+            color: 'bg-yellow-100 text-yellow-800 border-yellow-200'
+        };
+    }
+    
+    if (age >= 20) {
+        return {
+            status: 'overdue',
+            message: '🚨 Fülszám sürgős!',
+            color: 'bg-red-100 text-red-800 border-red-200'
+        };
+    }
+    
+    // Korai borjak (0-9 nap)
+    return {
+        status: 'early',
+        message: `${10 - age} nap múlva: Fülszám időszak`,
+        color: 'bg-blue-100 text-blue-800 border-blue-200'
     };
-
+};
     if (loading) {
         return (
             <div className="p-6">
@@ -137,7 +157,7 @@ export default function CalvesPage() {
                 <p className="text-gray-600">
                     Fülszám nélküli borjak kezelése és 15 napos protokoll követése
                 </p>
-                
+
                 {/* Anya ENAR szűrő */}
                 <div className="mt-4">
                     <input
@@ -182,8 +202,8 @@ export default function CalvesPage() {
             </div>
 
             {/* Calves Table */}
-            {calves.filter(calf => 
-                motherEnarFilter === '' || 
+            {calves.filter(calf =>
+                motherEnarFilter === '' ||
                 calf.birth?.mother_enar?.toLowerCase().includes(motherEnarFilter.toLowerCase())
             ).length === 0 ? (
                 <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
@@ -192,7 +212,7 @@ export default function CalvesPage() {
                         {motherEnarFilter ? 'Nincs találat a szűrésre' : 'Nincsenek fülszám nélküli borjak'}
                     </h3>
                     <p className="text-gray-600">
-                        {motherEnarFilter ? 
+                        {motherEnarFilter ?
                             'Próbáld meg módosítani a keresési feltételt.' :
                             'Minden borjú megkapta a fülszámát, vagy még nem születtek új borjak.'
                         }
@@ -231,12 +251,12 @@ export default function CalvesPage() {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                                {calves.filter(calf => 
-                                    motherEnarFilter === '' || 
+                                {calves.filter(calf =>
+                                    motherEnarFilter === '' ||
                                     calf.birth?.mother_enar?.toLowerCase().includes(motherEnarFilter.toLowerCase())
                                 ).map((calf) => {
                                     const age = calculateAge(calf.birth?.birth_date || '');
-                                    const protocol = getProtocolStatus(calf.birth?.birth_date || '');
+                                    const protocol = getCalfAlerts(calf.birth?.birth_date || '');
 
                                     return (
                                         <tr key={calf.id} className="hover:bg-gray-50">
@@ -308,7 +328,7 @@ export default function CalvesPage() {
                     </div>
                 </div>
             )}
-            
+
             {/* EarTag Modal */}
             {selectedCalf && (
                 <EarTagModal
@@ -365,8 +385,8 @@ export default function CalvesPage() {
                                         <div>
                                             <span className="text-gray-600">Születés:</span>
                                             <div className="font-medium">
-                                                {selectedCalfDetails.birth?.birth_date ? 
-                                                    new Date(selectedCalfDetails.birth.birth_date).toLocaleDateString('hu-HU') : 
+                                                {selectedCalfDetails.birth?.birth_date ?
+                                                    new Date(selectedCalfDetails.birth.birth_date).toLocaleDateString('hu-HU') :
                                                     '-'
                                                 }
                                             </div>
@@ -374,8 +394,8 @@ export default function CalvesPage() {
                                         <div>
                                             <span className="text-gray-600">Életkor:</span>
                                             <div className="font-medium">
-                                                {selectedCalfDetails.birth?.birth_date ? 
-                                                    `${calculateAge(selectedCalfDetails.birth.birth_date)} nap` : 
+                                                {selectedCalfDetails.birth?.birth_date ?
+                                                    `${calculateAge(selectedCalfDetails.birth.birth_date)} nap` :
                                                     '-'
                                                 }
                                             </div>
@@ -407,7 +427,7 @@ export default function CalvesPage() {
                                     <button
                                         onClick={async () => {
                                             const plannedEnar = prompt(
-                                                'Add meg a tervezett ENAR számot:', 
+                                                'Add meg a tervezett ENAR számot:',
                                                 selectedCalfDetails.planned_enar || 'HU '
                                             );
                                             if (plannedEnar) {
@@ -443,7 +463,7 @@ export default function CalvesPage() {
                                     </h4>
                                     {(() => {
                                         if (!selectedCalfDetails.birth?.birth_date) return null;
-                                        const protocol = getProtocolStatus(selectedCalfDetails.birth.birth_date);
+                                        const protocol = getCalfAlerts(selectedCalfDetails.birth.birth_date);
                                         return (
                                             <div className={`p-3 rounded border ${protocol.color}`}>
                                                 <div className="font-medium">{protocol.message}</div>
