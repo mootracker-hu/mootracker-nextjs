@@ -136,6 +136,13 @@ export interface BirthFormProps {
       possibleFathers?: FatherOption[];
     };
   };
+
+// 🆕 EDIT MÓD TÁMOGATÁS:
+  editMode?: boolean;
+  editData?: {
+    birth: any;
+    calves: any[];
+  };
 }
 
 // Constants for form options

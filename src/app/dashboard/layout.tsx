@@ -14,19 +14,61 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: '📊' },
-    { name: 'Állatok', href: '/dashboard/animals', icon: '🐄' },
-    { name: 'Karámok', href: '/dashboard/pens', icon: '🏠' },
-    { name: 'Várható ellések', href: '/dashboard/expected-births', icon: '🐮' },
-    { name: 'Feladatok', href: '/dashboard/tasks', icon: '⏰' },
-    { name: 'Egészségügy', href: '/dashboard/health', icon: '💊' },
-    { name: 'Takarmányozás', href: '/dashboard/feeding', icon: '🌾' },
-    { name: 'Megfigyelések', href: '/dashboard/observations', icon: '👁️' },
-    { name: 'Vemhesség', href: '/dashboard/breeding', icon: '🍼' },
-    { name: 'Csapat', href: '/dashboard/team', icon: '👥' },
-    { name: 'Beállítások', href: '/dashboard/settings/farm', icon: '⚙️' },
-    { name: 'Import/Export', href: '/dashboard/import-export', icon: '📋' },
-  ];
+  { 
+    name: 'Dashboard', 
+    href: '/dashboard', 
+    icon: '📊',
+    current: pathname === '/dashboard'
+  },
+  { 
+    name: 'Állatok', 
+    href: '/dashboard/animals', 
+    icon: '🐄',
+    current: pathname.startsWith('/dashboard/animals')
+  },
+  { 
+    name: 'Borjak', 
+    href: '/dashboard/calves', 
+    icon: '🐮',
+    current: pathname.startsWith('/dashboard/calves')
+  },
+  { 
+    name: 'Karamok', 
+    href: '/dashboard/pens', 
+    icon: '🏠',
+    current: pathname.startsWith('/dashboard/pens')
+  },
+  { 
+    name: 'Várható ellések', 
+    href: '/dashboard/expected-births', 
+    icon: '🐮',
+    current: pathname.startsWith('/dashboard/expected-births')
+  },
+  { 
+    name: 'Feladatok', 
+    href: '/dashboard/tasks', 
+    icon: '📋',
+    current: pathname.startsWith('/dashboard/tasks')
+  },
+  { 
+    name: 'Csapat', 
+    href: '/dashboard/team', 
+    icon: '👥',
+    current: pathname.startsWith('/dashboard/team')
+  },
+  { 
+    name: 'Import/Export', 
+    href: '/dashboard/import-export', 
+    icon: '📁',
+    current: pathname.startsWith('/dashboard/import-export')
+  },
+  { 
+    name: 'Beállítások', 
+    href: '/dashboard/settings/farm', 
+    icon: '⚙️',
+    current: pathname.startsWith('/dashboard/settings')
+  },
+];
 
   const handleLogout = () => {
     router.push('/');

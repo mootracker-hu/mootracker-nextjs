@@ -462,7 +462,10 @@ function EllesTab({ animal }: { animal: any }) {
           .from('births')
           .select(`
             *,
-            calves (*)
+            calves (
+  *,
+  planned_enar
+)
           `)
           .eq('mother_enar', animal?.enar)
           .order('birth_date', { ascending: false });
@@ -498,12 +501,12 @@ function EllesTab({ animal }: { animal: any }) {
     setBirthHistory(data || []);
   };
 
-   React.useEffect(() => {
+  React.useEffect(() => {
     const fetchPossibleAnimals = async () => {
       if (!assigningEarTag || !animal?.enar) return;
-      
+
       console.log('🔍 Keresés: állatok akiknek anyja =', animal.enar);
-      
+
       try {
         const { data, error } = await supabase
           .from('animals')
@@ -525,8 +528,8 @@ function EllesTab({ animal }: { animal: any }) {
 
     fetchPossibleAnimals();
   }, [assigningEarTag, animal?.enar]);
-  
- const handleEditBirth = (birth: any) => {
+
+  const handleEditBirth = (birth: any) => {
     console.log('Edit Birth:', birth);
     setEditingBirth(birth);
     setShowBirthForm(true);
@@ -583,18 +586,25 @@ function EllesTab({ animal }: { animal: any }) {
       </div>
 
       {showBirthForm && (
-        <BirthForm
-          motherEnar={String(animal?.enar || 'ISMERETLEN')}
-          onSuccess={() => {
-            setShowBirthForm(false);
-            refreshBirthHistory();
-            alert('✅ Ellés sikeresen rögzítve!');
-          }}
-          onCancel={() => {
-            setShowBirthForm(false);
-          }}
-        />
-      )}
+  <BirthForm
+    motherEnar={String(animal?.enar || 'ISMERETLEN')}
+    editMode={!!editingBirth}                    // 🆕 Edit mód flag
+    editData={editingBirth ? {                   // 🆕 Edit adatok
+      birth: editingBirth,
+      calves: editingBirth.calves || []
+    } : undefined}
+    onSuccess={() => {
+      setShowBirthForm(false);
+      setEditingBirth(null);                     // 🆕 Edit state reset
+      refreshBirthHistory();
+      alert(editingBirth ? '✅ Ellés sikeresen frissítve!' : '✅ Ellés sikeresen rögzítve!');
+    }}
+    onCancel={() => {
+      setShowBirthForm(false);
+      setEditingBirth(null);                     // 🆕 Edit state reset
+    }}
+  />
+)}
 
       {/* Ellési Történet Táblázat */}
       <div className="bg-white rounded-lg shadow-sm border p-6">
@@ -650,34 +660,32 @@ function EllesTab({ animal }: { animal: any }) {
                       )}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        birth.birth_type === 'easy_no_help' ? 'bg-green-100 text-green-800' :
-                        birth.birth_type === 'easy_with_help' ? 'bg-yellow-100 text-yellow-800' :
-                        birth.birth_type === 'difficult_help' ? 'bg-orange-100 text-orange-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${birth.birth_type === 'easy_no_help' ? 'bg-green-100 text-green-800' :
+                          birth.birth_type === 'easy_with_help' ? 'bg-yellow-100 text-yellow-800' :
+                            birth.birth_type === 'difficult_help' ? 'bg-orange-100 text-orange-800' :
+                              'bg-red-100 text-red-800'
+                        }`}>
                         {birth.birth_type === 'easy_no_help' ? '🟢 Könnyű' :
-                         birth.birth_type === 'easy_with_help' ? '🟡 Könnyű, segítséggel' :
-                         birth.birth_type === 'difficult_help' ? '🟠 Nehéz, segítséggel' :
-                         '🔴 Nehéz, állatorvosi'}
+                          birth.birth_type === 'easy_with_help' ? '🟡 Könnyű, segítséggel' :
+                            birth.birth_type === 'difficult_help' ? '🟠 Nehéz, segítséggel' :
+                              '🔴 Nehéz, állatorvosi'}
                       </span>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        birth.birth_outcome === 'successful' ? 'bg-green-100 text-green-800' :
-                        birth.birth_outcome === 'stillborn' ? 'bg-red-100 text-red-800' :
-                        'bg-orange-100 text-orange-800'
-                      }`}>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${birth.birth_outcome === 'successful' ? 'bg-green-100 text-green-800' :
+                          birth.birth_outcome === 'stillborn' ? 'bg-red-100 text-red-800' :
+                            'bg-orange-100 text-orange-800'
+                        }`}>
                         {birth.birth_outcome === 'successful' ? '✅ Sikeres' :
-                         birth.birth_outcome === 'stillborn' ? '💀 Halva születés' :
-                         '⚠️ Vetélés'}
+                          birth.birth_outcome === 'stillborn' ? '💀 Halva születés' :
+                            '⚠️ Vetélés'}
                       </span>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                       {birth.calves?.length || 0} db
                       {birth.calves?.map((calf: any, i: number) => (
                         <div key={i} className="text-xs text-gray-500">
-                          {calf.gender === 'male' ? '🐂' : '🐄'} {calf.temp_id} 
+                          {calf.gender === 'male' ? '🐂' : '🐄'} {calf.temp_id}
                           {calf.is_alive ? ' 💚' : ' 💀'}
                           {calf.enar && <span className="text-blue-600"> 🏷️</span>}
                         </div>
@@ -750,19 +758,18 @@ function EllesTab({ animal }: { animal: any }) {
                     )}
                     <p><strong>Ellés típusa:</strong> {
                       selectedBirth.birth_type === 'easy_no_help' ? '🟢 Könnyű, segítség nélkül' :
-                      selectedBirth.birth_type === 'easy_with_help' ? '🟡 Könnyű, segítséggel' :
-                      selectedBirth.birth_type === 'difficult_help' ? '🟠 Nehéz, segítséggel' :
-                      '🔴 Nehéz, állatorvosi beavatkozással'
+                        selectedBirth.birth_type === 'easy_with_help' ? '🟡 Könnyű, segítséggel' :
+                          selectedBirth.birth_type === 'difficult_help' ? '🟠 Nehéz, segítséggel' :
+                            '🔴 Nehéz, állatorvosi beavatkozással'
                     }</p>
                     <p><strong>Eredmény:</strong>
-                      <span className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        selectedBirth.birth_outcome === 'successful' ? 'bg-green-100 text-green-800' :
-                        selectedBirth.birth_outcome === 'stillborn' ? 'bg-red-100 text-red-800' :
-                        'bg-orange-100 text-orange-800'
-                      }`}>
+                      <span className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${selectedBirth.birth_outcome === 'successful' ? 'bg-green-100 text-green-800' :
+                          selectedBirth.birth_outcome === 'stillborn' ? 'bg-red-100 text-red-800' :
+                            'bg-orange-100 text-orange-800'
+                        }`}>
                         {selectedBirth.birth_outcome === 'successful' ? '✅ Sikeres' :
-                         selectedBirth.birth_outcome === 'stillborn' ? '💀 Halva születés' :
-                         '⚠️ Vetélés'}
+                          selectedBirth.birth_outcome === 'stillborn' ? '💀 Halva születés' :
+                            '⚠️ Vetélés'}
                       </span>
                     </p>
                     <p><strong>Anya túlélte:</strong> {selectedBirth.mother_survived ? '✅ Igen' : '❌ Nem'}</p>
@@ -784,9 +791,8 @@ function EllesTab({ animal }: { animal: any }) {
                           <span className="font-medium text-gray-900">
                             {calf.gender === 'male' ? '🐂' : '🐄'} {calf.temp_id}
                           </span>
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            calf.is_alive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${calf.is_alive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
                             {calf.is_alive ? '💚 Él' : '💀 Nem él'}
                           </span>
                         </div>
@@ -801,13 +807,53 @@ function EllesTab({ animal }: { animal: any }) {
                           </div>
                         ) : (
                           <div>
-                            <p className="text-orange-600 mb-2"><strong>ENAR:</strong> ⏳ Függőben</p>
-                            <button
-                              onClick={() => setAssigningEarTag(calf)}
-                              className="bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-1 rounded transition-colors inline-flex items-center"
-                            >
-                              🏷️ {selectedBirth.historical ? 'Összekapcsolás' : 'Fülszám hozzárendelése'}
-                            </button>
+                            {calf.planned_enar ? (
+                              <div>
+                                <p className="text-blue-600 mb-2"><strong>Tervezett ENAR:</strong> 📝 {calf.planned_enar}</p>
+                                <p className="text-orange-600 mb-2"><strong>Státusz:</strong> ⏳ Fülszám behelyezésre vár</p>
+                              </div>
+                            ) : (
+                              <p className="text-orange-600 mb-2"><strong>ENAR:</strong> ⏳ Függőben</p>
+                            )}
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setAssigningEarTag(calf)}
+                                className="bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-1 rounded transition-colors inline-flex items-center"
+                              >
+                                🏷️ {selectedBirth.historical ? 'Összekapcsolás' : 'Fülszám hozzárendelése'}
+                              </button>
+                              {!calf.planned_enar && (
+                                <button
+                                  onClick={async () => {
+                                    const plannedEnar = prompt('Add meg a tervezett ENAR számot:', 'HU ');
+                                    if (plannedEnar) {
+                                      // Planned ENAR mentése
+                                      try {
+                                        const { error } = await supabase
+                                          .from('calves')
+                                          .update({ planned_enar: plannedEnar })
+                                          .eq('temp_id', calf.temp_id);
+
+                                        if (error) {
+                                          console.error('❌ Planned ENAR mentési hiba:', error);
+                                          alert('❌ Hiba történt a tervezett ENAR mentésekor!');
+                                        } else {
+                                          console.log('✅ Planned ENAR mentve:', plannedEnar, 'for calf:', calf.temp_id);
+                                          alert('✅ Tervezett ENAR sikeresen mentve!');
+                                          refreshBirthHistory(); // UI frissítése
+                                        }
+                                      } catch (err) {
+                                        console.error('❌ Planned ENAR save error:', err);
+                                        alert('❌ Váratlan hiba történt!');
+                                      }
+                                    }
+                                  }}
+                                  className="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1 rounded transition-colors inline-flex items-center"
+                                >
+                                  📝 ENAR tervezése
+                                </button>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -829,7 +875,7 @@ function EllesTab({ animal }: { animal: any }) {
                 )}
               </div>
 
-                {selectedBirth.mother_notes && (
+              {selectedBirth.mother_notes && (
                 <div className="mt-6">
                   <h4 className="font-semibold text-gray-900 mb-2 flex items-center">
                     <span className="mr-2">🐄</span>
@@ -854,7 +900,7 @@ function EllesTab({ animal }: { animal: any }) {
                       </p>
                     </div>
                   )}
-                  
+
                   {selectedBirth.notes && (
                     <div>
                       <h4 className="font-semibold text-gray-900 mb-2 flex items-center">
@@ -902,7 +948,7 @@ function EllesTab({ animal }: { animal: any }) {
                 <p className="text-sm"><strong>Ellés dátuma:</strong> {new Date(deletingBirth.birth_date).toLocaleDateString('hu-HU')}</p>
                 <p className="text-sm"><strong>Eredmény:</strong> {
                   deletingBirth.birth_outcome === 'successful' ? 'Sikeres ellés' :
-                  deletingBirth.birth_outcome === 'stillborn' ? 'Halva születés' : 'Vetélés'
+                    deletingBirth.birth_outcome === 'stillborn' ? 'Halva születés' : 'Vetélés'
                 }</p>
                 <p className="text-sm"><strong>Borjak:</strong> {deletingBirth.calves?.length || 0} db</p>
               </div>
@@ -970,17 +1016,17 @@ function EllesTab({ animal }: { animal: any }) {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Válaszd ki a megfelelő állatot:
                 </label>
-                
+
                 <div className="bg-gray-50 p-3 rounded-lg mb-3">
                   <p className="text-sm text-gray-600 mb-2">💡 Javasolt állatok (anya: {animal.enar}):</p>
-                  
+
                   <div className="space-y-2">
                     {possibleAnimals.length > 0 ? (
                       possibleAnimals.map((possibleAnimal, index) => (
                         <div key={possibleAnimal.enar} className="flex items-center p-2 bg-green-50 border border-green-200 rounded">
-                          <input 
-                            type="radio" 
-                            name="selectedAnimal" 
+                          <input
+                            type="radio"
+                            name="selectedAnimal"
                             value={possibleAnimal.enar}
                             className="mr-3"
                           />
@@ -1006,7 +1052,7 @@ function EllesTab({ animal }: { animal: any }) {
                 </div>
 
                 <div className="text-xs text-gray-500 bg-yellow-50 p-2 rounded">
-                  ⚠️ {selectedBirth?.historical 
+                  ⚠️ {selectedBirth?.historical
                     ? 'Történeti ellés - keresünk olyan állatokat, amelyek már léteznek, de nincs ellési kapcsolatuk.'
                     : 'Új ellés - keresünk olyan állatokat, amelyeknek nincs még fülszám hozzárendelve és az anya egyezik.'
                   }
@@ -1023,7 +1069,7 @@ function EllesTab({ animal }: { animal: any }) {
                 <button
                   onClick={async () => {
                     const selectedAnimalEnar = (document.querySelector('input[name="selectedAnimal"]:checked') as HTMLInputElement)?.value;
-                    
+
                     if (!selectedAnimalEnar) {
                       alert('⚠️ Kérlek válassz ki egy állatot!');
                       return;
@@ -1091,7 +1137,7 @@ function EllesTab({ animal }: { animal: any }) {
                 <p className="text-sm"><strong>Ellés dátuma:</strong> {new Date(deletingBirth.birth_date).toLocaleDateString('hu-HU')}</p>
                 <p className="text-sm"><strong>Eredmény:</strong> {
                   deletingBirth.birth_outcome === 'successful' ? 'Sikeres ellés' :
-                  deletingBirth.birth_outcome === 'stillborn' ? 'Halva születés' : 'Vetélés'
+                    deletingBirth.birth_outcome === 'stillborn' ? 'Halva születés' : 'Vetélés'
                 }</p>
                 <p className="text-sm"><strong>Borjak:</strong> {deletingBirth.calves?.length || 0} db</p>
               </div>
@@ -1939,13 +1985,13 @@ export default function AnimalDetailPage() {
 
         {/* Placeholder tabs */}
 
-     {/* Ellés Tab */}
-{activeTab === 'elles' && (
-  <EllesTab animal={animal} />
-)}
+        {/* Ellés Tab */}
+        {activeTab === 'elles' && (
+          <EllesTab animal={animal} />
+        )}
 
-{/* Placeholder tabs */}
-{['egeszseg', 'esemenynaplo'].includes(activeTab) && (
+        {/* Placeholder tabs */}
+        {['egeszseg', 'esemenynaplo'].includes(activeTab) && (
           <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
             <div className="text-gray-400 text-6xl mb-4">🐄</div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
