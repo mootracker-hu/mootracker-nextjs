@@ -18,6 +18,7 @@ interface Pen {
   location?: string;
   current_function?: PenFunction;
   animal_count: number;
+  onMove: (targetPenId: string, reason: string, notes: string, isHistorical?: boolean, moveDate?: string) => void;
 }
 
 interface PenFunction {
@@ -31,7 +32,7 @@ interface AnimalMovementPanelProps {
   animals: Animal[];
   availablePens: Pen[];
   currentPenId: string;
-  onMove: (targetPenId: string, reason: string, notes: string) => void;
+   onMove: (targetPenId: string, reason: string, notes: string, isHistorical?: boolean, moveDate?: string) => void;
 }
 
 export default function AnimalMovementPanel({
@@ -47,6 +48,8 @@ export default function AnimalMovementPanel({
   const [movementReason, setMovementReason] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isHistorical, setIsHistorical] = useState(false);
+  const [historicalDate, setHistoricalDate] = useState('');
 
   // Kiválasztott állatok adatai
   const selectedAnimalData = animals.filter(animal => selectedAnimals.includes(animal.id));
@@ -81,17 +84,43 @@ export default function AnimalMovementPanel({
     return null;
   };
 
-  // Mozgatás végrehajtása
+  // JAVÍTOTT Mozgatás végrehajtása
   const handleMove = async () => {
     if (!targetPenId || !movementReason) return;
+    if (isHistorical && !historicalDate) return;
 
     setLoading(true);
     try {
-      await onMove(targetPenId, movementReason, notes);
+      // DEBUG INFORMÁCIÓK
+      console.log('🔧 AnimalMovementPanel handleMove hívás:', {
+        targetPenId,
+        movementReason,
+        notes,
+        isHistorical,
+        historicalDate
+      });
+
+      // Dátum formázás
+      const moveDate = isHistorical ? historicalDate : new Date().toISOString().split('T')[0];
+      
+      console.log('📅 Számított moveDate:', moveDate);
+      console.log('🔄 onMove hívás paraméterekkel:', {
+        targetPenId,
+        reason: movementReason,
+        notes,
+        isHistorical,  // ← 4. paraméter
+        moveDate       // ← 5. paraméter
+      });
+
+      // ✅ JAVÍTOTT: Most már átadjuk a történeti paramétereket!
+      await onMove(targetPenId, movementReason, notes, isHistorical, moveDate);
+      
       // Reset form
       setTargetPenId('');
       setMovementReason('');
       setNotes('');
+      setIsHistorical(false);  // ← Reset a checkbox-ot is
+      setHistoricalDate('');
       onClose();
     } catch (error) {
       console.error('Hiba a mozgatáskor:', error);
@@ -150,7 +179,7 @@ export default function AnimalMovementPanel({
                 <span className="text-lg mr-2">🎯</span>
                 Célkarám: *
               </label>
-              <select 
+              <select
                 value={targetPenId}
                 onChange={(e) => setTargetPenId(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white"
@@ -159,14 +188,14 @@ export default function AnimalMovementPanel({
                 <option value="">Válassz karamot...</option>
                 {filteredPens.map(pen => (
                   <option key={pen.id} value={pen.id}>
-                    {getFunctionEmoji(pen.current_function?.function_type || 'üres')} 
-                    {pen.pen_number} - {pen.location} 
+                    {getFunctionEmoji(pen.current_function?.function_type || 'üres')}
+                    {pen.pen_number} - {pen.location}
                     ({pen.animal_count}/{pen.capacity})
                     {pen.current_function?.function_type && ` - ${pen.current_function.function_type}`}
                   </option>
                 ))}
               </select>
-              
+
               {/* Kapacitás figyelmeztetés */}
               {targetPenId && (() => {
                 const selectedPen = filteredPens.find(p => p.id === targetPenId);
@@ -174,17 +203,14 @@ export default function AnimalMovementPanel({
                   const warning = getCapacityWarning(selectedPen);
                   if (warning) {
                     return (
-                      <div className={`mt-2 p-3 rounded-lg flex items-start ${
-                        warning.includes('túllépi') ? 'bg-red-50 border border-red-200' : 'bg-orange-50 border border-orange-200'
-                      }`}>
-                        <span className={`text-lg mt-0.5 mr-2 ${
-                          warning.includes('túllépi') ? '' : ''
+                      <div className={`mt-2 p-3 rounded-lg flex items-start ${warning.includes('túllépi') ? 'bg-red-50 border border-red-200' : 'bg-orange-50 border border-orange-200'
                         }`}>
+                        <span className={`text-lg mt-0.5 mr-2 ${warning.includes('túllépi') ? '' : ''
+                          }`}>
                           {warning.includes('túllépi') ? '🚨' : '⚠️'}
                         </span>
-                        <span className={`text-sm ${
-                          warning.includes('túllépi') ? 'text-red-800' : 'text-orange-800'
-                        }`}>
+                        <span className={`text-sm ${warning.includes('túllépi') ? 'text-red-800' : 'text-orange-800'
+                          }`}>
                           {warning}
                         </span>
                       </div>
@@ -210,7 +236,7 @@ export default function AnimalMovementPanel({
                 <span className="text-lg mr-2">❓</span>
                 Mozgatás oka: *
               </label>
-              <select 
+              <select
                 value={movementReason}
                 onChange={(e) => setMovementReason(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white"
@@ -219,7 +245,7 @@ export default function AnimalMovementPanel({
                 <option value="">Válassz okot...</option>
                 <option value="age_separation">🎂 Életkor alapú válogatás</option>
                 <option value="breeding">💕 Tenyésztésbe állítás</option>
-                <option value="pregnancy">🤰 Vemhesség</option>
+                <option value="pregnancy">🐄💖 Vemhesség</option>
                 <option value="birthing">🍼 Ellés előkészítés</option>
                 <option value="health">🏥 Egészségügyi ok</option>
                 <option value="capacity">📊 Kapacitás optimalizálás</option>
@@ -228,13 +254,62 @@ export default function AnimalMovementPanel({
               </select>
             </div>
 
+            {/* JAVÍTOTT Történeti mozgás opció - DEBUG INFO */}
+            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={isHistorical}
+                  onChange={(e) => {
+                    const newValue = e.target.checked;
+                    console.log('📚 Történeti checkbox változás:', newValue);
+                    setIsHistorical(newValue);
+                  }}
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-blue-900 flex items-center">
+                  <span className="text-lg mr-2">📚</span>
+                  Történeti karám mozgás (múltbeli adat rögzítése)
+                </span>
+              </label>
+              
+              {/* DEBUG INFO */}
+              <div className="mt-2 text-xs text-gray-500">
+                DEBUG: isHistorical = {isHistorical.toString()}, historicalDate = "{historicalDate}"
+              </div>
+              
+              {isHistorical && (
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-blue-700 mb-2 flex items-center">
+                    <span className="text-lg mr-2">📅</span>
+                    Mozgatás dátuma: *
+                  </label>
+                  <input 
+                    type="date"
+                    value={historicalDate}
+                    onChange={(e) => {
+                      const newDate = e.target.value;
+                      console.log('📅 Dátum változás:', newDate);
+                      setHistoricalDate(newDate);
+                    }}
+                    className="w-full px-4 py-3 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white"
+                    max={new Date().toISOString().split('T')[0]} // Maximum ma
+                    required={isHistorical}
+                  />
+                  <p className="mt-1 text-xs text-blue-600">
+                    ℹ️ Történeti mozgások nem módosítják a jelenlegi karám hozzárendelést
+                  </p>
+                </div>
+              )}
+            </div>
+
             {/* Megjegyzés */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
                 <span className="text-lg mr-2">📝</span>
                 Megjegyzés:
               </label>
-              <textarea 
+              <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
@@ -257,7 +332,7 @@ export default function AnimalMovementPanel({
           </button>
           <button
             onClick={handleMove}
-            disabled={!targetPenId || !movementReason || loading}
+            disabled={!targetPenId || !movementReason || (isHistorical && !historicalDate) || loading}
             className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center"
           >
             {loading ? (
@@ -268,7 +343,7 @@ export default function AnimalMovementPanel({
             ) : (
               <>
                 <span className="mr-2">🔄</span>
-                Mozgatás Végrehajtása
+                {isHistorical ? '📚 Történeti Mozgatás' : '🔄 Mozgatás Végrehajtása'}
               </>
             )}
           </button>
