@@ -17,6 +17,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: 'Dashboard', href: '/dashboard', icon: '📊' },
     { name: 'Állatok', href: '/dashboard/animals', icon: '🐄' },
     { name: 'Karámok', href: '/dashboard/pens', icon: '🏠' },
+    { name: 'Várható ellések', href: '/dashboard/expected-births', icon: '🐮' },
     { name: 'Feladatok', href: '/dashboard/tasks', icon: '⏰' },
     { name: 'Egészségügy', href: '/dashboard/health', icon: '💊' },
     { name: 'Takarmányozás', href: '/dashboard/feeding', icon: '🌾' },

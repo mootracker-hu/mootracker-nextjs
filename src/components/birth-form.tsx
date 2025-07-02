@@ -138,6 +138,7 @@ export default function BirthForm({
           complications: formData.complications,
           attendant_person: formData.attendant_person,
           notes: formData.notes,
+          mother_notes: formData.mother_notes,  // ← ADD HOZZÁ EZT!
           historical: formData.historical,
           user_id: user.id,
           farm_id: userRole.farm_id

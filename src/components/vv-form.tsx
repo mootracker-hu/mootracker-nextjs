@@ -256,21 +256,54 @@ console.log('🔍 UNCERTAIN PATERNITY:', dataToSave.uncertain_paternity);
         throw error;
       }
 
-      // Ha vemhes, akkor frissítjük az állat adatait is
-      if (formData.pregnancy_status === 'vemhes' && !isHistorical) {
-        const { error: updateError } = await supabase
-          .from('animals')
-          .update({
-            pregnancy_status: 'vemhes',
-            expected_birth_date: formData.expected_birth_date,
-            kategoria: 'vemhes_üsző'
-          })
-          .eq('enar', animalEnar);
+      // Állat adatok frissítése (nem történeti VV esetén)
+if (!isHistorical) {
+  // Először lekérdezzük az állat jelenlegi kategóriáját
+  const { data: animalData, error: fetchError } = await supabase
+    .from('animals')
+    .select('kategoria')
+    .eq('enar', animalEnar)
+    .single();
 
-        if (updateError) {
-          console.warn('Állat adatok frissítési hiba:', updateError);
-        }
-      }
+  if (fetchError) {
+    console.error('Állat adatok lekérdezési hiba:', fetchError);
+  } else if (animalData) {
+    const currentCategory = animalData.kategoria;
+    let newCategory = currentCategory; // Alapértelmezetten marad a jelenlegi
+
+    // EGYETLEN KATEGÓRIA VÁLTÁS: szűz üsző → vemhes üsző
+    if (formData.pregnancy_status === 'vemhes' && currentCategory === 'szűz_üsző') {
+      newCategory = 'vemhes_üsző';
+    }
+    // Minden más esetben marad a jelenlegi kategória
+
+    // Állat adatok frissítése
+    const updateData: any = {
+      pregnancy_status: formData.pregnancy_status,
+      kategoria: newCategory
+    };
+
+    // Vemhes esetén ellési dátum hozzáadása
+    if (formData.pregnancy_status === 'vemhes') {
+      updateData.expected_birth_date = formData.expected_birth_date;
+    } else {
+      // Nem vemhes esetén ellési dátum törlése
+      updateData.expected_birth_date = null;
+    }
+
+    const { error: updateError } = await supabase
+      .from('animals')
+      .update(updateData)
+      .eq('enar', animalEnar);
+
+    if (updateError) {
+      console.error('Állat adatok frissítési hiba:', updateError);
+    } else {
+      console.log(`✅ Kategória váltás: ${currentCategory} → ${newCategory}`);
+      console.log(`✅ Pregnancy status: ${formData.pregnancy_status}`);
+    }
+  }
+}
 
       alert(editMode ? 'VV eredmény sikeresen frissítve!' : 'VV eredmény sikeresen rögzítve!');
       onSubmit();
