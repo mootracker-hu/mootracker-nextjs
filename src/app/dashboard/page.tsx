@@ -8,6 +8,7 @@ import { EnhancedAlertActionPanel } from '@/components/EnhancedAlertActionPanel'
 import { useAlertsNew } from '@/hooks/useAlertsNew';
 import { useTasks } from '@/hooks/useTasks';
 import { CreateTaskRequest, TaskPriority, TaskCategory, TaskStatus } from '@/types/alert-task-types';
+import ExpectedBirthsWidget from '@/components/expected-births-widget';
 
 export default function DashboardPage() {
   // Alert rendszer - Pen Alerts használata
@@ -383,6 +384,9 @@ export default function DashboardPage() {
     </div>
   </div>
 </div>
+
+{/* Expected Births Widget */}
+        <ExpectedBirthsWidget />
 
         {/* Quick Actions - ZÖLD SZÍNVILÁG + EMOJI */}
         <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">

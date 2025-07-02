@@ -135,32 +135,32 @@ const VVForm: React.FC<VVFormProps> = ({
   };
 
   const handleBullSelection = (selectedEnar: string) => {
-  const selectedBull = availableBulls.find(bull => bull.enar === selectedEnar);
-  if (selectedBull) {
-    setFormData(prev => {
-      // Ha bizonytalan apaság be van kapcsolva, a fő apa is bekerül a possible_fathers listába
-      let newPossibleFathers = prev.possible_fathers;
-      
-      if (prev.uncertain_paternity) {
-        // Ha még nincs benne, add hozzá
-        if (!newPossibleFathers.includes(selectedEnar)) {
-          newPossibleFathers = [...newPossibleFathers, selectedEnar];
-        }
-      } else {
-        // Ha nincs bizonytalan apaság, csak a fő apa legyen
-        newPossibleFathers = [selectedEnar];
-      }
+    const selectedBull = availableBulls.find(bull => bull.enar === selectedEnar);
+    if (selectedBull) {
+      setFormData(prev => {
+        // Ha bizonytalan apaság be van kapcsolva, a fő apa is bekerül a possible_fathers listába
+        let newPossibleFathers = prev.possible_fathers;
 
-      return {
-        ...prev,
-        father_enar: selectedBull.enar,
-        father_kplsz: selectedBull.kplsz,
-        father_name: selectedBull.name,
-        possible_fathers: newPossibleFathers
-      };
-    });
-  }
-};
+        if (prev.uncertain_paternity) {
+          // Ha még nincs benne, add hozzá
+          if (!newPossibleFathers.includes(selectedEnar)) {
+            newPossibleFathers = [...newPossibleFathers, selectedEnar];
+          }
+        } else {
+          // Ha nincs bizonytalan apaság, csak a fő apa legyen
+          newPossibleFathers = [selectedEnar];
+        }
+
+        return {
+          ...prev,
+          father_enar: selectedBull.enar,
+          father_kplsz: selectedBull.kplsz,
+          father_name: selectedBull.name,
+          possible_fathers: newPossibleFathers
+        };
+      });
+    }
+  };
 
   // Lehetséges apák kezelése
   const addPossibleFather = (fatherEnar: string) => {
@@ -189,47 +189,47 @@ const VVForm: React.FC<VVFormProps> = ({
 
     try {
       console.log('🔍 FORMDATA POSSIBLE FATHERS RÉSZLETES:', formData.possible_fathers);
-formData.possible_fathers.forEach((enar, index) => {
-  console.log(`🔍 ${index}. apa ENAR:`, enar);
-  console.log(`🔍 ${index}. apa getBullInfo:`, getBullInfo(enar));
-});
+      formData.possible_fathers.forEach((enar, index) => {
+        console.log(`🔍 ${index}. apa ENAR:`, enar);
+        console.log(`🔍 ${index}. apa getBullInfo:`, getBullInfo(enar));
+      });
       console.log('🔍 FORMDATA POSSIBLE FATHERS:', formData.possible_fathers);
-    console.log('🔍 FORMDATA LENGTH:', formData.possible_fathers.length);
+      console.log('🔍 FORMDATA LENGTH:', formData.possible_fathers.length);
 
       // Adatok előkészítése mentéshez
-     const dataToSave = {
-  animal_enar: animalEnar,
-  vv_date: formData.vv_date,
-  vv_result_days: formData.vv_result_days,
-  pregnancy_status: formData.pregnancy_status,
-  historical: isHistorical,
-  father_enar: formData.father_enar || null,
-  father_kplsz: formData.father_kplsz || null,
-  father_name: formData.father_name || null,
-  uncertain_paternity: formData.uncertain_paternity,
-  possible_fathers: formData.possible_fathers.length > 0 
-  ? formData.possible_fathers.map(enar => {
-      console.log('🔍 MAPPING ENAR:', enar);
-      const bullInfo = getBullInfo(enar);
-      console.log('🔍 MAPPING RESULT:', bullInfo);
-      const result = {
-        enar: String(enar),
-        name: String(bullInfo?.name || ''),
-        kplsz: String(bullInfo?.kplsz || '')
+      const dataToSave = {
+        animal_enar: animalEnar,
+        vv_date: formData.vv_date,
+        vv_result_days: formData.vv_result_days,
+        pregnancy_status: formData.pregnancy_status,
+        historical: isHistorical,
+        father_enar: formData.father_enar || null,
+        father_kplsz: formData.father_kplsz || null,
+        father_name: formData.father_name || null,
+        uncertain_paternity: formData.uncertain_paternity,
+        possible_fathers: formData.possible_fathers.length > 0
+          ? formData.possible_fathers.map(enar => {
+            console.log('🔍 MAPPING ENAR:', enar);
+            const bullInfo = getBullInfo(enar);
+            console.log('🔍 MAPPING RESULT:', bullInfo);
+            const result = {
+              enar: String(enar),
+              name: String(bullInfo?.name || ''),
+              kplsz: String(bullInfo?.kplsz || '')
+            };
+            console.log('🔍 MAPPED OBJECT:', result);
+            return result;
+          })
+          : null,
+        blood_test_required: formData.blood_test_required,
+        blood_test_date: formData.blood_test_date || null,
+        expected_birth_date: formData.expected_birth_date || null,
+        veterinarian: formData.veterinarian || null,
+        notes: formData.notes || null
       };
-      console.log('🔍 MAPPED OBJECT:', result);
-      return result;
-    })
-  : null,
-  blood_test_required: formData.blood_test_required,
-  blood_test_date: formData.blood_test_date || null,
-  expected_birth_date: formData.expected_birth_date || null,
-  veterinarian: formData.veterinarian || null,
-  notes: formData.notes || null
-};
       console.log('🔍 DATASAVE TELJES:', dataToSave);
       console.log('🔍 POSSIBLE FATHERS KÜLÖN:', dataToSave.possible_fathers);
-console.log('🔍 UNCERTAIN PATERNITY:', dataToSave.uncertain_paternity);
+      console.log('🔍 UNCERTAIN PATERNITY:', dataToSave.uncertain_paternity);
 
       // VV eredmény mentése az adatbázisba
       // VV eredmény mentése/frissítése az adatbázisba
@@ -257,53 +257,53 @@ console.log('🔍 UNCERTAIN PATERNITY:', dataToSave.uncertain_paternity);
       }
 
       // Állat adatok frissítése (nem történeti VV esetén)
-if (!isHistorical) {
-  // Először lekérdezzük az állat jelenlegi kategóriáját
-  const { data: animalData, error: fetchError } = await supabase
-    .from('animals')
-    .select('kategoria')
-    .eq('enar', animalEnar)
-    .single();
+      if (!isHistorical) {
+        // Először lekérdezzük az állat jelenlegi kategóriáját
+        const { data: animalData, error: fetchError } = await supabase
+          .from('animals')
+          .select('kategoria')
+          .eq('enar', animalEnar)
+          .single();
 
-  if (fetchError) {
-    console.error('Állat adatok lekérdezési hiba:', fetchError);
-  } else if (animalData) {
-    const currentCategory = animalData.kategoria;
-    let newCategory = currentCategory; // Alapértelmezetten marad a jelenlegi
+        if (fetchError) {
+          console.error('Állat adatok lekérdezési hiba:', fetchError);
+        } else if (animalData) {
+          const currentCategory = animalData.kategoria;
+          let newCategory = currentCategory; // Alapértelmezetten marad a jelenlegi
 
-    // EGYETLEN KATEGÓRIA VÁLTÁS: szűz üsző → vemhes üsző
-    if (formData.pregnancy_status === 'vemhes' && currentCategory === 'szűz_üsző') {
-      newCategory = 'vemhes_üsző';
-    }
-    // Minden más esetben marad a jelenlegi kategória
+          // EGYETLEN KATEGÓRIA VÁLTÁS: szűz üsző → vemhes üsző
+          if (formData.pregnancy_status === 'vemhes' && currentCategory === 'szűz_üsző') {
+            newCategory = 'vemhes_üsző';
+          }
+          // Minden más esetben marad a jelenlegi kategória
 
-    // Állat adatok frissítése
-    const updateData: any = {
-      pregnancy_status: formData.pregnancy_status,
-      kategoria: newCategory
-    };
+          // Állat adatok frissítése
+          const updateData: any = {
+            pregnancy_status: formData.pregnancy_status,
+            kategoria: newCategory
+          };
 
-    // Vemhes esetén ellési dátum hozzáadása
-    if (formData.pregnancy_status === 'vemhes') {
-      updateData.expected_birth_date = formData.expected_birth_date;
-    } else {
-      // Nem vemhes esetén ellési dátum törlése
-      updateData.expected_birth_date = null;
-    }
+          // Vemhes esetén ellési dátum hozzáadása
+          if (formData.pregnancy_status === 'vemhes') {
+            updateData.expected_birth_date = formData.expected_birth_date;
+          } else {
+            // Nem vemhes esetén ellési dátum törlése
+            updateData.expected_birth_date = null;
+          }
 
-    const { error: updateError } = await supabase
-      .from('animals')
-      .update(updateData)
-      .eq('enar', animalEnar);
+          const { error: updateError } = await supabase
+            .from('animals')
+            .update(updateData)
+            .eq('enar', animalEnar);
 
-    if (updateError) {
-      console.error('Állat adatok frissítési hiba:', updateError);
-    } else {
-      console.log(`✅ Kategória váltás: ${currentCategory} → ${newCategory}`);
-      console.log(`✅ Pregnancy status: ${formData.pregnancy_status}`);
-    }
-  }
-}
+          if (updateError) {
+            console.error('Állat adatok frissítési hiba:', updateError);
+          } else {
+            console.log(`✅ Kategória váltás: ${currentCategory} → ${newCategory}`);
+            console.log(`✅ Pregnancy status: ${formData.pregnancy_status}`);
+          }
+        }
+      }
 
       alert(editMode ? 'VV eredmény sikeresen frissítve!' : 'VV eredmény sikeresen rögzítve!');
       onSubmit();
@@ -320,7 +320,7 @@ if (!isHistorical) {
     <div className="bg-white p-6 rounded-lg shadow-lg max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-gray-900">
-          🔬 VV Eredmény Rögzítése
+          {editMode ? '✏️ VV Eredmény Szerkesztése' : '🔬 VV Eredmény Rögzítése'}
         </h2>
         <div className="text-sm text-gray-600">
           Állat: <span className="font-medium">{animalEnar}</span>
@@ -452,33 +452,33 @@ if (!isHistorical) {
               {/* Bizonytalan apaság */}
               <div className="flex items-center space-x-2">
                 <input
-  type="checkbox"
-  id="uncertain_paternity"
-  checked={formData.uncertain_paternity}
-  onChange={(e) => {
-    const isChecked = e.target.checked;
-    setFormData(prev => {
-      let newPossibleFathers = prev.possible_fathers;
-      
-      if (isChecked) {
-        // Bekapcsolás: ha van fő apa és nincs a listában, add hozzá
-        if (prev.father_enar && !newPossibleFathers.includes(prev.father_enar)) {
-          newPossibleFathers = [prev.father_enar, ...newPossibleFathers];
-        }
-      } else {
-        // Kikapcsolás: csak a fő apa maradjon
-        newPossibleFathers = prev.father_enar ? [prev.father_enar] : [];
-      }
-      
-      return {
-        ...prev,
-        uncertain_paternity: isChecked,
-        possible_fathers: newPossibleFathers
-      };
-    });
-  }}
-  className="rounded border-gray-300"
-/>
+                  type="checkbox"
+                  id="uncertain_paternity"
+                  checked={formData.uncertain_paternity}
+                  onChange={(e) => {
+                    const isChecked = e.target.checked;
+                    setFormData(prev => {
+                      let newPossibleFathers = prev.possible_fathers;
+
+                      if (isChecked) {
+                        // Bekapcsolás: ha van fő apa és nincs a listában, add hozzá
+                        if (prev.father_enar && !newPossibleFathers.includes(prev.father_enar)) {
+                          newPossibleFathers = [prev.father_enar, ...newPossibleFathers];
+                        }
+                      } else {
+                        // Kikapcsolás: csak a fő apa maradjon
+                        newPossibleFathers = prev.father_enar ? [prev.father_enar] : [];
+                      }
+
+                      return {
+                        ...prev,
+                        uncertain_paternity: isChecked,
+                        possible_fathers: newPossibleFathers
+                      };
+                    });
+                  }}
+                  className="rounded border-gray-300"
+                />
                 <label htmlFor="uncertain_paternity" className="text-sm text-gray-700">
                   <AlertTriangle className="inline h-4 w-4 mr-1 text-yellow-500" />
                   Bizonytalan apaság (több lehetséges apa)
@@ -653,7 +653,7 @@ if (!isHistorical) {
             className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400 rounded-md transition-colors"
           >
             <Stethoscope className="h-4 w-4 mr-2" />
-            {loading ? 'Mentés...' : 'VV Eredmény Mentése'}
+            {loading ? (editMode ? 'Frissítés...' : 'Mentés...') : (editMode ? '✏️ Módosítások mentése' : 'VV Eredmény Mentése')}
           </button>
         </div>
       </form>
