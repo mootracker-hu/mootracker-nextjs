@@ -586,25 +586,25 @@ function EllesTab({ animal }: { animal: any }) {
       </div>
 
       {showBirthForm && (
-  <BirthForm
-    motherEnar={String(animal?.enar || 'ISMERETLEN')}
-    editMode={!!editingBirth}                    // 🆕 Edit mód flag
-    editData={editingBirth ? {                   // 🆕 Edit adatok
-      birth: editingBirth,
-      calves: editingBirth.calves || []
-    } : undefined}
-    onSuccess={() => {
-      setShowBirthForm(false);
-      setEditingBirth(null);                     // 🆕 Edit state reset
-      refreshBirthHistory();
-      alert(editingBirth ? '✅ Ellés sikeresen frissítve!' : '✅ Ellés sikeresen rögzítve!');
-    }}
-    onCancel={() => {
-      setShowBirthForm(false);
-      setEditingBirth(null);                     // 🆕 Edit state reset
-    }}
-  />
-)}
+        <BirthForm
+          motherEnar={String(animal?.enar || 'ISMERETLEN')}
+          editMode={!!editingBirth}                    // 🆕 Edit mód flag
+          editData={editingBirth ? {                   // 🆕 Edit adatok
+            birth: editingBirth,
+            calves: editingBirth.calves || []
+          } : undefined}
+          onSuccess={() => {
+            setShowBirthForm(false);
+            setEditingBirth(null);                     // 🆕 Edit state reset
+            refreshBirthHistory();
+            alert(editingBirth ? '✅ Ellés sikeresen frissítve!' : '✅ Ellés sikeresen rögzítve!');
+          }}
+          onCancel={() => {
+            setShowBirthForm(false);
+            setEditingBirth(null);                     // 🆕 Edit state reset
+          }}
+        />
+      )}
 
       {/* Ellési Történet Táblázat */}
       <div className="bg-white rounded-lg shadow-sm border p-6">
@@ -661,9 +661,9 @@ function EllesTab({ animal }: { animal: any }) {
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${birth.birth_type === 'easy_no_help' ? 'bg-green-100 text-green-800' :
-                          birth.birth_type === 'easy_with_help' ? 'bg-yellow-100 text-yellow-800' :
-                            birth.birth_type === 'difficult_help' ? 'bg-orange-100 text-orange-800' :
-                              'bg-red-100 text-red-800'
+                        birth.birth_type === 'easy_with_help' ? 'bg-yellow-100 text-yellow-800' :
+                          birth.birth_type === 'difficult_help' ? 'bg-orange-100 text-orange-800' :
+                            'bg-red-100 text-red-800'
                         }`}>
                         {birth.birth_type === 'easy_no_help' ? '🟢 Könnyű' :
                           birth.birth_type === 'easy_with_help' ? '🟡 Könnyű, segítséggel' :
@@ -673,8 +673,8 @@ function EllesTab({ animal }: { animal: any }) {
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${birth.birth_outcome === 'successful' ? 'bg-green-100 text-green-800' :
-                          birth.birth_outcome === 'stillborn' ? 'bg-red-100 text-red-800' :
-                            'bg-orange-100 text-orange-800'
+                        birth.birth_outcome === 'stillborn' ? 'bg-red-100 text-red-800' :
+                          'bg-orange-100 text-orange-800'
                         }`}>
                         {birth.birth_outcome === 'successful' ? '✅ Sikeres' :
                           birth.birth_outcome === 'stillborn' ? '💀 Halva születés' :
@@ -764,8 +764,8 @@ function EllesTab({ animal }: { animal: any }) {
                     }</p>
                     <p><strong>Eredmény:</strong>
                       <span className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${selectedBirth.birth_outcome === 'successful' ? 'bg-green-100 text-green-800' :
-                          selectedBirth.birth_outcome === 'stillborn' ? 'bg-red-100 text-red-800' :
-                            'bg-orange-100 text-orange-800'
+                        selectedBirth.birth_outcome === 'stillborn' ? 'bg-red-100 text-red-800' :
+                          'bg-orange-100 text-orange-800'
                         }`}>
                         {selectedBirth.birth_outcome === 'successful' ? '✅ Sikeres' :
                           selectedBirth.birth_outcome === 'stillborn' ? '💀 Halva születés' :
@@ -1287,7 +1287,8 @@ export default function AnimalDetailPage() {
           szuletesi_datum: editedAnimal.szuletesi_datum,
           bekerules_datum: editedAnimal.bekerules_datum,
           name: editedAnimal.name,
-          breed: editedAnimal.breed
+          breed: editedAnimal.breed,
+          birth_location: editedAnimal.birth_location  // ✅ HOZZÁADVA!
         })
         .eq('enar', animal.enar);
 
@@ -1798,7 +1799,12 @@ export default function AnimalDetailPage() {
                   {isEditing ? (
                     <select
                       value={editedAnimal?.birth_location || 'ismeretlen'}
-                      onChange={() => { }}
+                      onChange={(e) => {
+                        setEditedAnimal({
+                          ...editedAnimal,
+                          birth_location: e.target.value
+                        } as any);
+                      }}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white"
                     >
                       <option value="nálunk">🏠 Nálunk született</option>
