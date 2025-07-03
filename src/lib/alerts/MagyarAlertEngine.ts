@@ -51,7 +51,18 @@ export type AlertType =
   // ÚJ FOKOZATOS ALERT TÍPUSOK:
   | 'fulszam_idealis' | 'fulszam_ajanlott' | 'fulszam_surgos'
   | 'valasztas_idoszak_kezdete' | 'valasztas_ajanlott' | 'valasztas_surgos'  
-  | 'vv_idoszak_kezdete' | 'vv_ajanlott' | 'vv_surgos';
+  | 'vv_idoszak_kezdete' | 'vv_ajanlott' | 'vv_surgos'
+  | 'karam_valtas_ovi_kezdete'
+  | 'karam_valtas_ovi_ajanlott'
+  | 'karam_valtas_ovi_surgos'
+  | 'tenyesztesi_emlekezeto_kezdete'
+  | 'tenyesztesi_emlekezeto_ajanlott'
+  | 'tenyesztesi_emlekezeto_surgos'
+  | 'piaci_lehetoseg_kezdete'
+  | 'piaci_lehetoseg_ajanlott'
+  | 'piaci_lehetoseg_surgos'
+
+
 
 export type AlertPriority = 'surgos' | 'kritikus' | 'magas' | 'kozepes' | 'alacsony';
 
@@ -156,80 +167,219 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
   appliesTo: ['nőivarú_borjú', 'hímivarú_borjú']
 },
 
-  // 🐮 BÖLCSI ELHAGYÁS (12 hónapos) - CSAK NŐIVAR!
-  {
-    type: 'karam_valtas_szukseges',
-    priority: 'kozepes',
-    title: 'Óvi karámba áthelyezés',
-    description: '12 hónapos nőivar óvi karámba költöztetése - ENAR: {enar}',
-    checkCondition: (animal) => {
-      const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-      return ageInMonths >= 12 && ageInMonths <= 12.5 && 
-             animal.ivar === 'nő' &&
-             (animal.kategoria.includes('borjú') || animal.current_pen_function === 'bölcsi') &&
-             animal.statusz === 'aktív';
-    },
-    daysFromBirth: 365,
-    suggestedActions: [
-      'Bölcsi karámból óvi karámba költöztetés',
-      'Kategória frissítés: szűz_üsző'
-    ],
-    canCreateTask: true,
-    canPostpone: true,
-    appliesTo: ['nőivarú_borjú'],
-    excludes: ['hímivarú_borjú']
+// 🐮 BÖLCSI → ÓVI ÁTMENET - 3 FOKOZATOS SZINT
+{
+  type: 'karam_valtas_ovi_kezdete',
+  priority: 'alacsony',
+  title: 'Óvi karámba áthelyezés időszak kezdete',
+  description: '11 hónapos szűz üsző - óvi karámba költöztetés előkészítése - ENAR: {enar}',
+  checkCondition: (animal) => {
+    const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+    return ageInMonths >= 11 && ageInMonths < 12 && 
+           animal.ivar === 'nő' &&
+           (animal.kategoria.includes('szűz_üsző') || animal.current_pen_function === 'bölcsi') &&
+           animal.statusz === 'aktív';
   },
+  daysFromBirth: 335, // 11 hónap
+  suggestedActions: [
+    'Óvi karám kapacitás ellenőrzése',
+    'Áthelyezés előkészítése'
+  ],
+  canCreateTask: true,
+  canPostpone: true,
+  appliesTo: ['szűz_üsző'],                    // ← JAVÍTVA
+  excludes: ['tehén', 'hízóbika']              // ← JAVÍTVA (nincs már hímivarú borjú)
+},
+{
+  type: 'karam_valtas_ovi_ajanlott',
+  priority: 'kozepes',
+  title: 'Óvi karámba áthelyezés ajánlott',
+  description: '12-13 hónapos szűz üsző - óvi karámba költöztetés ajánlott - ENAR: {enar}',
+  checkCondition: (animal) => {
+    const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+    return ageInMonths >= 12 && ageInMonths < 14 && 
+           animal.ivar === 'nő' &&
+           (animal.kategoria.includes('szűz_üsző') || animal.current_pen_function === 'bölcsi') &&
+           animal.statusz === 'aktív';
+  },
+  daysFromBirth: 365, // 12 hónap
+  suggestedActions: [
+    'Bölcsi karámból óvi karámba költöztetés',
+    'Kategória megerősítés: szűz_üsző'        // ← JAVÍTVA (már szűz üsző)
+  ],
+  canCreateTask: true,
+  canPostpone: true,
+  appliesTo: ['szűz_üsző'],                    // ← JAVÍTVA
+  excludes: ['tehén', 'hízóbika']              // ← JAVÍTVA
+},
+{
+  type: 'karam_valtas_ovi_surgos',
+  priority: 'magas',
+  title: 'Óvi karámba áthelyezés sürgős!',
+  description: '14+ hónapos szűz üsző - óvi karámba költöztetés sürgős! - ENAR: {enar}',
+  checkCondition: (animal) => {
+    const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+    return ageInMonths >= 14 && 
+           animal.ivar === 'nő' &&
+           (animal.kategoria.includes('szűz_üsző') || animal.current_pen_function === 'bölcsi') &&
+           animal.statusz === 'aktív';
+  },
+  daysFromBirth: 425, // 14 hónap
+  suggestedActions: [
+    'AZONNALI óvi karámba költöztetés',
+    'Kategória megerősítés: szűz_üsző',
+    'Késedelmes áthelyezés vizsgálata'
+  ],
+  canCreateTask: true,
+  canPostpone: false,
+  appliesTo: ['szűz_üsző'],                    // ← JAVÍTVA
+  excludes: ['tehén', 'hízóbika']              // ← JAVÍTVA
+},
 
-  // 🐄💕 HÁREM ALKALMASSÁG (24 hónapos NŐIVAR)
-  {
-    type: 'tenyesztesi_emlekezeto',
-    priority: 'magas',
-    title: 'Hárem karám alkalmasság',
-    description: '24 hónapos nőivar hárem karámba helyezése - ENAR: {enar}',
-    checkCondition: (animal) => {
-      const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-      return ageInMonths >= 24 && ageInMonths <= 25 && 
-             animal.ivar === 'nő' && 
-             !animal.kategoria.includes('tehén') &&
-             animal.statusz === 'aktív';
-    },
-    daysFromBirth: 730,
-    suggestedActions: [
-      'Hárem karámba költöztetés',
-      'Tenyésztési program felülvizsgálata',
-      'Kategória frissítés: háremben_lévő_üsző'
-    ],
-    canCreateTask: true,
-    canPostpone: true,
-    appliesTo: ['szűz_üsző'],
-    excludes: ['tehén', 'hímivarú_borjú', 'hízóbika']
+  // 🐄💕 HÁREM ALKALMASSÁG - 3 FOKOZATOS SZINT
+{
+  type: 'tenyesztesi_emlekezeto_kezdete',
+  priority: 'alacsony',
+  title: 'Hárem karám alkalmasság időszak kezdete',
+  description: '22 hónapos szűz üsző - hárem karámba költöztetés előkészítése - ENAR: {enar}',
+  checkCondition: (animal) => {
+    const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+    return ageInMonths >= 22 && ageInMonths < 23 && 
+           animal.ivar === 'nő' && 
+           !animal.kategoria.includes('tehén') &&
+           animal.statusz === 'aktív';
   },
+  daysFromBirth: 670, // 22 hónap
+  suggestedActions: [
+    'Hárem karám kapacitás ellenőrzése',
+    'Tenyésztési program előkészítése'
+  ],
+  canCreateTask: true,
+  canPostpone: true,
+  appliesTo: ['szűz_üsző'],
+  excludes: ['tehén', 'hízóbika']
+},
+{
+  type: 'tenyesztesi_emlekezeto_ajanlott',
+  priority: 'kozepes',
+  title: 'Hárem karám alkalmasság ajánlott',
+  description: '23-24 hónapos szűz üsző - hárem karámba költöztetés ajánlott - ENAR: {enar}',
+  checkCondition: (animal) => {
+    const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+    return ageInMonths >= 23 && ageInMonths < 25 && 
+           animal.ivar === 'nő' && 
+           !animal.kategoria.includes('tehén') &&
+           animal.statusz === 'aktív';
+  },
+  daysFromBirth: 700, // 23 hónap
+  suggestedActions: [
+    'Hárem karámba költöztetés',
+    'Tenyésztési program felülvizsgálata',
+    'Kategória frissítés: háremben_lévő_üsző'
+  ],
+  canCreateTask: true,
+  canPostpone: true,
+  appliesTo: ['szűz_üsző'],
+  excludes: ['tehén', 'hízóbika']
+},
+{
+  type: 'tenyesztesi_emlekezeto_surgos',
+  priority: 'magas',
+  title: 'Hárem karám alkalmasság sürgős!',
+  description: '25+ hónapos szűz üsző - hárem karámba költöztetés sürgős! - ENAR: {enar}',
+  checkCondition: (animal) => {
+    const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+    return ageInMonths >= 25 && 
+           animal.ivar === 'nő' && 
+           !animal.kategoria.includes('tehén') &&
+           animal.statusz === 'aktív';
+  },
+  daysFromBirth: 760, // 25 hónap
+  suggestedActions: [
+    'AZONNALI hárem karámba költöztetés',
+    'Tenyésztési program sürgős felülvizsgálata',
+    'Kategória frissítés: háremben_lévő_üsző',
+    'Késedelmes áthelyezés vizsgálata'
+  ],
+  canCreateTask: true,
+  canPostpone: false, // Sürgős, nem halasztható
+  appliesTo: ['szűz_üsző'],
+  excludes: ['tehén', 'hízóbika']
+},
 
-  // 🐂 HÍZÓBIKA ÉRTÉKESÍTÉS (18-24 hónapos) - TENYÉSZBIKA KIVÉTELLEL!
-  {
-    type: 'piaci_lehetoseg',
-    priority: 'kozepes',
-    title: 'Értékesítési lehetőség',
-    description: '18-24 hónapos hízóbika értékesítésre kész - ENAR: {enar}',
-    checkCondition: (animal) => {
-      const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-      return ageInMonths >= 18 && ageInMonths <= 24 && 
-             animal.ivar === 'hím' && 
-             animal.kategoria === 'hízóbika' && // EXPLICIT hízóbika
-             !animal.kplsz && // NINCS KPLSZ = nem tenyészbika
-             animal.statusz === 'aktív';
-    },
-    daysFromBirth: 550, // 18 hónap
-    suggestedActions: [
-      'Piaci ár ellenőrzése',
-      'Vásár időpontok felderítése',
-      'Selejt karámba áthelyezés mérlegelése'
-    ],
-    canCreateTask: true,
-    canPostpone: true,
-    appliesTo: ['hízóbika'],
-    excludes: ['tenyészbika'] // TENYÉSZBIKA KIVÉTEL!
+  // 🐂 HÍZÓBIKA ÉRTÉKESÍTÉS - 3 FOKOZATOS SZINT
+{
+  type: 'piaci_lehetoseg_kezdete',
+  priority: 'alacsony',
+  title: 'Értékesítési időszak kezdete',
+  description: '18 hónapos hízóbika - értékesítési lehetőség előkészítése - ENAR: {enar}',
+  checkCondition: (animal) => {
+    const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+    return ageInMonths >= 18 && ageInMonths < 20 && 
+           animal.ivar === 'hím' && 
+           animal.kategoria === 'hízóbika' && // EXPLICIT hízóbika
+           !animal.kplsz && // NINCS KPLSZ = nem tenyészbika
+           animal.statusz === 'aktív';
   },
+  daysFromBirth: 550, // 18 hónap
+  suggestedActions: [
+    'Piaci ár figyelés kezdése',
+    'Értékesítési lehetőségek felderítése'
+  ],
+  canCreateTask: true,
+  canPostpone: true,
+  appliesTo: ['hízóbika'],
+  excludes: ['tenyészbika'] // TENYÉSZBIKA KIVÉTEL!
+},
+{
+  type: 'piaci_lehetoseg_ajanlott',
+  priority: 'kozepes',
+  title: 'Értékesítési lehetőség ajánlott',
+  description: '20-22 hónapos hízóbika - értékesítés ajánlott időszak - ENAR: {enar}',
+  checkCondition: (animal) => {
+    const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+    return ageInMonths >= 20 && ageInMonths < 23 && 
+           animal.ivar === 'hím' && 
+           animal.kategoria === 'hízóbika' && // EXPLICIT hízóbika
+           !animal.kplsz && // NINCS KPLSZ = nem tenyészbika
+           animal.statusz === 'aktív';
+  },
+  daysFromBirth: 610, // 20 hónap
+  suggestedActions: [
+    'Piaci ár ellenőrzése',
+    'Vásár időpontok felderítése',
+    'Selejt karámba áthelyezés mérlegelése'
+  ],
+  canCreateTask: true,
+  canPostpone: true,
+  appliesTo: ['hízóbika'],
+  excludes: ['tenyészbika'] // TENYÉSZBIKA KIVÉTEL!
+},
+{
+  type: 'piaci_lehetoseg_surgos',
+  priority: 'magas',
+  title: 'Értékesítési lehetőség sürgős!',
+  description: '23+ hónapos hízóbika - értékesítés sürgős! - ENAR: {enar}',
+  checkCondition: (animal) => {
+    const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+    return ageInMonths >= 23 && ageInMonths <= 24 && 
+           animal.ivar === 'hím' && 
+           animal.kategoria === 'hízóbika' && // EXPLICIT hízóbika
+           !animal.kplsz && // NINCS KPLSZ = nem tenyészbika
+           animal.statusz === 'aktív';
+  },
+  daysFromBirth: 700, // 23 hónap
+  suggestedActions: [
+    'AZONNALI értékesítés szervezése',
+    'Piaci ár sürgős ellenőrzése',
+    'Selejt karámba áthelyezés',
+    'Késedelmes értékesítés vizsgálata'
+  ],
+  canCreateTask: true,
+  canPostpone: false, // Sürgős, nem halasztható
+  appliesTo: ['hízóbika'],
+  excludes: ['tenyészbika'] // TENYÉSZBIKA KIVÉTEL!
+},
 
   // 🔬 VV ESEDÉKESSÉG (75 nap hárem után)
   {
