@@ -47,7 +47,11 @@ export type AlertType =
   | 'vemhessegvizsgalat_ismetles'
   | 'selejtezesi_javaslat'
   | 'kapacitas_tullepes'
-  | 'kapacitas_alulhasznaltsag';
+  | 'kapacitas_alulhasznaltsag'
+  // ÚJ FOKOZATOS ALERT TÍPUSOK:
+  | 'fulszam_idealis' | 'fulszam_ajanlott' | 'fulszam_surgos'
+  | 'valasztas_idoszak_kezdete' | 'valasztas_ajanlott' | 'valasztas_surgos'  
+  | 'vv_idoszak_kezdete' | 'vv_ajanlott' | 'vv_surgos';
 
 export type AlertPriority = 'surgos' | 'kritikus' | 'magas' | 'kozepes' | 'alacsony';
 
@@ -128,28 +132,29 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     appliesTo: ['nőivarú_borjú', 'hímivarú_borjú']
   },
 
-  // 🐄 VÁLASZTÁS (6 hónapos) - IVAR-SPECIFIKUS KARÁM VÁLTÁS
-  {
-    type: 'valasztas_ideje',
-    priority: 'kritikus',
-    title: 'Választási idő - Karám szétválasztás',
-    description: '6 hónapos borjú választása és karám szétválasztása - ENAR: {enar}',
-    checkCondition: (animal) => {
+ // 🐄 VÁLASZTÁS (6 hónapos) - IVAR-SPECIFIKUS KARÁM VÁLTÁS
+{
+  type: 'valasztas_ideje',
+  priority: 'kritikus',
+  title: 'Választási idő - Karám szétválasztás',
+  description: '6 hónapos borjú választása és karám szétválasztása - ENAR: {enar}',
+  checkCondition: (animal) => {
     const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
     return ageInMonths >= 6 && ageInMonths <= 12 &&
            animal.kategoria.includes('borjú') &&
            animal.statusz === 'aktív';
-},
-    daysFromBirth: 180,
-    suggestedActions: [
-      'Borjú leválasztása anyjáról',
-      'NŐIVAR → Bölcsi karámba áthelyezés',
-      'HÍMIVAR → Hízóbika karámba áthelyezés'
-    ],
-    canCreateTask: true,
-    canPostpone: true,
-    appliesTo: ['nőivarú_borjú', 'hímivarú_borjú']
   },
+  daysFromBirth: 180,
+  suggestedActions: [
+    'Borjú leválasztása anyjáról',
+    'BoviPast vakcina beadása',              // ← ÚJ SOR!
+    'NŐIVAR → Bölcsi karámba áthelyezés',
+    'HÍMIVAR → Hízóbika karámba áthelyezés'
+  ],
+  canCreateTask: true,
+  canPostpone: true,
+  appliesTo: ['nőivarú_borjú', 'hímivarú_borjú']
+},
 
   // 🐮 BÖLCSI ELHAGYÁS (12 hónapos) - CSAK NŐIVAR!
   {
@@ -443,7 +448,221 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     canCreateTask: true,
     canPostpone: false,
     appliesTo: ['csíra']
+  },
+
+// ============================================
+  // FOKOZATOS ALERT RENDSZER - 9 ÚJ SZABÁLY
+  // ============================================
+
+  // 🏷️ FÜLSZÁMOZÁS FOKOZATOS (3 db)
+  {
+    type: 'fulszam_idealis',
+    priority: 'kozepes',
+    title: '🏷️ Fülszám időszak kezdete',
+    description: 'Fülszám felhelyezés időszaka kezdődik (10-14 nap) - ENAR: {enar}',
+    checkCondition: (animal) => {
+  return false; // Animals táblában lévőknek nincs fülszám alert
+},
+    daysFromBirth: 10,
+    suggestedActions: [
+      'Fülszám előkészítése',
+      'BoviPast vakcina tervezése',
+      'Szarvtalanítás előkészítése'
+    ],
+    canCreateTask: true,
+    canPostpone: true,
+    appliesTo: ['nőivarú_borjú', 'hímivarú_borjú']
+  },
+
+  {
+    type: 'fulszam_ajanlott',
+    priority: 'magas',
+    title: '⚠️ Fülszám ajánlott ideje',
+    description: 'Fülszám felhelyezés ajánlott időszaka (15-19 nap) - ENAR: {enar}',
+    checkCondition: (animal) => {
+  return false; // Animals táblában lévőknek nincs fülszám alert
+},
+    daysFromBirth: 15,
+    suggestedActions: [
+      'BoviPast vakcina beadása',
+      'Fülszám felhelyezése',
+      'Szarvtalanítás elvégzése'
+    ],
+    canCreateTask: true,
+    canPostpone: false,
+    appliesTo: ['nőivarú_borjú', 'hímivarú_borjú']
+  },
+
+  {
+    type: 'fulszam_surgos',
+    priority: 'kritikus',
+    title: '🚨 Fülszám sürgős!',
+    description: 'Fülszám felhelyezés késik, sürgős beavatkozás (20+ nap) - ENAR: {enar}',
+    checkCondition: (animal) => {
+  return false; // Animals táblában lévőknek nincs fülszám alert
+},
+    daysFromBirth: 20,
+    suggestedActions: [
+      'AZONNALI BoviPast vakcina',
+      'AZONNALI fülszám felhelyezés',
+      'Szarvtalanítás halasztva - túl késő'
+    ],
+    canCreateTask: true,
+    canPostpone: false,
+    appliesTo: ['nőivarú_borjú', 'hímivarú_borjú']
+  },
+
+  // 🐄 VÁLASZTÁS FOKOZATOS (3 db)
+  {
+    type: 'valasztas_idoszak_kezdete',
+    priority: 'kozepes',
+    title: '📅 Választás időszak kezdete',
+    description: 'Választási időszak kezdete (6-6.5 hó) - ENAR: {enar}',
+    checkCondition: (animal) => {
+      const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+      return ageInMonths >= 6 && ageInMonths <= 6.5 && 
+             (animal.kategoria.includes('borjú') || 
+              animal.kategoria === 'szűz_üsző' || 
+              animal.kategoria === 'hízóbika') &&
+             animal.statusz === 'aktív';
+    },
+    daysFromBirth: 180,
+    suggestedActions: [
+      'Választás előkészítése',
+      'Karám tervezése',
+      'BoviPast vakcina előkészítése'
+    ],
+    canCreateTask: true,
+    canPostpone: true,
+    appliesTo: ['nőivarú_borjú', 'hímivarú_borjú']
+  },
+
+  {
+    type: 'valasztas_ajanlott',
+    priority: 'magas',
+    title: '⚠️ Választás ajánlott',
+    description: 'Választás ajánlott időszaka (7-7.5 hó) - ENAR: {enar}',
+    checkCondition: (animal) => {
+      const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+      return ageInMonths >= 7 && ageInMonths <= 7.5 && 
+             (animal.kategoria.includes('borjú') || 
+              animal.kategoria === 'szűz_üsző' || 
+              animal.kategoria === 'hízóbika') &&
+             animal.statusz === 'aktív';
+    },
+    daysFromBirth: 210,
+    suggestedActions: [
+      'Borjú leválasztása anyjáról',
+      'BoviPast vakcina beadása',
+      'NŐIVAR → Bölcsi karámba áthelyezés',
+      'HÍMIVAR → Hízóbika karámba áthelyezés'
+    ],
+    canCreateTask: true,
+    canPostpone: false,
+    appliesTo: ['nőivarú_borjú', 'hímivarú_borjú']
+  },
+
+  {
+    type: 'valasztas_surgos',
+    priority: 'kritikus',
+    title: '🚨 Választás sürgős!',
+    description: 'Választás késik, sürgős beavatkozás (8+ hó) - ENAR: {enar}',
+    checkCondition: (animal) => {
+      const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+      return ageInMonths >= 8 && 
+             (animal.kategoria.includes('borjú') || 
+              animal.kategoria === 'szűz_üsző' || 
+              animal.kategoria === 'hízóbika') &&
+             animal.statusz === 'aktív';
+    },
+    daysFromBirth: 240,
+    suggestedActions: [
+      'AZONNALI választás',
+      'BoviPast vakcina beadása',
+      'Karám áthelyezés',
+      'Állatorvosi konzultáció'
+    ],
+    canCreateTask: true,
+    canPostpone: false,
+    appliesTo: ['nőivarú_borjú', 'hímivarú_borjú']
+  },
+
+  // 🔬 VV VIZSGÁLAT FOKOZATOS (3 db)
+  {
+    type: 'vv_idoszak_kezdete',
+    priority: 'kozepes',
+    title: '📅 VV időszak kezdete',
+    description: 'VV vizsgálat időszaka kezdődik (60-74 nap) - ENAR: {enar}',
+    checkCondition: (animal) => {
+      if (!animal.pairing_date || animal.vv_date) return false;
+      
+      const pairingDate = new Date(animal.pairing_date);
+      const daysSincePairing = Math.floor((Date.now() - pairingDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      return daysSincePairing >= 60 && daysSincePairing <= 74 &&
+             (animal.kategoria.includes('tehén') || animal.kategoria.includes('üsző')) && 
+             animal.statusz === 'aktív';
+    },
+    suggestedActions: [
+      'VV vizsgálat időpontjának egyeztetése',
+      'Állatorvos felkérése',
+      'Karám előkészítése'
+    ],
+    canCreateTask: true,
+    canPostpone: true,
+    appliesTo: ['háremben_lévő_üsző', 'tehén']
+  },
+
+  {
+    type: 'vv_ajanlott',
+    priority: 'magas',
+    title: '⚠️ VV ajánlott ideje',
+    description: 'VV vizsgálat ajánlott időszaka (75-89 nap) - ENAR: {enar}',
+    checkCondition: (animal) => {
+      if (!animal.pairing_date || animal.vv_date) return false;
+      
+      const pairingDate = new Date(animal.pairing_date);
+      const daysSincePairing = Math.floor((Date.now() - pairingDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      return daysSincePairing >= 75 && daysSincePairing <= 89 &&
+             (animal.kategoria.includes('tehén') || animal.kategoria.includes('üsző')) && 
+             animal.statusz === 'aktív';
+    },
+    suggestedActions: [
+      'Állatorvos meghívása VV vizsgálatra',
+      'Ultrahangos vizsgálat elvégzése',
+      'VV eredmény rögzítése a rendszerben'
+    ],
+    canCreateTask: true,
+    canPostpone: false,
+    appliesTo: ['háremben_lévő_üsző', 'tehén']
+  },
+
+  {
+    type: 'vv_surgos',
+    priority: 'kritikus',
+    title: '🚨 VV sürgős!',
+    description: 'VV vizsgálat késik, sürgős beavatkozás (90+ nap) - ENAR: {enar}',
+    checkCondition: (animal) => {
+      if (!animal.pairing_date || animal.vv_date) return false;
+      
+      const pairingDate = new Date(animal.pairing_date);
+      const daysSincePairing = Math.floor((Date.now() - pairingDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      return daysSincePairing >= 90 &&
+             (animal.kategoria.includes('tehén') || animal.kategoria.includes('üsző')) && 
+             animal.statusz === 'aktív';
+    },
+    suggestedActions: [
+      'AZONNALI VV vizsgálat',
+      'Állatorvosi konzultáció',
+      'Tenyésztési stratégia felülvizsgálata'
+    ],
+    canCreateTask: true,
+    canPostpone: false,
+    appliesTo: ['háremben_lévő_üsző', 'tehén']
   }
+  
 ];
 
 // ============================================
