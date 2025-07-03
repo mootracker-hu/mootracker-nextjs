@@ -30,7 +30,7 @@ export function PenAlertsWidget({ penId, alerts, className = '' }: PenAlertsWidg
   }
 
   // Prioritás alapján színek és emoji ikonok - DESIGN SYSTEM COLORS
-  const getPriorityStyle = (priority: number) => {
+  const getPriorityStyle = (priority: number | string) => {
     switch (priority) {
       case 4: // Kritikus - piros (design system red-500)
         return {
@@ -107,7 +107,22 @@ export function PenAlertsWidget({ penId, alerts, className = '' }: PenAlertsWidg
   });
 
   const style = getPriorityStyle(topAlert.priority);
-  const typeEmoji = getAlertTypeEmoji(topAlert.alertType);
+const typeEmoji = getAlertTypeEmoji(topAlert.alertType);
+
+// Prioritás alapján színek - kis segédfüggvény
+const getPriorityColor = (priority: number | string): string => {
+  if (typeof priority === 'number') {
+    if (priority >= 4) return 'bg-red-500';
+    if (priority === 3) return 'bg-orange-500';
+    if (priority === 2) return 'bg-yellow-500';
+    return 'bg-teal-500';
+  }
+  
+  if (priority === 'surgos' || priority === 'kritikus') return 'bg-red-500';
+  if (priority === 'magas') return 'bg-orange-500';
+  if (priority === 'kozepes') return 'bg-yellow-500';
+  return 'bg-teal-500';
+};
 
   return (
     <div className={`${style.bgColor} ${style.borderColor} border rounded-lg p-4 mt-3 ${className}`}>
