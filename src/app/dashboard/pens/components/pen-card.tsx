@@ -160,12 +160,17 @@ console.log('FILTERED ALERTS for pen', pen.id, ':', penSpecificAlerts);
         {/* Kapacitás */}
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm text-gray-600 flex items-center">
-            <span className="text-base mr-1">👥</span>
+            <span className="text-base mr-1">🐄</span>
             Kapacitás:
           </span>
           <span className={`text-sm font-medium px-2 py-1 rounded ${getCapacityColor(pen.animal_count, pen.capacity)}`}>
-            {pen.animal_count} / {pen.capacity}
-          </span>
+  {pen.animal_count} / {pen.capacity}
+  {(pen as any).temp_calf_count > 0 && (
+    <div className="text-xs text-orange-600 mt-1">
+      🐮 +{(pen as any).temp_calf_count} temp borjú
+    </div>
+  )}
+</span>
         </div>
 
         {/* Progress Bar */}

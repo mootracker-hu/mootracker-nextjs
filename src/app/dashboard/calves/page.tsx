@@ -9,6 +9,7 @@ import EarTagModal from '@/components/ear-tag-modal';
 export default function CalvesPage() {
     const [calves, setCalves] = useState<CalfWithDetails[]>([]);
     const [loading, setLoading] = useState(true);
+    const [availablePens, setAvailablePens] = useState<any[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [selectedCalf, setSelectedCalf] = useState<CalfWithDetails | null>(null);
     const [isEarTagModalOpen, setIsEarTagModalOpen] = useState(false);
@@ -19,37 +20,83 @@ export default function CalvesPage() {
 
     useEffect(() => {
         fetchCalves();
+        fetchAvailablePens();
     }, []);
 
     const fetchCalves = async () => {
         try {
             setLoading(true);
-            console.log('🐮 Fetching calves...');
+            console.log('🐮 Fetching calves with VV data...');
 
-            const { data, error } = await supabase
+            // 1. LÉPÉS: Borjak + születési adatok
+            const { data: calvesData, error: calvesError } = await supabase
                 .from('calves')
                 .select(`
-          *,
-          planned_enar,
-          birth:births!inner(
-            id,
-            mother_enar,
-            birth_date,
-            birth_type,
-            historical
-          )
-        `)
+                    *,
+                    planned_enar,
+                    birth:births!inner(
+                        id,
+                        mother_enar,
+                        birth_date,
+                        birth_type,
+                        historical
+                    )
+                `)
                 .is('enar', null) // Csak fülszám nélküli borjak
                 .order('created_at', { ascending: false });
 
-            if (error) {
-                console.error('❌ Error fetching calves:', error);
-                setError(error.message);
+            if (calvesError) {
+                console.error('❌ Error fetching calves:', calvesError);
+                setError(calvesError.message);
                 return;
             }
 
-            console.log('✅ Calves data:', data);
-            setCalves(data || []);
+            console.log('✅ Calves data (step 1):', calvesData);
+
+            // 2. LÉPÉS: VV eredmények hozzáadása
+            const calvesWithVV = await Promise.all(
+                (calvesData || []).map(async (calf) => {
+                    try {
+                        // VV eredmények lekérdezése az anya ENAR alapján
+                        const { data: vvData, error: vvError } = await supabase
+                            .from('vv_results')
+                            .select(`
+                                father_enar,
+                                father_name,
+                                father_kplsz,
+                                possible_fathers,
+                                vv_date,
+                                pregnancy_status
+                            `)
+                            .eq('animal_enar', calf.birth.mother_enar)
+                            .eq('pregnancy_status', 'vemhes')
+                            .order('vv_date', { ascending: false })
+                            .limit(1); // Legutóbbi pozitív VV
+
+                        if (vvError) {
+                            console.warn(`⚠️ VV lekérdezés hiba ${calf.birth.mother_enar}:`, vvError);
+                            // ✅ NE ÁLLJON LE A HIBA MIATT - folytasd calf nélkül VV adatok nélkül
+                            return {
+                                ...calf,
+                                vv_result: null
+                            };
+                        }
+
+                        console.log(`🔍 VV data for ${calf.birth.mother_enar}:`, vvData);
+
+                        return {
+                            ...calf,
+                            vv_result: vvData?.[0] || null // Legutóbbi VV eredmény
+                        };
+                    } catch (error) {
+                        console.warn(`⚠️ VV fetch error for ${calf.temp_id}:`, error);
+                        return calf;
+                    }
+                })
+            );
+
+            console.log('✅ Final calves with VV data:', calvesWithVV);
+            setCalves(calvesWithVV);
 
         } catch (err) {
             console.error('❌ Unexpected error:', err);
@@ -92,6 +139,103 @@ export default function CalvesPage() {
                 color: 'bg-red-100 text-red-800 border-red-200'
             };
         }
+    };
+
+    const fetchAvailablePens = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('pens')
+                .select('id, pen_number, location')
+                .order('pen_number');
+
+            if (error) throw error;
+            setAvailablePens(data || []);
+        } catch (error) {
+            console.error('Hiba a karamok betöltésekor:', error);
+        }
+    };
+
+    const handlePenChange = async (calfId: string, newPenId: string) => {
+        try {
+            console.log('🏠 Karám váltás:', calfId, 'to', newPenId);
+
+            const { error } = await supabase
+                .from('calves')
+                .update({ current_pen_id: newPenId || null })
+                .eq('id', calfId);
+
+            if (error) throw error;
+
+            fetchCalves();
+            alert('✅ Borjú karámba helyezve!');
+
+        } catch (error) {
+            console.error('❌ Hiba:', error);
+            alert('❌ Hiba történt!');
+        }
+    };
+
+    // ✅ JAVÍTOTT APA MEGJELENÍTŐ FÜGGVÉNY
+    const getFatherDisplay = (calf: any) => {
+        const vv = calf.vv_result;
+        if (!vv) return '❓ Ismeretlen';
+
+        console.log('🔍 getFatherDisplay VV data for', calf.temp_id, ':', vv);
+
+        // ✅ POSSIBLE FATHERS ARRAY ELLENŐRZÉS
+        if (vv.possible_fathers && Array.isArray(vv.possible_fathers) && vv.possible_fathers.length > 1) {
+            console.log('🤷‍♂️ Multiple fathers found:', vv.possible_fathers);
+            return `🤷‍♂️ ${vv.possible_fathers.length} lehetséges apa`;
+        }
+
+        // ✅ EGYÉRTELMŰ APA VAGY ELSŐ APA A LISTÁBÓL
+        let fatherName = vv.father_name;
+        let fatherEnar = vv.father_enar;
+
+        // Ha nincs közvetlen father_name, nézd meg a possible_fathers első elemét
+        if (!fatherName && vv.possible_fathers && vv.possible_fathers.length > 0) {
+            const firstFather = vv.possible_fathers[0];
+            fatherName = firstFather.name || firstFather.father_name;
+            fatherEnar = firstFather.enar || firstFather.father_enar;
+        }
+
+        if (fatherName && fatherEnar) {
+            return `🐂 ${fatherName} (${fatherEnar})`;
+        } else if (fatherEnar) {
+            return `🐂 ${fatherEnar}`;
+        } else if (fatherName) {
+            return `🐂 ${fatherName}`;
+        }
+
+        return '❓ Nincs adat';
+    };
+
+    // ✅ TELJES MULTIPLE FATHERS RÉSZLETES MEGJELENÍTŐ FÜGGVÉNY
+    const getDetailedFatherDisplay = (calf: any) => {
+        const vv = calf.vv_result;
+        if (!vv) return null;
+
+        console.log('🔍 getDetailedFatherDisplay VV data:', vv);
+
+        // ✅ POSSIBLE FATHERS ARRAY KEZELÉSE
+        if (vv.possible_fathers && Array.isArray(vv.possible_fathers) && vv.possible_fathers.length > 0) {
+            return vv.possible_fathers.map((father: any, index: number) => (
+                <div key={`father-${index}`} className="bg-white p-2 rounded border mb-1">
+                    🐂 {father.name || father.father_name || 'Névtelen'} 
+                    {father.enar || father.father_enar ? ` (${father.enar || father.father_enar})` : ''}
+                    {father.kplsz || father.father_kplsz ? ` - KPLSZ: ${father.kplsz || father.father_kplsz}` : ''}
+                </div>
+            ));
+        }
+
+        // ✅ EGYÉRTELMŰ APA ESETÉN
+        return (
+            <div className="bg-white p-2 rounded border">
+                🐂 {vv.father_name || 'Névtelen'} 
+                {vv.father_enar ? ` (${vv.father_enar})` : ''}
+                {vv.father_kplsz ? ` - KPLSZ: ${vv.father_kplsz}` : ''}
+            </div>
+        );
     };
 
     if (loading) {
@@ -137,7 +281,7 @@ export default function CalvesPage() {
                 <p className="text-gray-600">
                     Fülszám nélküli borjak kezelése és 15 napos protokoll követése
                 </p>
-                
+
                 {/* Anya ENAR szűrő */}
                 <div className="mt-4">
                     <input
@@ -182,8 +326,8 @@ export default function CalvesPage() {
             </div>
 
             {/* Calves Table */}
-            {calves.filter(calf => 
-                motherEnarFilter === '' || 
+            {calves.filter(calf =>
+                motherEnarFilter === '' ||
                 calf.birth?.mother_enar?.toLowerCase().includes(motherEnarFilter.toLowerCase())
             ).length === 0 ? (
                 <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
@@ -192,7 +336,7 @@ export default function CalvesPage() {
                         {motherEnarFilter ? 'Nincs találat a szűrésre' : 'Nincsenek fülszám nélküli borjak'}
                     </h3>
                     <p className="text-gray-600">
-                        {motherEnarFilter ? 
+                        {motherEnarFilter ?
                             'Próbáld meg módosítani a keresési feltételt.' :
                             'Minden borjú megkapta a fülszámát, vagy még nem születtek új borjak.'
                         }
@@ -211,6 +355,9 @@ export default function CalvesPage() {
                                         Anya
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Apa
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Születés
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -226,20 +373,23 @@ export default function CalvesPage() {
                                         Protokoll státusz
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Karám
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Műveletek
                                     </th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                                {calves.filter(calf => 
-                                    motherEnarFilter === '' || 
+                                {calves.filter(calf =>
+                                    motherEnarFilter === '' ||
                                     calf.birth?.mother_enar?.toLowerCase().includes(motherEnarFilter.toLowerCase())
-                                ).map((calf) => {
+                                ).map((calf, index) => {
                                     const age = calculateAge(calf.birth?.birth_date || '');
                                     const protocol = getProtocolStatus(calf.birth?.birth_date || '');
 
                                     return (
-                                        <tr key={calf.id} className="hover:bg-gray-50">
+                                        <tr key={`calf-${calf.id || index}`} className="hover:bg-gray-50">
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="text-sm font-medium text-gray-900">
                                                     {calf.temp_id}
@@ -248,6 +398,11 @@ export default function CalvesPage() {
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="text-sm text-gray-900">
                                                     {calf.birth?.mother_enar}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="text-sm text-gray-900">
+                                                    {getFatherDisplay(calf)}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
@@ -283,6 +438,21 @@ export default function CalvesPage() {
                                                     {protocol.message}
                                                 </span>
                                             </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <select
+                                                    className="text-sm border border-gray-300 rounded px-2 py-1"
+                                                    value={calf.current_pen_id || ''}
+                                                    onChange={(e) => handlePenChange(calf.id, e.target.value)}
+                                                >
+                                                    <option value="">Nincs karám</option>
+                                                    {availablePens.map(pen => (
+                                                        <option key={pen.id} value={pen.id}>
+                                                            {pen.pen_number} - {pen.location}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </td>
+
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                                 <button
                                                     className="text-green-600 hover:text-green-900 mr-3"
@@ -308,7 +478,7 @@ export default function CalvesPage() {
                     </div>
                 </div>
             )}
-            
+
             {/* EarTag Modal */}
             {selectedCalf && (
                 <EarTagModal
@@ -363,10 +533,16 @@ export default function CalvesPage() {
                                             <div className="font-medium">{selectedCalfDetails.birth?.mother_enar}</div>
                                         </div>
                                         <div>
+                                            <span className="text-gray-600">Apa:</span>
+                                            <div className="font-medium">
+                                                {getFatherDisplay(selectedCalfDetails)}
+                                            </div>
+                                        </div>
+                                        <div>
                                             <span className="text-gray-600">Születés:</span>
                                             <div className="font-medium">
-                                                {selectedCalfDetails.birth?.birth_date ? 
-                                                    new Date(selectedCalfDetails.birth.birth_date).toLocaleDateString('hu-HU') : 
+                                                {selectedCalfDetails.birth?.birth_date ?
+                                                    new Date(selectedCalfDetails.birth.birth_date).toLocaleDateString('hu-HU') :
                                                     '-'
                                                 }
                                             </div>
@@ -374,8 +550,8 @@ export default function CalvesPage() {
                                         <div>
                                             <span className="text-gray-600">Életkor:</span>
                                             <div className="font-medium">
-                                                {selectedCalfDetails.birth?.birth_date ? 
-                                                    `${calculateAge(selectedCalfDetails.birth.birth_date)} nap` : 
+                                                {selectedCalfDetails.birth?.birth_date ?
+                                                    `${calculateAge(selectedCalfDetails.birth.birth_date)} nap` :
                                                     '-'
                                                 }
                                             </div>
@@ -389,8 +565,81 @@ export default function CalvesPage() {
                                     </div>
                                 </div>
 
+                                {/* ✅ JAVÍTOTT VV EREDMÉNY RÉSZLETEK - MULTIPLE FATHERS TÁMOGATÁSSAL */}
+                                {selectedCalfDetails.vv_result && (
+                                    <div className="bg-blue-50 p-4 rounded-lg">
+                                        <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                                            <span className="mr-2">🔬</span>
+                                            VV Eredmény Részletek
+                                        </h4>
+                                        <div className="text-sm space-y-2">
+                                            {/* ✅ POSSIBLE FATHERS ARRAY MEGJELENÍTÉS */}
+                                            {selectedCalfDetails.vv_result.possible_fathers && 
+                                             Array.isArray(selectedCalfDetails.vv_result.possible_fathers) && 
+                                             selectedCalfDetails.vv_result.possible_fathers.length > 1 ? (
+                                                <div>
+                                                    <span className="text-gray-600">Lehetséges apák ({selectedCalfDetails.vv_result.possible_fathers.length}):</span>
+                                                    <div className="font-medium space-y-1 mt-1">
+                                                        {selectedCalfDetails.vv_result.possible_fathers.map((father: any, index: number) => (
+                                                            <div key={`modal-father-${index}`} className="bg-white p-2 rounded border">
+                                                                🐂 {father.name || father.father_name || 'Névtelen'} 
+                                                                {father.enar || father.father_enar ? ` (${father.enar || father.father_enar})` : ''}
+                                                                {father.kplsz || father.father_kplsz ? ` - KPLSZ: ${father.kplsz || father.father_kplsz}` : ''}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                // ✅ EGYÉRTELMŰ APA VAGY ELSŐ APA
+                                                <>
+                                                    {(selectedCalfDetails.vv_result.father_name || 
+                                                      (selectedCalfDetails.vv_result.possible_fathers && selectedCalfDetails.vv_result.possible_fathers[0]?.name)) && (
+                                                        <div>
+                                                            <span className="text-gray-600">Tenyészbika név:</span>
+                                                            <div className="font-medium">
+                                                                {selectedCalfDetails.vv_result.father_name || 
+                                                                 selectedCalfDetails.vv_result.possible_fathers?.[0]?.name || 
+                                                                 selectedCalfDetails.vv_result.possible_fathers?.[0]?.father_name}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {(selectedCalfDetails.vv_result.father_enar || 
+                                                      (selectedCalfDetails.vv_result.possible_fathers && selectedCalfDetails.vv_result.possible_fathers[0]?.enar)) && (
+                                                        <div>
+                                                            <span className="text-gray-600">Tenyészbika ENAR:</span>
+                                                            <div className="font-medium">
+                                                                {selectedCalfDetails.vv_result.father_enar || 
+                                                                 selectedCalfDetails.vv_result.possible_fathers?.[0]?.enar ||
+                                                                 selectedCalfDetails.vv_result.possible_fathers?.[0]?.father_enar}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {(selectedCalfDetails.vv_result.father_kplsz || 
+                                                      (selectedCalfDetails.vv_result.possible_fathers && selectedCalfDetails.vv_result.possible_fathers[0]?.kplsz)) && (
+                                                        <div>
+                                                            <span className="text-gray-600">KPLSZ:</span>
+                                                            <div className="font-medium">
+                                                                {selectedCalfDetails.vv_result.father_kplsz || 
+                                                                 selectedCalfDetails.vv_result.possible_fathers?.[0]?.kplsz ||
+                                                                 selectedCalfDetails.vv_result.possible_fathers?.[0]?.father_kplsz}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            )}
+                                            
+                                            {selectedCalfDetails.vv_result.vv_date && (
+                                                <div>
+                                                    <span className="text-gray-600">VV dátum:</span>
+                                                    <div className="font-medium">{new Date(selectedCalfDetails.vv_result.vv_date).toLocaleDateString('hu-HU')}</div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Tervezett ENAR */}
-                                <div className="bg-blue-50 p-4 rounded-lg">
+                                <div className="bg-green-50 p-4 rounded-lg">
                                     <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
                                         <span className="mr-2">📝</span>
                                         Tervezett ENAR
@@ -407,7 +656,7 @@ export default function CalvesPage() {
                                     <button
                                         onClick={async () => {
                                             const plannedEnar = prompt(
-                                                'Add meg a tervezett ENAR számot:', 
+                                                'Add meg a tervezett ENAR számot:',
                                                 selectedCalfDetails.planned_enar || 'HU '
                                             );
                                             if (plannedEnar) {

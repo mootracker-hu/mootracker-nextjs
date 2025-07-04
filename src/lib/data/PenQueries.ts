@@ -385,6 +385,59 @@ export function clearCache(): void {
   console.log('🗑️ Cache cleared');
 }
 
+// ==========================================
+// 🐮 TEMP ID BORJAK TÁMOGATÁS - ÚJ FUNKCIÓK  
+// ==========================================
+
+// Temp ID borjak lekérdezése karám alapján
+export const getTempCalvesByPen = async (penId: string) => {
+  const { data, error } = await supabase
+    .from('calves')
+    .select('*')
+    .eq('current_pen_id', penId)
+    .eq('is_alive', true)
+    .is('enar', null);
+    
+  if (error) {
+    console.error('Error fetching temp calves:', error);
+    return [];
+  }
+    
+  return data?.map(calf => ({
+    temp_id: calf.temp_id,
+    calf_id: calf.id,
+    display_name: calf.temp_id,
+    age_months: calculateAgeInMonths(calf.birth_date || calf.created_at),
+    category: 'borjú',
+    is_temporary: true,
+    pen_id: penId,
+    gender: calf.gender
+  })) || [];
+};
+
+// Unified karám tartalom (Animals + Temp Calves)
+// Unified karám tartalom (Animals + Temp Calves)
+export const getUnifiedPenOccupants = async (penId: string) => {
+  const [penWithAnimals, tempCalves] = await Promise.all([
+    getPenWithAnimals(penId),
+    getTempCalvesByPen(penId)
+  ]);
+  
+  // Animals tömb kinyerése a pen objektumból
+  const animals = penWithAnimals?.animals || [];
+  
+  return [...animals, ...tempCalves];
+};
+
+// Segédfüggvény: életkor számítás
+const calculateAgeInMonths = (birthDate: string): number => {
+  const birth = new Date(birthDate);
+  const now = new Date();
+  const diffTime = Math.abs(now.getTime() - birth.getTime());
+  const diffMonths = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 30.44));
+  return diffMonths;
+};
+
 // ============================================
 // EXPORTS
 // ============================================
@@ -396,5 +449,7 @@ export default {
   getPenWithAnimals,
   assignAnimalToPen,
   removeAnimalFromPen,
+  getTempCalvesByPen,           // ← ÚJ
+  getUnifiedPenOccupants,       // ← ÚJ
   clearCache
 };

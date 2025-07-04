@@ -10,6 +10,7 @@ interface Animal {
   kategoria: string;
 }
 
+// ✅ JAVÍTOTT PEN INTERFACE - onMove eltávolítva
 interface Pen {
   id: string;
   pen_number: string;
@@ -18,7 +19,7 @@ interface Pen {
   location?: string;
   current_function?: PenFunction;
   animal_count: number;
-  onMove: (targetPenId: string, reason: string, notes: string, isHistorical?: boolean, moveDate?: string) => void;
+  // ❌ onMove: (...) => void; - ELTÁVOLÍTVA!
 }
 
 interface PenFunction {
@@ -32,7 +33,7 @@ interface AnimalMovementPanelProps {
   animals: Animal[];
   availablePens: Pen[];
   currentPenId: string;
-   onMove: (targetPenId: string, reason: string, notes: string, isHistorical?: boolean, moveDate?: string) => void;
+  onMove: (targetPenId: string, reason: string, notes: string, isHistorical?: boolean, moveDate?: string) => void;
 }
 
 export default function AnimalMovementPanel({
@@ -272,11 +273,6 @@ export default function AnimalMovementPanel({
                   Történeti karám mozgás (múltbeli adat rögzítése)
                 </span>
               </label>
-              
-              {/* DEBUG INFO */}
-              <div className="mt-2 text-xs text-gray-500">
-                DEBUG: isHistorical = {isHistorical.toString()}, historicalDate = "{historicalDate}"
-              </div>
               
               {isHistorical && (
                 <div className="mt-4">

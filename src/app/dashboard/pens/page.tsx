@@ -164,12 +164,20 @@ export default function PensPage() {
         const pensWithData = await Promise.all(realPens.map(async pen => {
           // Állatok betöltése ENAR-ral együtt
           const { data: assignments, count } = await supabase
-            .from('animal_pen_assignments')
-            .select(`
-              animals!inner(enar)
-            `, { count: 'exact' })
-            .eq('pen_id', pen.id)
-            .is('removed_at', null);
+  .from('animal_pen_assignments')
+  .select(`
+    animals!inner(enar)
+  `, { count: 'exact' })
+  .eq('pen_id', pen.id)
+  .is('removed_at', null);
+
+// ÚJ: Temp ID borjak számolása
+const { count: tempCalfCount } = await supabase
+  .from('calves')
+  .select('*', { count: 'exact', head: true })
+  .eq('current_pen_id', pen.id)
+  .eq('is_alive', true)
+  .is('enar', null);
 
           return {
             id: pen.id,
@@ -185,6 +193,7 @@ export default function PensPage() {
               notes: pen.pen_functions[0]?.notes
             },
             animal_count: count || 0,
+            temp_calf_count: tempCalfCount || 0,
             animals: assignments || [] // ENAR kereséshez
           };
         }));

@@ -22,6 +22,16 @@ export interface Calf {
   updated_at: string;
 }
 
+// VV Result interface - KÜLÖN DEFINIÁLVA
+export interface VVResult {
+  father_enar?: string;
+  father_name?: string;
+  father_kplsz?: string;
+  possible_fathers?: any[];
+  vv_date?: string;
+  pregnancy_status?: string;
+}
+
 export interface CalfWithDetails extends Calf {
   // Birth kapcsolat
   birth?: {
@@ -31,6 +41,9 @@ export interface CalfWithDetails extends Calf {
     birth_type: string;
     historical: boolean;
   };
+
+  // VV Result kapcsolat - ÚJ
+  vv_result?: VVResult | null;
   
   // Mother kapcsolat
   mother?: {

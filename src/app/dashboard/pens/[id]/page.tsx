@@ -66,30 +66,30 @@ export default function PenDetailsPage() {
     // Riasztások hook hozzáadása
     const { alerts, animalPenMap } = useAlertsNew();
 
-// Állat alertek hozzárendelése ehhez a karámhoz (ugyanaz mint pen-card.tsx-ben)
-// Állat alertek hozzárendelése ehhez a karámhoz
-const penSpecificAlerts = alerts.filter(alert => {
-  if (!pen?.id) return false;
-  
-  console.log('🔍 Checking alert:', alert.id, 'animal_id:', alert.animal_id, 'pen_id:', alert.pen_id);
-  
-  // 1. Karám-specifikus alertek
-  if (alert.pen_id === pen.id) {
-    console.log('✅ Pen alert match!');
-    return true;
-  }
-  
-  // 2. Állat alertek - mapping alapján
-  if (alert.animal_id && animalPenMap) {
-    const animalPenId = animalPenMap[alert.animal_id];
-    console.log('🗺️ Animal', alert.animal_id, 'is in pen:', animalPenId, 'current pen:', pen.id);
-    return animalPenId === pen.id;
-  }
-  
-  return false;
-});
+    // Állat alertek hozzárendelése ehhez a karámhoz (ugyanaz mint pen-card.tsx-ben)
+    // Állat alertek hozzárendelése ehhez a karámhoz
+    const penSpecificAlerts = alerts.filter(alert => {
+        if (!pen?.id) return false;
 
-console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
+        console.log('🔍 Checking alert:', alert.id, 'animal_id:', alert.animal_id, 'pen_id:', alert.pen_id);
+
+        // 1. Karám-specifikus alertek
+        if (alert.pen_id === pen.id) {
+            console.log('✅ Pen alert match!');
+            return true;
+        }
+
+        // 2. Állat alertek - mapping alapján
+        if (alert.animal_id && animalPenMap) {
+            const animalPenId = animalPenMap[alert.animal_id];
+            console.log('🗺️ Animal', alert.animal_id, 'is in pen:', animalPenId, 'current pen:', pen.id);
+            return animalPenId === pen.id;
+        }
+
+        return false;
+    });
+
+    console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
 
     console.log('🔍 PEN DETAILS RENDER:', {
         pen: pen?.pen_number,
@@ -203,26 +203,27 @@ console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
         if (!pen?.id) return;
 
         try {
-            console.log(`🐄 Állatok betöltése ${pen.pen_number} karamhoz...`);
+            console.log(`🐄 Állatok és borjak betöltése ${pen.pen_number} karamhoz...`);
 
+            // 1. ✅ VALÓDI ÁLLATOK LEKÉRDEZÉSE (eredeti)
             const { data: assignments, error: assignError } = await supabase
                 .from('animal_pen_assignments')
                 .select(`
-                    animal_id,
-                    assigned_at,
-                    assignment_reason,
-                    animals!inner(
-                        id,
-                        enar,
-                        szuletesi_datum,
-                        ivar,
-                        kategoria,
-                        statusz,
-                        anya_enar,
-                        apa_enar,
-                        birth_location
-                    )
-                `)
+                animal_id,
+                assigned_at,
+                assignment_reason,
+                animals!inner(
+                    id,
+                    enar,
+                    szuletesi_datum,
+                    ivar,
+                    kategoria,
+                    statusz,
+                    anya_enar,
+                    apa_enar,
+                    birth_location
+                )
+            `)
                 .eq('pen_id', pen.id)
                 .is('removed_at', null);
 
@@ -232,15 +233,45 @@ console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
                 return;
             }
 
-            console.log(`✅ ${assignments?.length || 0} állat betöltve:`, assignments);
+            // 2. ✅ TEMP ID-S BORJAK LEKÉRDEZÉSE (új)
+            const { data: calves, error: calvesError } = await supabase
+                .from('calves')
+                .select('*')
+                .eq('current_pen_id', pen.id)
+                .is('enar', null); // Csak ENAR nélküli borjak
 
+            if (calvesError) {
+                console.warn('⚠️ Borjak betöltési hiba:', calvesError);
+            }
+
+            console.log(`✅ ${assignments?.length || 0} állat + ${calves?.length || 0} borjú betöltve`);
+
+            // 3. ✅ ÁLLATOK FORMÁZÁSA
             const animalsData: Animal[] = assignments?.map((assignment: any) => ({
                 ...assignment.animals,
                 assigned_at: assignment.assigned_at,
                 assignment_reason: assignment.assignment_reason
             })) || [];
 
-            setAnimals(animalsData);
+            // 4. ✅ BORJAK FORMÁZÁSA (Animal interface-re alakítva)
+            const calvesData: Animal[] = calves?.map((calf: any) => ({
+                id: parseInt(`9${calf.id}`) || Math.floor(Math.random() * 999999), // Egyedi number ID
+                enar: calf.temp_id || `temp-${calf.id}`, // temp_id lesz az "ENAR"
+                szuletesi_datum: calf.created_at || new Date().toISOString().split('T')[0],
+                ivar: calf.gender || 'ismeretlen',
+                kategoria: calf.gender === 'hímivar' ? 'hímivarú_borjú' : 'nőivarú_borjú',
+                statusz: 'aktív',
+                anya_enar: '', // Üres string a típus miatt
+                apa_enar: '', // Üres string a típus miatt
+                birth_location: 'nálunk' as const,
+                created_at: calf.created_at || new Date().toISOString(),
+                assigned_at: calf.created_at || new Date().toISOString(),
+                assignment_reason: 'születés'
+            })) || [];
+
+            // 5. ✅ ÖSSZEFŰZÉS ÉS BEÁLLÍTÁS
+            const allAnimals = [...animalsData, ...calvesData];
+            setAnimals(allAnimals);
 
         } catch (err) {
             console.error('💥 fetchAnimalsInPen error:', err);
@@ -288,21 +319,21 @@ console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
         const colorMap = {
             // 🐮 BORJÚ FUNKCIÓK - Kék árnyalatok (fiatal állatok)
             'bölcsi': 'bg-blue-100 text-blue-800 border-blue-200',
-            
+
             // 🐄 FEJLŐDÉSI FUNKCIÓK - Indigo (növekedés)  
             'óvi': 'bg-indigo-100 text-indigo-800 border-indigo-200',
-            
+
             // 💕 TENYÉSZTÉSI FUNKCIÓK - Pink/Rose (KÜLÖNBÖZŐEK!)
             'hárem': 'bg-pink-100 text-pink-800 border-pink-200',
             'vemhes': 'bg-rose-100 text-rose-800 border-rose-200',
-            
+
             // 🍼 ANYASÁG FUNKCIÓK - Zöld árnyalatok (természet/élet)
             'ellető': 'bg-emerald-100 text-emerald-800 border-emerald-200',
             'tehén': 'bg-green-100 text-green-800 border-green-200',
-            
+
             // 🐂 HÍZÓBIKA - Narancs (erő/munka)
             'hízóbika': 'bg-orange-100 text-orange-800 border-orange-200',
-            
+
             // ⭕ SPECIÁLIS FUNKCIÓK - ✅ ÖSSZES ÚJ TÍPUS HOZZÁADVA!
             'üres': 'bg-gray-100 text-gray-800 border-gray-200',
             'átmeneti': 'bg-teal-100 text-teal-800 border-teal-200',
@@ -466,7 +497,7 @@ console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
                                         <span className="text-sm text-gray-600">Helye: {pen.location}</span>
                                     </div>
                                     <div className="flex items-center">
-                                        <span className="text-lg mr-2">👥</span>
+                                        <span className="text-lg mr-2">🐄</span>
                                         <span className={`text-sm font-medium ${getCapacityColor(pen.animal_count, pen.capacity)}`}>
                                             {pen.animal_count} / {pen.capacity} állat
                                         </span>
@@ -560,10 +591,10 @@ console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
                         </div>
                     )}
                     <PenAlertsWidget
-    penId={pen.id}
-    alerts={penSpecificAlerts as any}
-    className="mt-6"
-/>
+                        penId={pen.id}
+                        alerts={penSpecificAlerts as any}
+                        className="mt-6"
+                    />
                 </div>
             </div>
 
@@ -616,27 +647,27 @@ console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
                 </div>
 
                 {/* Karám-specifikus állatok táblázat */}
-<PenSpecificAnimalTable 
-    penFunction={pen.current_function?.function_type || 'üres'}
-    animals={filteredAnimals.map(animal => ({
-        ...animal,
-        id: animal.id.toString()
-    }))}
-    selectedAnimals={selectedAnimals.map(id => id.toString())}
-    onToggleAnimal={(id) => toggleAnimalSelection(parseInt(id))}
-    onSelectAll={selectAllAnimals}
-    onClearSelection={clearSelection}
-/>
+                <PenSpecificAnimalTable
+                    penFunction={pen.current_function?.function_type || 'üres'}
+                    animals={filteredAnimals.map(animal => ({
+                        ...animal,
+                        id: animal.id.toString()
+                    }))}
+                    selectedAnimals={selectedAnimals.map(id => id.toString())}
+                    onToggleAnimal={(id) => toggleAnimalSelection(parseInt(id))}
+                    onSelectAll={selectAllAnimals}
+                    onClearSelection={clearSelection}
+                />
 
-{filteredAnimals.length === 0 && (
-    <div className="text-center py-12">
-        <span className="text-6xl mb-4 block">🐄</span>
-        <h3 className="mt-2 text-sm font-medium text-gray-900">Nincsenek állatok</h3>
-        <p className="mt-1 text-sm text-gray-500">
-            {searchTerm ? 'Nincs találat a keresési feltételre.' : 'Ez a karám jelenleg üres.'}
-        </p>
-    </div>
-)}
+                {filteredAnimals.length === 0 && (
+                    <div className="text-center py-12">
+                        <span className="text-6xl mb-4 block">🐄</span>
+                        <h3 className="mt-2 text-sm font-medium text-gray-900">Nincsenek állatok</h3>
+                        <p className="mt-1 text-sm text-gray-500">
+                            {searchTerm ? 'Nincs találat a keresési feltételre.' : 'Ez a karám jelenleg üres.'}
+                        </p>
+                    </div>
+                )}
             </div>
 
             {/* Movement Panel Modal */}
@@ -652,80 +683,80 @@ console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
                 ]}
                 currentPenId={penId}
                 onMove={async (targetPenId, reason, notes) => {
-  try {
-    console.log('🔄 Állatok mozgatása:', {
-      from: penId,
-      to: targetPenId,
-      animals: selectedAnimals,
-      reason,
-      notes
-    });
+                    try {
+                        console.log('🔄 Állatok mozgatása:', {
+                            from: penId,
+                            to: targetPenId,
+                            animals: selectedAnimals,
+                            reason,
+                            notes
+                        });
 
-    // 1. ✅ RÉGI HOZZÁRENDELÉSEK LEZÁRÁSA
-    const { error: removeError } = await supabase
-      .from('animal_pen_assignments')
-      .update({ removed_at: new Date().toISOString() })
-      .in('animal_id', selectedAnimals)
-      .is('removed_at', null);
+                        // 1. ✅ RÉGI HOZZÁRENDELÉSEK LEZÁRÁSA
+                        const { error: removeError } = await supabase
+                            .from('animal_pen_assignments')
+                            .update({ removed_at: new Date().toISOString() })
+                            .in('animal_id', selectedAnimals)
+                            .is('removed_at', null);
 
-    if (removeError) {
-      throw new Error(`Régi hozzárendelések lezárása sikertelen: ${removeError.message}`);
-    }
+                        if (removeError) {
+                            throw new Error(`Régi hozzárendelések lezárása sikertelen: ${removeError.message}`);
+                        }
 
-    // 2. ✅ ÚJ HOZZÁRENDELÉSEK LÉTREHOZÁSA
-    const newAssignments = selectedAnimals.map(animalId => ({
-      animal_id: animalId,
-      pen_id: targetPenId,
-      assigned_at: new Date().toISOString(),
-      assignment_reason: reason,
-      notes: notes || null
-    }));
+                        // 2. ✅ ÚJ HOZZÁRENDELÉSEK LÉTREHOZÁSA
+                        const newAssignments = selectedAnimals.map(animalId => ({
+                            animal_id: animalId,
+                            pen_id: targetPenId,
+                            assigned_at: new Date().toISOString(),
+                            assignment_reason: reason,
+                            notes: notes || null
+                        }));
 
-    const { error: assignError } = await supabase
-      .from('animal_pen_assignments')
-      .insert(newAssignments);
+                        const { error: assignError } = await supabase
+                            .from('animal_pen_assignments')
+                            .insert(newAssignments);
 
-    if (assignError) {
-      throw new Error(`Új hozzárendelések létrehozása sikertelen: ${assignError.message}`);
-    }
+                        if (assignError) {
+                            throw new Error(`Új hozzárendelések létrehozása sikertelen: ${assignError.message}`);
+                        }
 
-    // 3. ✅ MOZGATÁSI TÖRTÉNET RÖGZÍTÉSE
-    const movements = selectedAnimals.map(animalId => ({
-      animal_id: animalId,
-      from_pen_id: penId,
-      to_pen_id: targetPenId,
-      moved_at: new Date().toISOString(),
-      movement_reason: reason,
-      notes: notes || null,
-      moved_by: 'manual'
-    }));
+                        // 3. ✅ MOZGATÁSI TÖRTÉNET RÖGZÍTÉSE
+                        const movements = selectedAnimals.map(animalId => ({
+                            animal_id: animalId,
+                            from_pen_id: penId,
+                            to_pen_id: targetPenId,
+                            moved_at: new Date().toISOString(),
+                            movement_reason: reason,
+                            notes: notes || null,
+                            moved_by: 'manual'
+                        }));
 
-    const { error: movementError } = await supabase
-      .from('animal_movements')
-      .insert(movements);
+                        const { error: movementError } = await supabase
+                            .from('animal_movements')
+                            .insert(movements);
 
-    if (movementError) {
-      console.warn('⚠️ Mozgatási történet mentése sikertelen:', movementError.message);
-    }
+                        if (movementError) {
+                            console.warn('⚠️ Mozgatási történet mentése sikertelen:', movementError.message);
+                        }
 
-    // 4. ✅ UI FRISSÍTÉS
-    console.log(`✅ ${selectedAnimals.length} állat sikeresen mozgatva ${targetPenId} karamra`);
-    
-    alert(`✅ ${selectedAnimals.length} állat sikeresen mozgatva!\n\nCélkarám: ${targetPenId}\nOk: ${reason}`);
-    
-    setShowMovementPanel(false);
-    setSelectedAnimals([]);
-    
-    setTimeout(() => {
-      window.location.reload();
-    }, 1000);
+                        // 4. ✅ UI FRISSÍTÉS
+                        console.log(`✅ ${selectedAnimals.length} állat sikeresen mozgatva ${targetPenId} karamra`);
 
-  } catch (error) {
-    console.error('❌ Mozgatási hiba:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Ismeretlen hiba';
-    alert(`❌ Mozgatási hiba: ${errorMessage}`);
-}
-}}
+                        alert(`✅ ${selectedAnimals.length} állat sikeresen mozgatva!\n\nCélkarám: ${targetPenId}\nOk: ${reason}`);
+
+                        setShowMovementPanel(false);
+                        setSelectedAnimals([]);
+
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+
+                    } catch (error) {
+                        console.error('❌ Mozgatási hiba:', error);
+                        const errorMessage = error instanceof Error ? error.message : 'Ismeretlen hiba';
+                        alert(`❌ Mozgatási hiba: ${errorMessage}`);
+                    }
+                }}
             />
 
             {/* Function Manager Modal */}
@@ -734,46 +765,46 @@ console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
                 onClose={() => setShowFunctionManager(false)}
                 pen={pen as any}
                 onFunctionChange={async (newFunction: string, metadata: any, notes: string) => {
-    try {
-        console.log('🔄 Funkció váltás indítása:', { newFunction, metadata, notes });
-        
-        // 1. RÉGI FUNKCIÓ LEZÁRÁSA
-        const { error: closeError } = await supabase
-            .from('pen_functions')
-            .update({ end_date: new Date().toISOString() })
-            .eq('pen_id', pen?.id)
-            .is('end_date', null);
+                    try {
+                        console.log('🔄 Funkció váltás indítása:', { newFunction, metadata, notes });
 
-        if (closeError) throw closeError;
+                        // 1. RÉGI FUNKCIÓ LEZÁRÁSA
+                        const { error: closeError } = await supabase
+                            .from('pen_functions')
+                            .update({ end_date: new Date().toISOString() })
+                            .eq('pen_id', pen?.id)
+                            .is('end_date', null);
 
-        // 2. ÚJ FUNKCIÓ LÉTREHOZÁSA
-        const { data: newPenFunction, error: insertError } = await supabase
-            .from('pen_functions')
-            .insert({
-                pen_id: pen?.id,
-                function_type: newFunction,
-                start_date: new Date().toISOString(),
-                end_date: null,
-                metadata: metadata || {},
-                notes: notes || ''
-            })
-            .select()
-            .single();
+                        if (closeError) throw closeError;
 
-        if (insertError) throw insertError;
+                        // 2. ÚJ FUNKCIÓ LÉTREHOZÁSA
+                        const { data: newPenFunction, error: insertError } = await supabase
+                            .from('pen_functions')
+                            .insert({
+                                pen_id: pen?.id,
+                                function_type: newFunction,
+                                start_date: new Date().toISOString(),
+                                end_date: null,
+                                metadata: metadata || {},
+                                notes: notes || ''
+                            })
+                            .select()
+                            .single();
 
-        console.log('✅ Funkció váltás sikeres!', newPenFunction);
-        
-        setShowFunctionManager(false);
-        alert('Funkció sikeresen megváltoztatva!');
-        
-        // NE RELOAD - csak refresh a pen adatokat
-        window.location.reload();
-    } catch (error) {
-        console.error('💥 Funkció váltási hiba:', error);
-        alert('Hiba történt: ' + (error instanceof Error ? error.message : String(error)));
-    }
-}}
+                        if (insertError) throw insertError;
+
+                        console.log('✅ Funkció váltás sikeres!', newPenFunction);
+
+                        setShowFunctionManager(false);
+                        alert('Funkció sikeresen megváltoztatva!');
+
+                        // NE RELOAD - csak refresh a pen adatokat
+                        window.location.reload();
+                    } catch (error) {
+                        console.error('💥 Funkció váltási hiba:', error);
+                        alert('Hiba történt: ' + (error instanceof Error ? error.message : String(error)));
+                    }
+                }}
             />
         </div>
     );
