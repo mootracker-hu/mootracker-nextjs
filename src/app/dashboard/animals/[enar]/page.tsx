@@ -30,6 +30,7 @@ interface Animal {
   birth_location?: 'nálunk' | 'vásárolt' | 'ismeretlen';
   name?: string;
   breed?: string;
+  notes?: string;  // ✅ Megjegyzések mező
 }
 
 const BREEDS = [
@@ -1180,6 +1181,9 @@ export default function AnimalDetailPage() {
   const [activeTab, setActiveTab] = useState<string>('reszletek');
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [weaningDate, setWeaningDate] = useState('');
+  const [weaningNotes, setWeaningNotes] = useState('');
+  const [savingWeaning, setSavingWeaning] = useState(false);
 
   // Manual URL parsing
   useEffect(() => {
@@ -1288,7 +1292,7 @@ export default function AnimalDetailPage() {
           bekerules_datum: editedAnimal.bekerules_datum,
           name: editedAnimal.name,
           breed: editedAnimal.breed,
-          birth_location: editedAnimal.birth_location  // ✅ HOZZÁADVA!
+          birth_location: editedAnimal.birth_location
         })
         .eq('enar', animal.enar);
 
@@ -1310,6 +1314,114 @@ export default function AnimalDetailPage() {
       setSaving(false);
     }
   };
+
+  // ✅ IDE JÖN A handleWeaningSubmit FÜGGVÉNY:
+  const handleWeaningSubmit = async () => {
+    if (!weaningDate || !animal) return;
+
+    try {
+      setSavingWeaning(true);
+
+      // Választási esemény mentése az adatbázisba
+      const currentNotes = animal.notes || '';
+      const weaningEntry = `\n📅 VÁLASZTÁS - ${weaningDate}: ${weaningNotes || 'Problémamentes választás'}`;
+      const updatedNotes = currentNotes + weaningEntry;
+
+      const { error } = await supabase
+        .from('animals')
+        .update({ 
+          notes: updatedNotes,
+        })
+        .eq('enar', animal.enar);
+
+      if (error) {
+        console.error('❌ Választás mentési hiba:', error);
+        alert('❌ Hiba történt a választás rögzítésekor!');
+        return;
+      }
+
+      console.log('✅ Választás sikeresen rögzítve:', { weaningDate, weaningNotes });
+      alert('✅ Választás sikeresen rögzítve!');
+      
+      // Form reset
+      setWeaningDate('');
+      setWeaningNotes('');
+      
+      // Állat adatok frissítése
+      if (animal.enar) {
+        fetchAnimal(animal.enar);
+      }
+
+    } catch (error) {
+      console.error('❌ Választás mentési hiba:', error);
+      alert('❌ Váratlan hiba történt!');
+    } finally {
+      setSavingWeaning(false);
+    }
+  };
+
+// A handleWeaningSubmit függvény UTÁN add hozzá:
+
+const handleDeleteWeaning = async () => {
+  if (!animal?.notes) {
+    alert('⚠️ Nincs találat - nincsenek választási bejegyzések!');
+    return;
+  }
+
+  // Ellenőrizzük, van-e választási bejegyzés
+  if (!animal.notes.includes('📅 VÁLASZTÁS')) {
+    alert('⚠️ Nincs választási bejegyzés a notes mezőben!');
+    return;
+  }
+
+  // Megerősítés kérése
+  const confirmDelete = confirm('🗑️ Biztosan törölni szeretnéd az utolsó választási bejegyzést?');
+  if (!confirmDelete) return;
+
+  try {
+    setSavingWeaning(true);
+
+    // Notes feldolgozása - utolsó választási bejegyzés eltávolítása
+    const lines = animal.notes.split('\n');
+    const weaningLines = lines.filter(line => line.includes('📅 VÁLASZTÁS'));
+    
+    if (weaningLines.length === 0) {
+      alert('⚠️ Nincs választási bejegyzés törölhető!');
+      return;
+    }
+
+    // Utolsó választási sor eltávolítása
+    const lastWeaningLine = weaningLines[weaningLines.length - 1];
+    const updatedNotes = animal.notes.replace(lastWeaningLine, '').replace(/\n\n+/g, '\n').trim();
+
+    const { error } = await supabase
+      .from('animals')
+      .update({ 
+        notes: updatedNotes || null, // Ha üres, akkor null
+      })
+      .eq('enar', animal.enar);
+
+    if (error) {
+      console.error('❌ Választás törlési hiba:', error);
+      alert('❌ Hiba történt a törlés során!');
+      return;
+    }
+
+    console.log('✅ Választási bejegyzés törölve:', lastWeaningLine);
+    alert('✅ Utolsó választási bejegyzés sikeresen törölve!');
+    
+    // Állat adatok frissítése
+    if (animal.enar) {
+      fetchAnimal(animal.enar);
+    }
+
+  } catch (error) {
+    console.error('❌ Választás törlési hiba:', error);
+    alert('❌ Váratlan hiba történt a törlés során!');
+  } finally {
+    setSavingWeaning(false);
+  }
+};
 
   // Update field
   const updateField = (field: keyof Animal, value: string) => {
@@ -1996,16 +2108,114 @@ export default function AnimalDetailPage() {
           <EllesTab animal={animal} />
         )}
 
-        {/* Placeholder tabs */}
-        {['egeszseg', 'esemenynaplo'].includes(activeTab) && (
+        {/* Egészség Tab */}
+        {activeTab === 'egeszseg' && (
           <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
-            <div className="text-gray-400 text-6xl mb-4">🐄</div>
+            <div className="text-gray-400 text-6xl mb-4">❤️</div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Hamarosan elérhető
+              Vakcinázási rendszer
             </h3>
             <p className="text-gray-500">
-              Ez a funkció még fejlesztés alatt áll
+              Hamarosan: IBR, BVD, BoviPast vakcinázások és kezelések
             </p>
+          </div>
+        )}
+
+        {/* Eseménynapló Tab */}
+        {activeTab === 'esemenynaplo' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center">
+                <span className="text-2xl mr-3">📊</span>
+                <h3 className="text-lg font-semibold text-gray-900">Eseménynapló</h3>
+              </div>
+            </div>
+
+            {/* Választás rögzítése - TÖRLÉSI FUNKCIÓVAL */}
+<div className="bg-white rounded-lg shadow-sm border p-6">
+  <h4 className="text-lg font-semibold mb-4">📅 Választás rögzítése</h4>
+  
+  <div className="grid grid-cols-2 gap-4 mb-4">
+    <div>
+      <label className="block text-sm font-medium mb-2">Választás dátuma:</label>
+      <input 
+        type="date" 
+        value={weaningDate}
+        onChange={(e) => setWeaningDate(e.target.value)}
+        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500" 
+      />
+    </div>
+    <div>
+      <label className="block text-sm font-medium mb-2">Jegyzetek:</label>
+      <input 
+        type="text" 
+        value={weaningNotes}
+        onChange={(e) => setWeaningNotes(e.target.value)}
+        placeholder="pl. BoviPast beadva, problémamentes" 
+        className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500" 
+      />
+    </div>
+  </div>
+  
+  <div className="flex gap-3">
+    <button 
+      onClick={handleWeaningSubmit}
+      disabled={savingWeaning || !weaningDate}
+      className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center"
+    >
+      {savingWeaning ? (
+        <>
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+          Mentés...
+        </>
+      ) : (
+        <>
+          <span className="mr-2">📅</span>
+          Választás rögzítése
+        </>
+      )}
+    </button>
+    
+    {/* TÖRLÉSI GOMB */}
+    <button 
+      onClick={handleDeleteWeaning}
+      className="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 inline-flex items-center"
+      title="Utolsó választási bejegyzés törlése"
+    >
+      <span className="mr-2">🗑️</span>
+      Utolsó törlése
+    </button>
+  </div>
+  
+  {!weaningDate && (
+    <p className="text-sm text-gray-500 mt-2">
+      💡 Kérlek add meg a választás dátumát a mentéshez
+    </p>
+  )}
+  
+  {/* JELENLEGI VÁLASZTÁSI BEJEGYZÉSEK MEGJELENÍTÉSE */}
+  {animal?.notes && animal.notes.includes('📅 VÁLASZTÁS') && (
+    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+      <h5 className="font-medium text-gray-900 mb-2">📋 Jelenlegi választási bejegyzések:</h5>
+      <div className="text-sm text-gray-700 whitespace-pre-line">
+        {animal.notes
+          .split('\n')
+          .filter(line => line.includes('📅 VÁLASZTÁS'))
+          .map((line, index) => (
+            <div key={index} className="border-l-2 border-green-300 pl-2 mb-1">
+              {line.trim()}
+            </div>
+          ))}
+      </div>
+    </div>
+  )}
+</div>
+
+            {/* Esemény Timeline - később */}
+            <div className="bg-gray-50 rounded-lg p-6 text-center">
+              <div className="text-gray-400 text-4xl mb-2">🕐</div>
+              <p className="text-gray-500">Esemény timeline hamarosan...</p>
+            </div>
           </div>
         )}
       </div>
