@@ -238,13 +238,17 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     title: 'Választás sürgős!',
     description: 'Választás túllépte az optimális időpontot - ENAR: {enar}',
     checkCondition: (animal) => {
-      const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-      
-      // 8+ hónapos ÉS még nincs weaning_date ÉS aktív
-      return ageInMonths >= 8 && 
-             !animal.weaning_date && // ← weaning_date alapú - csak akkor tűnik el, ha rögzítik
-             animal.statusz === 'aktív';
-    },
+  const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+  
+  // CSAK VALÓDI BORJÚ KATEGÓRIÁKRA
+  const isRealCalf = animal.kategoria === 'nőivarú_borjú' || 
+                     animal.kategoria === 'hímivarú_borjú';
+  
+  return ageInMonths >= 8 && 
+         !animal.weaning_date && 
+         isRealCalf &&  // ← CSAK ezekre!
+         animal.statusz === 'aktív';
+},
     suggestedActions: [
       'AZONNALI választás szükséges',
       'Borjú leválasztása anyjáról',

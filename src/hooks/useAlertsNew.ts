@@ -94,7 +94,7 @@ export const useAlertsNew = (): UseAlertsReturn => {
       console.log(`📊 Loaded ${animals.length} animals and ${pens.length} pens`);
       
       // Generate all alerts using MagyarAlertEngine
-      const generatedAlerts = magyarAlertEngine.generateAllAlerts(animals, pens);
+      const generatedAlerts = magyarAlertEngine.generateAllAlerts(animals as any[], pens as any[]);
 
       console.log(`🚨 Generated ${generatedAlerts.length} alerts`);
 
