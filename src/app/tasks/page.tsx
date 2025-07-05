@@ -23,7 +23,8 @@ import {
   Trash2
 } from 'lucide-react';
 
-import { useAlerts } from '@/hooks/useAlerts';
+// ✅ JAVÍTOTT IMPORT - useAlertsNew használata
+import { useAlertsNew } from '@/hooks/useAlertsNew';
 import { useTasks } from '@/hooks/useTasks';
 import { 
   Alert, 
@@ -36,7 +37,7 @@ import {
 } from '@/types/alert-task-types';
 
 const TasksPage: React.FC = () => {
-  // Hooks
+  // Hooks - javított useAlertsNew használat
   const { 
     alerts, 
     loading: alertsLoading, 
@@ -45,7 +46,7 @@ const TasksPage: React.FC = () => {
     refreshAlerts,
     resolveAlert,
     snoozeAlert
-  } = useAlerts();
+  } = useAlertsNew();
 
   const {
     tasks,

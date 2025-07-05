@@ -535,6 +535,61 @@ export default function BirthForm({
             )}
           </div>
 
+            {/* Tenyészbika adatok - VV-ből átvéve */}
+          {prefillFromVV?.fatherData && (
+            <div className="p-4 bg-green-50 rounded-lg">
+              <h3 className="text-lg font-semibold text-green-800 flex items-center gap-2 mb-4">
+                🐂 Tenyészbika adatok (VV eredményből)
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tenyészbika neve:</label>
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700">
+                    {prefillFromVV.fatherData.name || 'Nincs megadva'}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">ENAR:</label>
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700">
+                    {prefillFromVV.fatherData.enar || 'Nincs megadva'}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">KPLSZ:</label>
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700">
+                    {prefillFromVV.fatherData.kplsz || 'Nincs megadva'}
+                  </div>
+                </div>
+
+                {prefillFromVV.fatherData.possibleFathers && prefillFromVV.fatherData.possibleFathers.length > 1 && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bizonytalan apaság:</label>
+                    <div className="text-orange-600 font-medium">
+                      ⚠️ {prefillFromVV.fatherData.possibleFathers.length} lehetséges apa
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {prefillFromVV.fatherData.possibleFathers && prefillFromVV.fatherData.possibleFathers.length > 1 && (
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Lehetséges apák:</label>
+                  <div className="space-y-2">
+                    {prefillFromVV.fatherData.possibleFathers.map((father: any, index: number) => (
+                      <div key={index} className="p-2 bg-white border rounded">
+                        <span className="font-medium">{father.name || 'Ismeretlen'}</span> - {father.enar}
+                        {father.kplsz && <span className="text-gray-600"> (KPLSZ: {father.kplsz})</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Megjegyzések */}
           <div className="p-4 bg-blue-50 rounded-lg">
             <h3 className="text-lg font-semibold text-blue-800 flex items-center gap-2 mb-4">

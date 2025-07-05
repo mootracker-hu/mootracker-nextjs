@@ -21,14 +21,14 @@ import {
   Eye
 } from 'lucide-react';
 
-// ✅ ÁLLAT-KÖZPONTÚ ALERTS HASZNÁLATA
-import { useAlerts } from '@/hooks/useAlerts';
+// ✅ JAVÍTOTT IMPORT - useAlertsNew használata
+import { useAlertsNew } from '@/hooks/useAlertsNew';
 import { useTasks } from '@/hooks/useTasks';
 import { Task, TaskPriority } from '@/types/alert-task-types';
 import { supabase } from '@/lib/supabase';
 
 const TasksPage = () => {
-  // ✅ ÁLLAT ALERTS (helyes hook)
+  // ✅ ÁLLAT ALERTS (javított hook)
   const { 
     alerts: animalAlerts, 
     loading: animalAlertsLoading, 
@@ -36,7 +36,7 @@ const TasksPage = () => {
     refreshAlerts,
     resolveAlert,
     createTaskFromAlert: createTaskFromAnimalAlert
-  } = useAlerts();
+  } = useAlertsNew();
 
   const { 
     tasks, 

@@ -453,6 +453,10 @@ function EllesTab({ animal }: { animal: any }) {
   const [assigningEarTag, setAssigningEarTag] = React.useState<any>(null);
   const [possibleAnimals, setPossibleAnimals] = useState<any[]>([]);
   const [selectedAnimalEnar, setSelectedAnimalEnar] = React.useState<string>('');
+  // 🆕 VV adatok state változói az ellés form számára
+const [vvResults, setVvResults] = React.useState<any[]>([]);
+const [loadingVV, setLoadingVV] = React.useState(true);
+const [selectedVVForBirth, setSelectedVVForBirth] = React.useState<any>(null);
 
   // Ellési történet betöltése
   React.useEffect(() => {
@@ -488,6 +492,40 @@ function EllesTab({ animal }: { animal: any }) {
       fetchBirthHistory();
     }
   }, [animal?.enar]);
+
+  // 🆕 VV eredmények betöltése ellés form számára
+React.useEffect(() => {
+  const fetchVVResults = async () => {
+    try {
+      setLoadingVV(true);
+      const { data, error } = await supabase
+        .from('vv_results')
+        .select('*')
+        .eq('animal_enar', animal?.enar)
+        .eq('pregnancy_status', 'vemhes') // Csak vemhes eredmények
+        .order('vv_date', { ascending: false });
+
+      if (error) {
+        console.error('❌ VV eredmények betöltési hiba:', error);
+      } else {
+        console.log('✅ VV eredmények betöltve ellés számára:', data);
+        setVvResults(data || []);
+        // Automatikusan a legutóbbi VV kiválasztása
+        if (data && data.length > 0) {
+          setSelectedVVForBirth(data[0]);
+        }
+      }
+    } catch (err) {
+      console.error('❌ VV fetch hiba:', err);
+    } finally {
+      setLoadingVV(false);
+    }
+  };
+
+  if (animal?.enar) {
+    fetchVVResults();
+  }
+}, [animal?.enar]);
 
   const refreshBirthHistory = async () => {
     const { data } = await supabase
@@ -573,18 +611,53 @@ function EllesTab({ animal }: { animal: any }) {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div className="flex items-center">
-          <span className="text-2xl mr-3">🐄</span>
-          <h3 className="text-lg font-semibold text-gray-900">Ellési adatok</h3>
-        </div>
-        <button
-          onClick={() => setShowBirthForm(true)}
-          className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg transition-colors inline-flex items-center"
-        >
-          <span className="mr-2">➕</span>
-          Új ellés rögzítése
-        </button>
+  <div className="flex items-center">
+    <span className="text-2xl mr-3">🐄</span>
+    <h3 className="text-lg font-semibold text-gray-900">Ellési adatok</h3>
+  </div>
+  
+  <div className="flex items-center gap-4">
+    {/* 🆕 VV választó dropdown */}
+    {vvResults.length > 0 && (
+      <div className="flex items-center gap-2">
+        <label className="text-sm font-medium text-gray-700">🔬 VV eredmény:</label>
+        <select
+  value={selectedVVForBirth?.id || ''}
+  onChange={(e) => {
+  console.log('🔍 Dropdown választás:', e.target.value);
+  console.log('🔍 VV Results:', vvResults);
+  
+  if (e.target.value === '') {
+    // "VV nélkül" választás
+    setSelectedVVForBirth(null);
+  } else {
+    // Konkrét VV választás
+    const selected = vvResults.find(vv => String(vv.id) === String(e.target.value));
+    console.log('🔍 Kiválasztott VV:', selected);
+    setSelectedVVForBirth(selected || null);
+  }
+  }}
+  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500"
+>
+          <option value="">VV nélkül</option>
+          {vvResults.map((vv) => (
+            <option key={vv.id} value={vv.id}>
+              {new Date(vv.vv_date).toLocaleDateString('hu-HU')} - {vv.father_name || vv.father_enar}
+            </option>
+          ))}
+        </select>
       </div>
+    )}
+    
+    <button
+      onClick={() => setShowBirthForm(true)}
+      className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg transition-colors inline-flex items-center"
+    >
+      <span className="mr-2">➕</span>
+      Új ellés rögzítése
+    </button>
+  </div>
+</div>
 
       {showBirthForm && (
         <BirthForm
@@ -604,6 +677,16 @@ function EllesTab({ animal }: { animal: any }) {
             setShowBirthForm(false);
             setEditingBirth(null);                     // 🆕 Edit state reset
           }}
+          prefillFromVV={selectedVVForBirth ? {
+      expectedBirthDate: selectedVVForBirth.expected_birth_date,
+      fatherData: {
+        type: selectedVVForBirth.father_type || 'natural',
+        enar: selectedVVForBirth.father_enar,
+        kplsz: selectedVVForBirth.father_kplsz,
+        name: selectedVVForBirth.father_name,
+        possibleFathers: selectedVVForBirth.possible_fathers || []
+      }
+    } : undefined}
         />
       )}
 

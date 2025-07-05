@@ -124,8 +124,13 @@ const BolcsiAnimalTable: React.FC<AnimalTableProps> = ({
                         const twelveMonthTarget = addDays(new Date(animal.szuletesi_datum), 365);
                         return (
                             <tr key={getSafeKey(animal, index)}
-                                className={`hover:bg-gray-50 cursor-pointer ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''}`}
-                                onClick={() => handleAnimalClick(animal)}>
+                                className={`hover:bg-gray-50 ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''} ${animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                    ? 'cursor-pointer'
+                                    : ''
+                                    }`}
+                                onClick={animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                    ? () => handleAnimalClick(animal)
+                                    : undefined}>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <input
                                         type="checkbox"
@@ -136,14 +141,14 @@ const BolcsiAnimalTable: React.FC<AnimalTableProps> = ({
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     {animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-')) ? (
-    <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
-        🐮 {animal.enar}
-    </span>
-) : (
-    <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
-        {animal.enar}
-    </Link>
-)}
+                                        <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
+                                            🐮 {animal.enar}
+                                        </span>
+                                    ) : (
+                                        <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
+                                            {animal.enar}
+                                        </Link>
+                                    )}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     {formatDate(animal.szuletesi_datum)}
@@ -197,8 +202,13 @@ const OviAnimalTable: React.FC<AnimalTableProps> = ({
                         const twentyFourMonthTarget = addDays(new Date(animal.szuletesi_datum), 730);
                         return (
                             <tr key={getSafeKey(animal, index)}
-                                className={`hover:bg-gray-50 cursor-pointer ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''}`}
-                                onClick={() => handleAnimalClick(animal)}>
+                                className={`hover:bg-gray-50 ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''} ${animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                    ? 'cursor-pointer'
+                                    : ''
+                                    }`}
+                                onClick={animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                    ? () => handleAnimalClick(animal)
+                                    : undefined}>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <input
                                         type="checkbox"
@@ -209,14 +219,14 @@ const OviAnimalTable: React.FC<AnimalTableProps> = ({
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     {animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-')) ? (
-    <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
-        🐮 {animal.enar}
-    </span>
-) : (
-    <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
-        {animal.enar}
-    </Link>
-)}
+                                        <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
+                                            🐮 {animal.enar}
+                                        </span>
+                                    ) : (
+                                        <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
+                                            {animal.enar}
+                                        </Link>
+                                    )}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     {formatDate(animal.szuletesi_datum)}
@@ -273,8 +283,13 @@ const HaremAnimalTable: React.FC<AnimalTableProps> = ({
                         const vvPlanned = animal.harem_start_date ? addDays(new Date(animal.harem_start_date), 75) : '-';
                         return (
                             <tr key={getSafeKey(animal, index)}
-                                className={`hover:bg-gray-50 cursor-pointer ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''}`}
-                                onClick={() => handleAnimalClick(animal)}>
+                                className={`hover:bg-gray-50 ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''} ${animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                    ? 'cursor-pointer'
+                                    : ''
+                                    }`}
+                                onClick={animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                    ? () => handleAnimalClick(animal)
+                                    : undefined}>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <input
                                         type="checkbox"
@@ -285,14 +300,14 @@ const HaremAnimalTable: React.FC<AnimalTableProps> = ({
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     {animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-')) ? (
-    <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
-        🐮 {animal.enar}
-    </span>
-) : (
-    <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
-        {animal.enar}
-    </Link>
-)}
+                                        <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
+                                            🐮 {animal.enar}
+                                        </span>
+                                    ) : (
+                                        <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
+                                            {animal.enar}
+                                        </Link>
+                                    )}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                                     {animal.name || '-'}
@@ -372,8 +387,13 @@ const VemhesAnimalTable: React.FC<AnimalTableProps> = ({
 
                         return (
                             <tr key={getSafeKey(animal, index)}
-                                className={`hover:bg-gray-50 cursor-pointer ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''}`}
-                                onClick={() => handleAnimalClick(animal)}>
+                                className={`hover:bg-gray-50 ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''} ${animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                    ? 'cursor-pointer'
+                                    : ''
+                                    }`}
+                                onClick={animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                    ? () => handleAnimalClick(animal)
+                                    : undefined}>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <input
                                         type="checkbox"
@@ -384,14 +404,14 @@ const VemhesAnimalTable: React.FC<AnimalTableProps> = ({
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     {animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-')) ? (
-    <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
-        🐮 {animal.enar}
-    </span>
-) : (
-    <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
-        {animal.enar}
-    </Link>
-)}
+                                        <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
+                                            🐮 {animal.enar}
+                                        </span>
+                                    ) : (
+                                        <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
+                                            {animal.enar}
+                                        </Link>
+                                    )}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                                     {animal.name || '-'}
@@ -455,8 +475,13 @@ const ElletoAnimalTable: React.FC<AnimalTableProps> = ({
                 <tbody className="bg-white divide-y divide-gray-200">
                     {animals.map((animal, index) => (
                         <tr key={getSafeKey(animal, index)}
-                            className={`hover:bg-gray-50 cursor-pointer ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''}`}
-                            onClick={() => handleAnimalClick(animal)}>
+                            className={`hover:bg-gray-50 ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''} ${animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                ? 'cursor-pointer'
+                                : ''
+                                }`}
+                            onClick={animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                ? () => handleAnimalClick(animal)
+                                : undefined}>
                             <td className="px-6 py-4 whitespace-nowrap">
                                 <input
                                     type="checkbox"
@@ -467,14 +492,14 @@ const ElletoAnimalTable: React.FC<AnimalTableProps> = ({
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                                 {animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-')) ? (
-    <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
-        🐮 {animal.enar}
-    </span>
-) : (
-    <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
-        {animal.enar}
-    </Link>
-)}
+                                    <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
+                                        🐮 {animal.enar}
+                                    </span>
+                                ) : (
+                                    <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
+                                        {animal.enar}
+                                    </Link>
+                                )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                                 {animal.name || '-'}
@@ -546,8 +571,13 @@ const TehenAnimalTable: React.FC<AnimalTableProps> = ({
                 <tbody className="bg-white divide-y divide-gray-200">
                     {animals.map((animal, index) => (
                         <tr key={getSafeKey(animal, index)}
-                            className={`hover:bg-gray-50 cursor-pointer ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''}`}
-                            onClick={() => handleAnimalClick(animal)}>
+                            className={`hover:bg-gray-50 ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''} ${animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                ? 'cursor-pointer'
+                                : ''
+                                }`}
+                            onClick={animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                ? () => handleAnimalClick(animal)
+                                : undefined}>
                             <td className="px-6 py-4 whitespace-nowrap">
                                 <input
                                     type="checkbox"
@@ -558,14 +588,14 @@ const TehenAnimalTable: React.FC<AnimalTableProps> = ({
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                                 {animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-')) ? (
-    <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
-        🐮 {animal.enar}
-    </span>
-) : (
-    <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
-        {animal.enar}
-    </Link>
-)}
+                                    <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
+                                        🐮 {animal.enar}
+                                    </span>
+                                ) : (
+                                    <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
+                                        {animal.enar}
+                                    </Link>
+                                )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                                 {animal.name || '-'}
@@ -651,8 +681,13 @@ const HizoikaAnimalTable: React.FC<AnimalTableProps> = ({
                         const twentyFourMonthTarget = addDays(new Date(animal.szuletesi_datum), 730);
                         return (
                             <tr key={getSafeKey(animal, index)}
-                                className={`hover:bg-gray-50 cursor-pointer ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''}`}
-                                onClick={() => handleAnimalClick(animal)}>
+                                className={`hover:bg-gray-50 ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''} ${animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                    ? 'cursor-pointer'
+                                    : ''
+                                    }`}
+                                onClick={animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                    ? () => handleAnimalClick(animal)
+                                    : undefined}>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <input
                                         type="checkbox"
@@ -663,14 +698,14 @@ const HizoikaAnimalTable: React.FC<AnimalTableProps> = ({
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     {animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-')) ? (
-    <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
-        🐮 {animal.enar}
-    </span>
-) : (
-    <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
-        {animal.enar}
-    </Link>
-)}
+                                        <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
+                                            🐮 {animal.enar}
+                                        </span>
+                                    ) : (
+                                        <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
+                                            {animal.enar}
+                                        </Link>
+                                    )}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     {formatDate(animal.szuletesi_datum)}
@@ -726,8 +761,13 @@ const KorhazAnimalTable: React.FC<AnimalTableProps> = ({
                 <tbody className="bg-white divide-y divide-gray-200">
                     {animals.map((animal, index) => (
                         <tr key={getSafeKey(animal, index)}
-                            className={`hover:bg-gray-50 cursor-pointer ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''}`}
-                            onClick={() => handleAnimalClick(animal)}>
+                            className={`hover:bg-gray-50 ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''} ${animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                ? 'cursor-pointer'
+                                : ''
+                                }`}
+                            onClick={animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                ? () => handleAnimalClick(animal)
+                                : undefined}>
                             <td className="px-6 py-4 whitespace-nowrap">
                                 <input
                                     type="checkbox"
@@ -738,14 +778,14 @@ const KorhazAnimalTable: React.FC<AnimalTableProps> = ({
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                                 {animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-')) ? (
-    <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
-        🐮 {animal.enar}
-    </span>
-) : (
-    <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
-        {animal.enar}
-    </Link>
-)}
+                                    <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
+                                        🐮 {animal.enar}
+                                    </span>
+                                ) : (
+                                    <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
+                                        {animal.enar}
+                                    </Link>
+                                )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">-</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">-</td>
@@ -794,8 +834,13 @@ const KarantenAnimalTable: React.FC<AnimalTableProps> = ({
                 <tbody className="bg-white divide-y divide-gray-200">
                     {animals.map((animal, index) => (
                         <tr key={getSafeKey(animal, index)}
-                            className={`hover:bg-gray-50 cursor-pointer ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''}`}
-                            onClick={() => handleAnimalClick(animal)}>
+                            className={`hover:bg-gray-50 ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''} ${animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                ? 'cursor-pointer'
+                                : ''
+                                }`}
+                            onClick={animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                ? () => handleAnimalClick(animal)
+                                : undefined}>
                             <td className="px-6 py-4 whitespace-nowrap">
                                 <input
                                     type="checkbox"
@@ -806,14 +851,14 @@ const KarantenAnimalTable: React.FC<AnimalTableProps> = ({
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                                 {animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-')) ? (
-    <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
-        🐮 {animal.enar}
-    </span>
-) : (
-    <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
-        {animal.enar}
-    </Link>
-)}
+                                    <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
+                                        🐮 {animal.enar}
+                                    </span>
+                                ) : (
+                                    <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
+                                        {animal.enar}
+                                    </Link>
+                                )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">-</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">-</td>
@@ -862,8 +907,13 @@ const SelejtAnimalTable: React.FC<AnimalTableProps> = ({
                 <tbody className="bg-white divide-y divide-gray-200">
                     {animals.map((animal, index) => (
                         <tr key={getSafeKey(animal, index)}
-                            className={`hover:bg-gray-50 cursor-pointer ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''}`}
-                            onClick={() => handleAnimalClick(animal)}>
+                            className={`hover:bg-gray-50 ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''} ${animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                ? 'cursor-pointer'
+                                : ''
+                                }`}
+                            onClick={animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                ? () => handleAnimalClick(animal)
+                                : undefined}>
                             <td className="px-6 py-4 whitespace-nowrap">
                                 <input
                                     type="checkbox"
@@ -874,14 +924,14 @@ const SelejtAnimalTable: React.FC<AnimalTableProps> = ({
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                                 {animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-')) ? (
-    <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
-        🐮 {animal.enar}
-    </span>
-) : (
-    <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
-        {animal.enar}
-    </Link>
-)}
+                                    <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
+                                        🐮 {animal.enar}
+                                    </span>
+                                ) : (
+                                    <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
+                                        {animal.enar}
+                                    </Link>
+                                )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">-</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">-</td>
@@ -930,8 +980,13 @@ const AtmenetiAnimalTable: React.FC<AnimalTableProps> = ({
                 <tbody className="bg-white divide-y divide-gray-200">
                     {animals.map((animal, index) => (
                         <tr key={getSafeKey(animal, index)}
-                            className={`hover:bg-gray-50 cursor-pointer ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''}`}
-                            onClick={() => handleAnimalClick(animal)}>
+                            className={`hover:bg-gray-50 ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''} ${animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                ? 'cursor-pointer'
+                                : ''
+                                }`}
+                            onClick={animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                ? () => handleAnimalClick(animal)
+                                : undefined}>
                             <td className="px-6 py-4 whitespace-nowrap">
                                 <input
                                     type="checkbox"
@@ -942,14 +997,14 @@ const AtmenetiAnimalTable: React.FC<AnimalTableProps> = ({
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                                 {animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-')) ? (
-    <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
-        🐮 {animal.enar}
-    </span>
-) : (
-    <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
-        {animal.enar}
-    </Link>
-)}
+                                    <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
+                                        🐮 {animal.enar}
+                                    </span>
+                                ) : (
+                                    <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
+                                        {animal.enar}
+                                    </Link>
+                                )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">-</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">-</td>
@@ -1137,198 +1192,198 @@ const PenSpecificAnimalTable: React.FC<PenSpecificAnimalTableProps> = ({
             })()}
 
             {/* ✅ KOMPLEX BORJÚ RÉSZLETEI MODAL */}
-{selectedCalfDetails && (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg shadow-sm border max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                    <div className="flex items-center">
-                        <span className="text-2xl mr-3">🐄</span>
-                        <h3 className="text-xl font-bold text-gray-900">Borjú Részletei</h3>
-                    </div>
-                    <button
-                        onClick={() => setSelectedCalfDetails(null)}
-                        className="text-gray-400 hover:text-gray-600 p-2 transition-colors"
-                    >
-                        ❌
-                    </button>
-                </div>
+            {selectedCalfDetails && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg shadow-sm border max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+                        <div className="p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <div className="flex items-center">
+                                    <span className="text-2xl mr-3">🐄</span>
+                                    <h3 className="text-xl font-bold text-gray-900">Borjú Részletei</h3>
+                                </div>
+                                <button
+                                    onClick={() => setSelectedCalfDetails(null)}
+                                    className="text-gray-400 hover:text-gray-600 p-2 transition-colors"
+                                >
+                                    ❌
+                                </button>
+                            </div>
 
-                <div className="space-y-4">
-                    {/* Alapadatok */}
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                        <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                            <span className="mr-2">📋</span>
-                            Alapadatok
-                        </h4>
-                        <div className="grid grid-cols-2 gap-3 text-sm">
-                            <div>
-                                <span className="text-gray-600">Temp ID:</span>
-                                <div className="font-medium">{selectedCalfDetails.temp_id}</div>
-                            </div>
-                            <div>
-                                <span className="text-gray-600">Ivar:</span>
-                                <div className="font-medium">
-                                    {selectedCalfDetails.gender === 'male' ? '🐂 Bika' : '🐄 Üsző'}
-                                </div>
-                            </div>
-                            <div>
-                                <span className="text-gray-600">Anya ENAR:</span>
-                                <div className="font-medium">{selectedCalfDetails.birth?.mother_enar}</div>
-                            </div>
-                            <div>
-                                <span className="text-gray-600">Apa:</span>
-                                <div className="font-medium">
-                                    {getFatherDisplay(selectedCalfDetails)}
-                                </div>
-                            </div>
-                            <div>
-                                <span className="text-gray-600">Születés:</span>
-                                <div className="font-medium">
-                                    {selectedCalfDetails.birth?.birth_date ?
-                                        new Date(selectedCalfDetails.birth.birth_date).toLocaleDateString('hu-HU') :
-                                        '-'
-                                    }
-                                </div>
-                            </div>
-                            <div>
-                                <span className="text-gray-600">Életkor:</span>
-                                <div className="font-medium">
-                                    {selectedCalfDetails.birth?.birth_date ?
-                                        `${calculateCalfAge(selectedCalfDetails.birth.birth_date)} nap` :
-                                        '-'
-                                    }
-                                </div>
-                            </div>
-                            <div>
-                                <span className="text-gray-600">Típus:</span>
-                                <div className="font-medium">
-                                    🆕 Új ellés
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* VV Eredmény Részletek */}
-                    {selectedCalfDetails.vv_result && (
-                        <div className="bg-blue-50 p-4 rounded-lg">
-                            <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                                <span className="mr-2">🔬</span>
-                                VV Eredmény Részletek
-                            </h4>
-                            <div className="text-sm space-y-2">
-                                {selectedCalfDetails.vv_result.possible_fathers && 
-                                 Array.isArray(selectedCalfDetails.vv_result.possible_fathers) && 
-                                 selectedCalfDetails.vv_result.possible_fathers.length > 1 ? (
-                                    <div>
-                                        <span className="text-gray-600">Lehetséges apák ({selectedCalfDetails.vv_result.possible_fathers.length}):</span>
-                                        <div className="font-medium space-y-1 mt-1">
-                                            {selectedCalfDetails.vv_result.possible_fathers.map((father: any, index: number) => (
-                                                <div key={`modal-father-${index}`} className="bg-white p-2 rounded border">
-                                                    🐂 {father.name || father.father_name || 'Névtelen'} 
-                                                    {father.enar || father.father_enar ? ` (${father.enar || father.father_enar})` : ''}
-                                                    {father.kplsz || father.father_kplsz ? ` - KPLSZ: ${father.kplsz || father.father_kplsz}` : ''}
-                                                </div>
-                                            ))}
+                            <div className="space-y-4">
+                                {/* Alapadatok */}
+                                <div className="bg-gray-50 p-4 rounded-lg">
+                                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                                        <span className="mr-2">📋</span>
+                                        Alapadatok
+                                    </h4>
+                                    <div className="grid grid-cols-2 gap-3 text-sm">
+                                        <div>
+                                            <span className="text-gray-600">Temp ID:</span>
+                                            <div className="font-medium">{selectedCalfDetails.temp_id}</div>
+                                        </div>
+                                        <div>
+                                            <span className="text-gray-600">Ivar:</span>
+                                            <div className="font-medium">
+                                                {selectedCalfDetails.gender === 'male' ? '🐂 Bika' : '🐄 Üsző'}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span className="text-gray-600">Anya ENAR:</span>
+                                            <div className="font-medium">{selectedCalfDetails.birth?.mother_enar}</div>
+                                        </div>
+                                        <div>
+                                            <span className="text-gray-600">Apa:</span>
+                                            <div className="font-medium">
+                                                {getFatherDisplay(selectedCalfDetails)}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span className="text-gray-600">Születés:</span>
+                                            <div className="font-medium">
+                                                {selectedCalfDetails.birth?.birth_date ?
+                                                    new Date(selectedCalfDetails.birth.birth_date).toLocaleDateString('hu-HU') :
+                                                    '-'
+                                                }
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span className="text-gray-600">Életkor:</span>
+                                            <div className="font-medium">
+                                                {selectedCalfDetails.birth?.birth_date ?
+                                                    `${calculateCalfAge(selectedCalfDetails.birth.birth_date)} nap` :
+                                                    '-'
+                                                }
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span className="text-gray-600">Típus:</span>
+                                            <div className="font-medium">
+                                                🆕 Új ellés
+                                            </div>
                                         </div>
                                     </div>
-                                ) : (
-                                    <>
-                                        {(selectedCalfDetails.vv_result.father_name || 
-                                          (selectedCalfDetails.vv_result.possible_fathers && selectedCalfDetails.vv_result.possible_fathers[0]?.name)) && (
-                                            <div>
-                                                <span className="text-gray-600">Tenyészbika név:</span>
-                                                <div className="font-medium">
-                                                    {selectedCalfDetails.vv_result.father_name || 
-                                                     selectedCalfDetails.vv_result.possible_fathers?.[0]?.name || 
-                                                     selectedCalfDetails.vv_result.possible_fathers?.[0]?.father_name}
+                                </div>
+
+                                {/* VV Eredmény Részletek */}
+                                {selectedCalfDetails.vv_result && (
+                                    <div className="bg-blue-50 p-4 rounded-lg">
+                                        <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                                            <span className="mr-2">🔬</span>
+                                            VV Eredmény Részletek
+                                        </h4>
+                                        <div className="text-sm space-y-2">
+                                            {selectedCalfDetails.vv_result.possible_fathers &&
+                                                Array.isArray(selectedCalfDetails.vv_result.possible_fathers) &&
+                                                selectedCalfDetails.vv_result.possible_fathers.length > 1 ? (
+                                                <div>
+                                                    <span className="text-gray-600">Lehetséges apák ({selectedCalfDetails.vv_result.possible_fathers.length}):</span>
+                                                    <div className="font-medium space-y-1 mt-1">
+                                                        {selectedCalfDetails.vv_result.possible_fathers.map((father: any, index: number) => (
+                                                            <div key={`modal-father-${index}`} className="bg-white p-2 rounded border">
+                                                                🐂 {father.name || father.father_name || 'Névtelen'}
+                                                                {father.enar || father.father_enar ? ` (${father.enar || father.father_enar})` : ''}
+                                                                {father.kplsz || father.father_kplsz ? ` - KPLSZ: ${father.kplsz || father.father_kplsz}` : ''}
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        )}
-                                        {(selectedCalfDetails.vv_result.father_enar || 
-                                          (selectedCalfDetails.vv_result.possible_fathers && selectedCalfDetails.vv_result.possible_fathers[0]?.enar)) && (
-                                            <div>
-                                                <span className="text-gray-600">Tenyészbika ENAR:</span>
-                                                <div className="font-medium">
-                                                    {selectedCalfDetails.vv_result.father_enar || 
-                                                     selectedCalfDetails.vv_result.possible_fathers?.[0]?.enar ||
-                                                     selectedCalfDetails.vv_result.possible_fathers?.[0]?.father_enar}
+                                            ) : (
+                                                <>
+                                                    {(selectedCalfDetails.vv_result.father_name ||
+                                                        (selectedCalfDetails.vv_result.possible_fathers && selectedCalfDetails.vv_result.possible_fathers[0]?.name)) && (
+                                                            <div>
+                                                                <span className="text-gray-600">Tenyészbika név:</span>
+                                                                <div className="font-medium">
+                                                                    {selectedCalfDetails.vv_result.father_name ||
+                                                                        selectedCalfDetails.vv_result.possible_fathers?.[0]?.name ||
+                                                                        selectedCalfDetails.vv_result.possible_fathers?.[0]?.father_name}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    {(selectedCalfDetails.vv_result.father_enar ||
+                                                        (selectedCalfDetails.vv_result.possible_fathers && selectedCalfDetails.vv_result.possible_fathers[0]?.enar)) && (
+                                                            <div>
+                                                                <span className="text-gray-600">Tenyészbika ENAR:</span>
+                                                                <div className="font-medium">
+                                                                    {selectedCalfDetails.vv_result.father_enar ||
+                                                                        selectedCalfDetails.vv_result.possible_fathers?.[0]?.enar ||
+                                                                        selectedCalfDetails.vv_result.possible_fathers?.[0]?.father_enar}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                </>
+                                            )}
+
+                                            {selectedCalfDetails.vv_result.vv_date && (
+                                                <div>
+                                                    <span className="text-gray-600">VV dátum:</span>
+                                                    <div className="font-medium">{new Date(selectedCalfDetails.vv_result.vv_date).toLocaleDateString('hu-HU')}</div>
                                                 </div>
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-                                
-                                {selectedCalfDetails.vv_result.vv_date && (
-                                    <div>
-                                        <span className="text-gray-600">VV dátum:</span>
-                                        <div className="font-medium">{new Date(selectedCalfDetails.vv_result.vv_date).toLocaleDateString('hu-HU')}</div>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
+
+                                {/* Tervezett ENAR */}
+                                <div className="bg-green-50 p-4 rounded-lg">
+                                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                                        <span className="mr-2">📝</span>
+                                        Tervezett ENAR
+                                    </h4>
+                                    {selectedCalfDetails.planned_enar ? (
+                                        <div className="text-blue-800 font-medium mb-2">
+                                            📝 {selectedCalfDetails.planned_enar}
+                                        </div>
+                                    ) : (
+                                        <div className="text-gray-600 mb-2">
+                                            ⏳ Még nincs tervezve
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Protokoll státusz */}
+                                <div className="bg-yellow-50 p-4 rounded-lg">
+                                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                                        <span className="mr-2">⏰</span>
+                                        15 napos protokoll
+                                    </h4>
+                                    {(() => {
+                                        if (!selectedCalfDetails.birth?.birth_date) return null;
+                                        const protocol = getProtocolStatus(selectedCalfDetails.birth.birth_date);
+                                        return (
+                                            <div className={`p-3 rounded border ${protocol.color}`}>
+                                                <div className="font-medium">{protocol.message}</div>
+                                                <div className="text-xs mt-1 text-gray-600">
+                                                    BoviPast vakcina + fülszám felhelyezés + szarvtalanítás
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+                            </div>
+
+                            {/* Akció gombok */}
+                            <div className="mt-6 flex gap-3">
+                                <button
+                                    onClick={() => setSelectedCalfDetails(null)}
+                                    className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-medium px-4 py-3 rounded-lg transition-colors"
+                                >
+                                    ✅ Bezárás
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        alert('🏷️ Fülszám kezelés funkció hamarosan elérhető!');
+                                    }}
+                                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-3 rounded-lg transition-colors"
+                                >
+                                    🏷️ Fülszám kezelése
+                                </button>
                             </div>
                         </div>
-                    )}
-
-                    {/* Tervezett ENAR */}
-                    <div className="bg-green-50 p-4 rounded-lg">
-                        <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                            <span className="mr-2">📝</span>
-                            Tervezett ENAR
-                        </h4>
-                        {selectedCalfDetails.planned_enar ? (
-                            <div className="text-blue-800 font-medium mb-2">
-                                📝 {selectedCalfDetails.planned_enar}
-                            </div>
-                        ) : (
-                            <div className="text-gray-600 mb-2">
-                                ⏳ Még nincs tervezve
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Protokoll státusz */}
-                    <div className="bg-yellow-50 p-4 rounded-lg">
-                        <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                            <span className="mr-2">⏰</span>
-                            15 napos protokoll
-                        </h4>
-                        {(() => {
-                            if (!selectedCalfDetails.birth?.birth_date) return null;
-                            const protocol = getProtocolStatus(selectedCalfDetails.birth.birth_date);
-                            return (
-                                <div className={`p-3 rounded border ${protocol.color}`}>
-                                    <div className="font-medium">{protocol.message}</div>
-                                    <div className="text-xs mt-1 text-gray-600">
-                                        BoviPast vakcina + fülszám felhelyezés + szarvtalanítás
-                                    </div>
-                                </div>
-                            );
-                        })()}
                     </div>
                 </div>
-
-                {/* Akció gombok */}
-                <div className="mt-6 flex gap-3">
-                    <button
-                        onClick={() => setSelectedCalfDetails(null)}
-                        className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-medium px-4 py-3 rounded-lg transition-colors"
-                    >
-                        ✅ Bezárás
-                    </button>
-                    <button
-                        onClick={() => {
-                            alert('🏷️ Fülszám kezelés funkció hamarosan elérhető!');
-                        }}
-                        className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-3 rounded-lg transition-colors"
-                    >
-                        🏷️ Fülszám kezelése
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-)}
+            )}
         </>
     );
 };
-    export default PenSpecificAnimalTable;
+export default PenSpecificAnimalTable;
