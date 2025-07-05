@@ -1,8 +1,6 @@
-// Legacy compatibility - redirect to new modern client
-import { createClient as createModernClient } from './supabase/client'
+import { createClient } from '@supabase/supabase-js'
 
-// Export for legacy compatibility
-export const supabase = createModernClient()
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-// Re-export new clients for modern usage
-export { createClient } from './supabase/client'
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)

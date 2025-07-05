@@ -82,7 +82,7 @@ export interface Task {
   
   // Opcionális mezők
   due_date?: string;
-  animal_id?: string; 
+  animal_id?: number;
   pen_id?: string;
   action_required?: string;
   alert_id?: string;
@@ -215,7 +215,7 @@ export interface CreateTaskRequest {
   priority: TaskPriority;
   category: TaskCategory;
   due_date?: string;
-  animal_id?: string;  
+  animal_id?: number;   
   pen_id?: string;
   action_required?: string;
   alert_id?: string;
