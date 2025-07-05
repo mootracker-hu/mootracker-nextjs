@@ -91,23 +91,7 @@ const mapDbTaskToApp = (dbTask: any): Task => {
 // 🎯 MOCK ADATOK
 // ============================================
 
-const INITIAL_MOCK_TASKS: Task[] = [
-  {
-    id: '1',
-    title: 'HU9120 vemhességvizsgálat',
-    description: 'Párzás után 75 nappal VV vizsgálat szükséges',
-    priority: 'magas',
-    status: 'fuggőben',
-    category: 'tenyesztes',
-    due_date: '2025-06-25T10:00:00.000Z',
-    animal_id: 1,
-    animal: { id: 1, enar: 'HU9120' },
-    action_required: 'Állatorvos meghívása VV-ra',
-    alert_id: 'alert-breeding-1',
-    created_at: new Date(Date.now() - (1 * 24 * 60 * 60 * 1000)).toISOString(),
-    updated_at: new Date(Date.now() - (1 * 24 * 60 * 60 * 1000)).toISOString()
-  }
-];
+
 
 // ============================================
 // 🪝 MAIN HOOK
@@ -168,14 +152,14 @@ export const useTasks = (): UseTasksReturn => {
         }
       }
 
-      // ✅ 3. Mock adatok utolsó esély
-      setTasks(INITIAL_MOCK_TASKS);
-      console.log('✅ Mock tasks betöltve');
+    // ✅ 3. Üres tasks lista
+setTasks([]);
+console.log('✅ Üres tasks lista inicializálva');
 
     } catch (err) {
       console.error('Task loading error:', err);
       setError('Hiba a task-ok betöltése során');
-      setTasks(INITIAL_MOCK_TASKS);
+      setTasks([]);
     } finally {
       setLoading(false);
     }
@@ -382,7 +366,8 @@ export const useTasks = (): UseTasksReturn => {
       priority: alert.priority as TaskPriority,
       category: 'altalanos',
       due_date: alert.due_date || new Date(Date.now() + (7 * 24 * 60 * 60 * 1000)).toISOString(),
-      animal_id: alert.animal_id,
+      // ✅ LEGBIZTONSÁGOSABB:
+animal_id: alert.animal_id && !isNaN(Number(alert.animal_id)) ? Number(alert.animal_id) : undefined,
       action_required: alert.action_required,
       alert_id: alert.id,
       status: 'fuggőben'
@@ -398,7 +383,7 @@ export const useTasks = (): UseTasksReturn => {
     if (filters.status && filters.status.length > 0 && !filters.status.includes(task.status)) return false;
     if (filters.priority && filters.priority.length > 0 && !filters.priority.includes(task.priority)) return false;
     if (filters.category && filters.category.length > 0 && !filters.category.includes(task.category)) return false;
-    if (filters.animal_id && task.animal_id !== filters.animal_id) return false;
+    if (filters.animal_id && String(task.animal_id) !== String(filters.animal_id)) return false;
     if (filters.pen_id && task.pen_id !== filters.pen_id) return false;
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();

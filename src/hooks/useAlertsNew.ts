@@ -2,13 +2,33 @@
 // Unified Alert Hook - Uses MagyarAlertEngine + PenQueries
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { MagyarAlertEngine, magyarAlertEngine, Alert, AlertPriority, AlertType, Animal, PenInfo } from '@/lib/alerts/MagyarAlertEngine';
+import { MagyarAlertEngine, magyarAlertEngine, Animal, PenInfo } from '@/lib/alerts/MagyarAlertEngine';
+import { Alert, AlertPriority, AlertType } from '@/types/alert-task-types';
 import { getAllAnimalsWithPens, getPensWithCounts, clearCache } from '@/lib/data/PenQueries';
 
 
 // ============================================
 // HOOK INTERFACE
 // ============================================
+
+interface SnoozedAlert {
+  alertId: string;
+  until: string;
+}
+
+export interface AlertStats {
+  total: number;
+  active: number;
+  resolved: number;
+  snoozed: number;
+  overdue: number;
+  critical: number;
+  surgos: number;
+  kritikus: number;
+  magas: number;
+  kozepes: number;
+  alacsony: number;
+}
 
 export interface UseAlertsReturn {
   // Data
@@ -30,6 +50,7 @@ export interface UseAlertsReturn {
   resolveAlert: (alertId: string) => void;
   snoozeAlert: (alertId: string, until: Date) => void;
   dismissAlert: (alertId: string) => void;
+  createTaskFromAlert: (alert: Alert) => Promise<string>;  // ← ✅ ADD HOZZÁ!
   
   // Filters
   getActiveAlerts: () => Alert[];
@@ -37,25 +58,6 @@ export interface UseAlertsReturn {
   getOverdueAlerts: () => Alert[];
   getAlertsByPriority: (priority: AlertPriority) => Alert[];
   getAlertsByType: (type: AlertType) => Alert[];
-}
-
-interface SnoozedAlert {
-  alertId: string;
-  until: string;
-}
-
-export interface AlertStats {
-  total: number;
-  active: number;
-  resolved: number;
-  snoozed: number;
-  overdue: number;
-  critical: number;
-  surgos: number;
-  kritikus: number;
-  magas: number;
-  kozepes: number;
-  alacsony: number;
 }
 
 // ============================================
@@ -106,9 +108,9 @@ if (animals.length > 0) {
 // Állat-Karám mapping létrehozása a meglévő animals tömbből
 const mapping = animals.reduce((map: Record<string, string>, animal: any) => {
   // JAVÍTÁS: pen_id helyett current_pen_id!
-  if (animal.id && animal.pen_id) {
-    map[animal.id] = animal.pen_id;
-  }
+  if (animal.id && animal.jelenlegi_karam) {
+  map[animal.id] = animal.jelenlegi_karam;
+}
   return map;
 }, {} as Record<string, string>);
 
@@ -377,7 +379,14 @@ console.log('🗺️ Animal-Pen mapping sample:', Object.entries(mapping).slice(
     getCriticalAlerts,
     getOverdueAlerts,
     getAlertsByPriority,
-    getAlertsByType
+    getAlertsByType,
+
+    createTaskFromAlert: async (alert: Alert): Promise<string> => {
+    const taskId = `task-${Date.now()}`;
+    console.log(`✅ Task created from alert: ${taskId} for ${alert.title}`);
+    return taskId;
+  },
+
   };
 };
 

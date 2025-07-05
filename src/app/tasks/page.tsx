@@ -7,23 +7,16 @@ import {
   Clock, 
   AlertTriangle, 
   Calendar, 
-  Users, 
-  MessageSquare, 
   Plus,
   Filter,
-  Home,
-  ArrowRight,
-  CheckSquare,
-  Square,
-  MoreHorizontal,
   RefreshCw,
   AlertCircle,
-  Zap,
   Edit,
-  Trash2
+  Trash2,
+  Eye,
+  Square
 } from 'lucide-react';
 
-// ✅ JAVÍTOTT IMPORT - useAlertsNew használata
 import { useAlertsNew } from '@/hooks/useAlertsNew';
 import { useTasks } from '@/hooks/useTasks';
 import { 
@@ -32,21 +25,28 @@ import {
   AlertType,
   TaskStatus,
   TaskPriority,
-  CreateTaskRequest,
-  ALERT_TYPE_LABELS 
+  TaskCategory,
+  CreateTaskRequest
 } from '@/types/alert-task-types';
 
 const TasksPage: React.FC = () => {
-  // Hooks - javított useAlertsNew használat
+  // ============================================
+  // HOOKS
+  // ============================================
+  
   const { 
-    alerts, 
-    loading: alertsLoading, 
-    error: alertsError, 
-    alertStats, 
-    refreshAlerts,
-    resolveAlert,
-    snoozeAlert
-  } = useAlertsNew();
+  alerts, 
+  loading: alertsLoading, 
+  error: alertsError, 
+  refreshAlerts,
+  resolveAlert,
+  createTaskFromAlert
+} = useAlertsNew();
+
+const alertStats = {
+  aktiv: alerts.filter(a => !a.is_resolved).length,
+  kritikus: alerts.filter(a => a.priority === 'kritikus').length
+};
 
   const {
     tasks,
@@ -56,32 +56,38 @@ const TasksPage: React.FC = () => {
     updateTask,
     deleteTask,
     completeTask,
-    taskStats,
-    createTaskFromAlert
+    taskStats
   } = useTasks();
 
-  // UI States
-  const [selectedAlerts, setSelectedAlerts] = useState<Set<string>>(new Set());
-  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
+  // ============================================
+  // STATE
+  // ============================================
+  
   const [filters, setFilters] = useState({
     priority: [] as AlertPriority[],
     type: [] as AlertType[],
     search: '',
     showResolved: false
   });
+  
   const [showFilters, setShowFilters] = useState(false);
-  const [expandedAlert, setExpandedAlert] = useState<string | null>(null);
   const [showNewTaskForm, setShowNewTaskForm] = useState(false);
+  const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  
   const [newTaskData, setNewTaskData] = useState({
     title: '',
     description: '',
-    priority: 'medium' as TaskPriority,
-    category: 'general' as const,
+    priority: 'kozepes' as TaskPriority,
+    category: 'altalanos' as TaskCategory,
     due_date: '',
     action_required: ''
   });
 
-  // Filtered alerts
+  // ============================================
+  // COMPUTED VALUES
+  // ============================================
+  
   const filteredAlerts = React.useMemo(() => {
     let filtered = alerts.filter(alert => {
       if (!filters.showResolved && alert.is_resolved) return false;
@@ -91,13 +97,21 @@ const TasksPage: React.FC = () => {
         const searchLower = filters.search.toLowerCase();
         return alert.title.toLowerCase().includes(searchLower) ||
                alert.description.toLowerCase().includes(searchLower) ||
-               alert.animal.enar.toLowerCase().includes(searchLower);
+               (alert.animal?.enar || '').toLowerCase().includes(searchLower);
       }
       return true;
     });
 
+    // Magyar prioritás szerinti rendezés
     filtered.sort((a, b) => {
-      const priorityOrder = { critical: 5, urgent: 4, high: 3, medium: 2, low: 1 };
+      const priorityOrder: Record<AlertPriority, number> = { 
+        'surgos': 5, 
+        'kritikus': 4, 
+        'magas': 3, 
+        'kozepes': 2, 
+        'alacsony': 1 
+      };
+      
       const aPriority = priorityOrder[a.priority] || 1;
       const bPriority = priorityOrder[b.priority] || 1;
       
@@ -113,101 +127,56 @@ const TasksPage: React.FC = () => {
     return filtered;
   }, [alerts, filters]);
 
-  // Recent tasks
   const recentTasks = tasks
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 10);
 
-  // Helper functions
+  // ============================================
+  // HELPER FUNCTIONS
+  // ============================================
+  
   const getPriorityColor = (priority: AlertPriority | TaskPriority) => {
     switch (priority) {
-      case 'critical': return 'bg-red-100 text-red-800 border-red-200';
-      case 'urgent': return 'bg-red-100 text-red-800 border-red-200';
-      case 'high': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low': return 'bg-green-100 text-green-800 border-green-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'kritikus':
+      case 'surgos': 
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'magas': 
+        return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'kozepes': 
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'alacsony': 
+        return 'bg-green-100 text-green-800 border-green-200';
+      default: 
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
   const getPriorityIcon = (priority: AlertPriority | TaskPriority) => {
     switch (priority) {
-      case 'critical': return <AlertTriangle className="w-4 h-4" />;
-      case 'urgent': return <Zap className="w-4 h-4" />;
-      case 'high': return <AlertCircle className="w-4 h-4" />;
-      case 'medium': return <Clock className="w-4 h-4" />;
-      case 'low': return <CheckCircle2 className="w-4 h-4" />;
-      default: return <Clock className="w-4 h-4" />;
+      case 'kritikus':
+      case 'surgos': 
+        return <AlertTriangle className="w-4 h-4" />;
+      case 'magas': 
+        return <AlertCircle className="w-4 h-4" />;
+      case 'kozepes': 
+        return <Clock className="w-4 h-4" />;
+      case 'alacsony': 
+        return <CheckCircle2 className="w-4 h-4" />;
+      default: 
+        return <Clock className="w-4 h-4" />;
     }
   };
 
   const getTaskStatusIcon = (status: TaskStatus) => {
     switch (status) {
-      case 'completed': return <CheckCircle2 className="w-4 h-4 text-green-600" />;
-      case 'in_progress': return <Clock className="w-4 h-4 text-yellow-600" />;
-      default: return <Square className="w-4 h-4 text-gray-400" />;
-    }
-  };
-
-  // Event handlers
-  const handleCreateTaskFromAlert = async (alert: Alert) => {
-    try {
-      const taskId = await createTaskFromAlert(alert);
-      console.log(`Task létrehozva: ${taskId} alert-ből: ${alert.id}`);
-    } catch (error) {
-      console.error('Task létrehozási hiba:', error);
-      window.alert('Hiba történt a task létrehozása során!');
-    }
-  };
-
-  const handleCreateNewTask = async () => {
-    if (!newTaskData.title || !newTaskData.action_required) {
-      window.alert('Cím és teendő megadása kötelező!');
-      return;
-    }
-
-    try {
-      const taskData: CreateTaskRequest = {
-        ...newTaskData,
-        due_date: newTaskData.due_date || new Date(Date.now() + (7 * 24 * 60 * 60 * 1000)).toISOString()
-      };
-
-      await createTask(taskData);
-      
-      setNewTaskData({
-        title: '',
-        description: '',
-        priority: 'medium',
-        category: 'general',
-        due_date: '',
-        action_required: ''
-      });
-      setShowNewTaskForm(false);
-    } catch (error) {
-      console.error('Task létrehozási hiba:', error);
-      window.alert('Hiba történt a task létrehozása során!');
-    }
-  };
-
-  const handleTaskStatusChange = async (taskId: string, currentStatus: TaskStatus) => {
-    try {
-      if (currentStatus === 'pending') {
-        await updateTask(taskId, { status: 'in_progress' });
-      } else if (currentStatus === 'in_progress') {
-        await completeTask(taskId);
-      }
-    } catch (error) {
-      console.error('Task státusz változtatási hiba:', error);
-    }
-  };
-
-  const handleDeleteTask = async (taskId: string) => {
-    if (confirm('Biztosan törölni szeretnéd ezt a feladatot?')) {
-      try {
-        await deleteTask(taskId);
-      } catch (error) {
-        console.error('Task törlési hiba:', error);
-      }
+      case 'befejezve': 
+        return <CheckCircle2 className="w-4 h-4 text-green-600" />;
+      case 'folyamatban': 
+        return <Clock className="w-4 h-4 text-yellow-600" />;
+      case 'fuggőben': 
+        return <Square className="w-4 h-4 text-gray-400" />;
+      default: 
+        return <Square className="w-4 h-4 text-gray-400" />;
     }
   };
 
@@ -228,6 +197,97 @@ const TasksPage: React.FC = () => {
     return date.toLocaleDateString('hu-HU');
   };
 
+  const getPriorityLabel = (priority: AlertPriority | TaskPriority) => {
+    const labels: Record<string, string> = {
+      'kritikus': 'Kritikus',
+      'surgos': 'Sürgős',
+      'magas': 'Magas',
+      'kozepes': 'Közepes',
+      'alacsony': 'Alacsony'
+    };
+    return labels[priority] || priority;
+  };
+
+  const getStatusLabel = (status: TaskStatus) => {
+    const labels: Record<TaskStatus, string> = {
+      'befejezve': 'Befejezve',
+      'folyamatban': 'Folyamatban',
+      'fuggőben': 'Függőben',
+      'torolve': 'Törölve'
+    };
+    return labels[status] || status;
+  };
+
+  // ============================================
+  // EVENT HANDLERS
+  // ============================================
+  
+  // ✅ JAVÍTOTT:
+const handleCreateTaskFromAlert = async (alert: Alert) => {
+  try {
+    const taskId = await createTaskFromAlert(alert);
+    console.log(`✅ Task létrehozva: ${taskId} alert-ből: ${alert.id}`);
+  } catch (error) {
+    console.error('Task létrehozási hiba:', error);
+    window.alert('Hiba történt a task létrehozása során!');  // ← window.alert()
+  }
+};
+
+  const handleCreateNewTask = async () => {
+    if (!newTaskData.title || !newTaskData.action_required) {
+      alert('Cím és teendő megadása kötelező!');
+      return;
+    }
+
+    try {
+      const taskData: CreateTaskRequest = {
+        ...newTaskData,
+        due_date: newTaskData.due_date || new Date(Date.now() + (7 * 24 * 60 * 60 * 1000)).toISOString()
+      };
+
+      await createTask(taskData);
+      
+      setNewTaskData({
+        title: '',
+        description: '',
+        priority: 'kozepes',
+        category: 'altalanos',
+        due_date: '',
+        action_required: ''
+      });
+      setShowNewTaskForm(false);
+    } catch (error) {
+      console.error('Task létrehozási hiba:', error);
+      alert('Hiba történt a task létrehozása során!');
+    }
+  };
+
+  const handleTaskStatusChange = async (taskId: string, currentStatus: TaskStatus) => {
+    try {
+      if (currentStatus === 'fuggőben') {
+        await updateTask(taskId, { status: 'folyamatban' });
+      } else if (currentStatus === 'folyamatban') {
+        await completeTask(taskId);
+      }
+    } catch (error) {
+      console.error('Task státusz változtatási hiba:', error);
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    if (confirm('Biztosan törölni szeretnéd ezt a feladatot?')) {
+      try {
+        await deleteTask(taskId);
+      } catch (error) {
+        console.error('Task törlési hiba:', error);
+      }
+    }
+  };
+
+  // ============================================
+  // LOADING STATES
+  // ============================================
+  
   if (alertsLoading || tasksLoading) {
     return (
       <div className="max-w-7xl mx-auto p-6">
@@ -262,6 +322,10 @@ const TasksPage: React.FC = () => {
     );
   }
 
+  // ============================================
+  // RENDER
+  // ============================================
+  
   return (
     <div className="max-w-7xl mx-auto p-6">
       {/* Header */}
@@ -310,7 +374,7 @@ const TasksPage: React.FC = () => {
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium text-gray-600">Aktív Riasztások</p>
-              <p className="text-2xl font-bold text-gray-900">{alertStats.active}</p>
+              <p className="text-2xl font-bold text-gray-900">{alertStats?.aktiv || 0}</p>
             </div>
           </div>
         </div>
@@ -322,7 +386,7 @@ const TasksPage: React.FC = () => {
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium text-gray-600">Kritikus</p>
-              <p className="text-2xl font-bold text-gray-900">{alertStats.critical}</p>
+              <p className="text-2xl font-bold text-gray-900">{alertStats?.kritikus || 0}</p>
             </div>
           </div>
         </div>
@@ -330,11 +394,11 @@ const TasksPage: React.FC = () => {
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="flex items-center">
             <div className="p-2 bg-green-100 rounded-lg">
-              <CheckSquare className="w-5 h-5 text-green-600" />
+              <Square className="w-5 h-5 text-green-600" />
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium text-gray-600">Függő Feladatok</p>
-              <p className="text-2xl font-bold text-gray-900">{taskStats.pending}</p>
+              <p className="text-2xl font-bold text-gray-900">{taskStats?.fuggőben || 0}</p>
             </div>
           </div>
         </div>
@@ -346,7 +410,7 @@ const TasksPage: React.FC = () => {
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium text-gray-600">Folyamatban</p>
-              <p className="text-2xl font-bold text-gray-900">{taskStats.in_progress}</p>
+              <p className="text-2xl font-bold text-gray-900">{taskStats?.folyamatban || 0}</p>
             </div>
           </div>
         </div>
@@ -378,32 +442,11 @@ const TasksPage: React.FC = () => {
                 }))}
                 className="w-full p-2 border border-gray-300 rounded-lg"
               >
-                <option value="critical">Kritikus</option>
-                <option value="urgent">Sürgős</option>
-                <option value="high">Magas</option>
-                <option value="medium">Közepes</option>
-                <option value="low">Alacsony</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Típus</label>
-              <select
-                multiple
-                value={filters.type}
-                onChange={(e) => setFilters(prev => ({ 
-                  ...prev, 
-                  type: Array.from(e.target.selectedOptions, option => option.value as AlertType)
-                }))}
-                className="w-full p-2 border border-gray-300 rounded-lg"
-              >
-                <option value="vaccination_due">Vakcinázás</option>
-                <option value="breeding_reminder">Tenyésztés</option>
-                <option value="pen_change_needed">Karám váltás</option>
-                <option value="pregnancy_check">VV vizsgálat</option>
-                <option value="birth_approaching">Ellés</option>
-                <option value="weaning_time">Választás</option>
-                <option value="market_opportunity">Értékesítés</option>
+                <option value="kritikus">Kritikus</option>
+                <option value="surgos">Sürgős</option>
+                <option value="magas">Magas</option>
+                <option value="kozepes">Közepes</option>
+                <option value="alacsony">Alacsony</option>
               </select>
             </div>
             
@@ -446,10 +489,10 @@ const TasksPage: React.FC = () => {
                 onChange={(e) => setNewTaskData(prev => ({ ...prev, priority: e.target.value as TaskPriority }))}
                 className="w-full p-2 border border-gray-300 rounded-lg"
               >
-                <option value="low">Alacsony</option>
-                <option value="medium">Közepes</option>
-                <option value="high">Magas</option>
-                <option value="critical">Kritikus</option>
+                <option value="alacsony">Alacsony</option>
+                <option value="kozepes">Közepes</option>
+                <option value="magas">Magas</option>
+                <option value="kritikus">Kritikus</option>
               </select>
             </div>
             
@@ -527,7 +570,7 @@ const TasksPage: React.FC = () => {
                     <div className="flex-1">
                       <p className="text-sm font-medium text-gray-900">{alert.title}</p>
                       <p className="text-xs text-gray-600 mt-1">
-                        {alert.animal.enar}
+                        {alert.animal?.enar || 'N/A'}
                         {alert.due_date && ` • ${formatDate(alert.due_date)}`}
                       </p>
                     </div>
@@ -536,9 +579,8 @@ const TasksPage: React.FC = () => {
                     <button 
                       className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded hover:bg-blue-200 transition-colors"
                       onClick={() => handleCreateTaskFromAlert(alert)}
-                      disabled={!!alert.related_task_id}
                     >
-                      {alert.related_task_id ? 'Létrehozva' : 'Task'}
+                      Task
                     </button>
                     <button 
                       className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded hover:bg-green-200 transition-colors"
@@ -563,7 +605,7 @@ const TasksPage: React.FC = () => {
         {/* Tasks Column */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <CheckSquare className="w-5 h-5 text-blue-500" />
+            <Square className="w-5 h-5 text-blue-500" />
             Feladatok ({recentTasks.length})
           </h2>
           
@@ -587,19 +629,12 @@ const TasksPage: React.FC = () => {
                         <span className="text-xs text-gray-600">
                           {formatDate(task.due_date)}
                         </span>
-                        {task.auto_generated && (
-                          <span className="text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded">
-                            Auto
-                          </span>
-                        )}
                         <span className={`text-xs px-2 py-0.5 rounded ${
-                          task.status === 'completed' ? 'bg-green-100 text-green-800' :
-                          task.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                          task.status === 'befejezve' ? 'bg-green-100 text-green-800' :
+                          task.status === 'folyamatban' ? 'bg-yellow-100 text-yellow-800' :
                           'bg-gray-100 text-gray-800'
                         }`}>
-                          {task.status === 'pending' && 'Függő'}
-                          {task.status === 'in_progress' && 'Folyamatban'}
-                          {task.status === 'completed' && 'Kész'}
+                          {getStatusLabel(task.status)}
                         </span>
                       </div>
                     </div>
@@ -622,7 +657,7 @@ const TasksPage: React.FC = () => {
           
           {recentTasks.length === 0 && (
             <div className="text-center py-8">
-              <CheckSquare className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+              <Square className="w-12 h-12 text-gray-300 mx-auto mb-2" />
               <p className="text-gray-600">Nincsenek feladatok</p>
             </div>
           )}

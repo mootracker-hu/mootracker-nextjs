@@ -86,7 +86,7 @@ function mapToAnimal(row: any): Animal {
     birth_location: row.birth_location,
     breed: row.breed,
     acquisition_date: row.acquisition_date,
-    pen_id: row.pen_id
+    jelenlegi_karam: row.jelenlegi_karam
   };
 }
 
@@ -175,7 +175,7 @@ export async function getAllAnimalsWithPens(): Promise<Animal[]> {
     // Map animals with pen assignments
     const animals = (animalsData || []).map(row => {
       const animal = mapToAnimal(row);
-      animal.pen_id = animalPenMap.get(row.id);
+      animal.jelenlegi_karam = animalPenMap.get(row.id);
       return animal;
     });
 
@@ -281,7 +281,7 @@ export async function getPenWithAnimals(penId: string): Promise<PenWithAnimals |
     const animals: Animal[] = assignments ? 
       assignments.map(a => {
         const animal = mapToAnimal(a.animals);
-        animal.pen_id = penId;
+        animal.jelenlegi_karam = penId;
         return animal;
       }) : [];
 

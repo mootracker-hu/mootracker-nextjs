@@ -60,7 +60,13 @@ export type AlertType =
   | 'tenyesztesi_emlekezeto_surgos'
   | 'piaci_lehetoseg_kezdete'
   | 'piaci_lehetoseg_ajanlott'
-  | 'piaci_lehetoseg_surgos';
+  | 'piaci_lehetoseg_surgos'
+  | 'kapacitas_tullepes'         // ← ÚJ
+  | 'kapacitas_alulhasznaltsag'  // ← ÚJ
+  | 'fulszam_idealis'            // ← ÚJ
+  | 'fulszam_ajanlott'           // ← ÚJ
+  | 'fulszam_surgos';            // ← ÚJ  
+  
 
 export type AlertPriority = 'surgos' | 'kritikus' | 'magas' | 'kozepes' | 'alacsony';
 
@@ -77,7 +83,7 @@ export interface Animal {
   vv_result_days?: number;
   pregnancy_status?: 'vemhes' | 'ures' | 'csira';
   expected_birth_date?: string;
-  pen_id?: string;
+  jelenlegi_karam?: string;  // ← ÚJ! (pen_id helyett)
   anya_enar?: string;
   apa_enar?: string;
   has_given_birth?: boolean;

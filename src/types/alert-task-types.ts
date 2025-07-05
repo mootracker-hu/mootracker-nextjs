@@ -26,6 +26,27 @@ export type AlertType =
   | 'elles_kesesben'             // ✅ ÚJ - túlhordás
   | 'vemhessegvizsgalat_ismetles' // ✅ ÚJ - üres állat újra VV
   | 'selejtezesi_javaslat'       // ✅ ÚJ - csíra állat selejtezése;
+  | 'kapacitas_tullepes'         // ← ÚJ
+  | 'kapacitas_alulhasznaltsag'  // ← ÚJ
+  | 'fulszam_idealis'            // ← ÚJ
+  | 'fulszam_ajanlott'           // ← ÚJ
+  | 'fulszam_surgos'            // ← ÚJ
+  // ✅ ADD HOZZÁ EZEKET:
+  | 'valasztas_idoszak_kezdete'
+  | 'valasztas_ajanlott'
+  | 'valasztas_surgos'
+  | 'vv_idoszak_kezdete'
+  | 'vv_ajanlott'
+  | 'vv_surgos'
+  | 'karam_valtas_ovi_kezdete'
+  | 'karam_valtas_ovi_ajanlott'
+  | 'karam_valtas_ovi_surgos'
+  | 'tenyesztesi_emlekezeto_kezdete'
+  | 'tenyesztesi_emlekezeto_ajanlott'
+  | 'tenyesztesi_emlekezeto_surgos'
+  | 'piaci_lehetoseg_kezdete'
+  | 'piaci_lehetoseg_ajanlott'
+  | 'piaci_lehetoseg_surgos';
 
 // ✅ ÚJ KARÁM FUNKCIÓ TÍPUSOK
 export type PenFunctionType = 
@@ -61,7 +82,7 @@ export interface Task {
   
   // Opcionális mezők
   due_date?: string;
-  animal_id?: number;
+  animal_id?: string; 
   pen_id?: string;
   action_required?: string;
   alert_id?: string;
@@ -85,20 +106,31 @@ export interface Alert {
   priority: AlertPriority;
   title: string;
   description: string;
-  animal_id: number;
+  message: string;
   created_at: string;
   
-  // Opcionális mezők
+  // Boolean flags
+  dismissible: boolean;
+  auto_resolve: boolean;
+  is_resolved: boolean;
+  is_snoozed: boolean;
+  
+  // Opcionális azonosítók
+  animal_id?: string;              // ← string vagy undefined
+  pen_id?: string;
+  enar?: string;
+  
+  // Opcionális dátumok
   due_date?: string;
   resolved_at?: string;
   snoozed_until?: string;
-  is_resolved: boolean;
-  is_snoozed: boolean;
+  
+  // Opcionális mezők
   action_required?: string;
   related_task_id?: string;
   
-  // Állat kapcsolódás
-  animal: {
+  // Állat kapcsolódás - OPCIONÁLIS
+  animal?: {
     id: number;
     enar: string;
   };
@@ -110,9 +142,9 @@ export interface Alert {
   metadata?: {
     animal_age_days?: number;
     rule_type?: string;
-    vv_date?: string;           // ✅ ÚJ - VV vizsgálat dátuma
-    vv_result_days?: number;    // ✅ ÚJ - VV eredmény napokban
-    expected_birth_date?: string; // ✅ ÚJ - várható ellési dátum
+    vv_date?: string;
+    vv_result_days?: number;
+    expected_birth_date?: string;
   };
 }
 
@@ -183,7 +215,7 @@ export interface CreateTaskRequest {
   priority: TaskPriority;
   category: TaskCategory;
   due_date?: string;
-  animal_id?: number;
+  animal_id?: string;  
   pen_id?: string;
   action_required?: string;
   alert_id?: string;
@@ -337,7 +369,27 @@ export const ALERT_TYPE_LABELS: Record<AlertType, string> = {
   elles_kozeledik: '🍼 Ellés közeledik',
   elles_kesesben: '🚨 TÚLHORDÁS',
   vemhessegvizsgalat_ismetles: '🔬 VV ismétlés',
-  selejtezesi_javaslat: '📦 Selejtezés'
+  selejtezesi_javaslat: '📦 Selejtezés',
+  kapacitas_tullepes: '🚨 Kapacitás túllépés',
+  kapacitas_alulhasznaltsag: '📉 Alulhasználtság',
+  fulszam_idealis: '🏷️ Fülszám (ideális)',
+  fulszam_ajanlott: '🏷️ Fülszám (ajánlott)',
+  fulszam_surgos: '🏷️ Fülszám (sürgős)',
+  valasztas_idoszak_kezdete: '🐄 Választás (kezdet)',
+  valasztas_ajanlott: '🐄 Választás (ajánlott)',
+  valasztas_surgos: '🐄 Választás (sürgős)',
+  vv_idoszak_kezdete: '🔬 VV (időszak kezdete)',
+  vv_ajanlott: '🔬 VV (ajánlott)',
+  vv_surgos: '🔬 VV (sürgős)',
+  karam_valtas_ovi_kezdete: '🏠 Óvi karám (kezdet)',
+  karam_valtas_ovi_ajanlott: '🏠 Óvi karám (ajánlott)',
+  karam_valtas_ovi_surgos: '🏠 Óvi karám (sürgős)',
+  tenyesztesi_emlekezeto_kezdete: '💕 Tenyésztés (kezdet)',
+  tenyesztesi_emlekezeto_ajanlott: '💕 Tenyésztés (ajánlott)',
+  tenyesztesi_emlekezeto_surgos: '💕 Tenyésztés (sürgős)',
+  piaci_lehetoseg_kezdete: '💰 Értékesítés (kezdet)',
+  piaci_lehetoseg_ajanlott: '💰 Értékesítés (ajánlott)',
+  piaci_lehetoseg_surgos: '💰 Értékesítés (sürgős)'
 };
 
 export const PRIORITY_LABELS: Record<AlertPriority, string> = {
