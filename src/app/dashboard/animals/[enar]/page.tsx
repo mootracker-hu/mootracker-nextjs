@@ -471,6 +471,8 @@ const [selectedVVForBirth, setSelectedVVForBirth] = React.useState<any>(null);
   *,
   planned_enar
 )
+  .eq('mother_enar', animal?.enar)
+  .order('birth_date', { ascending: false });
           `)
           .eq('mother_enar', animal?.enar)
           .order('birth_date', { ascending: false });
@@ -480,6 +482,14 @@ const [selectedVVForBirth, setSelectedVVForBirth] = React.useState<any>(null);
         } else {
           console.log('✅ Ellési történet betöltve:', data);
           setBirthHistory(data || []);
+
+          // 🔥 ÖSSZES CALVES LEKÉRDEZÉSE (debug)
+const { data: allCalves } = await supabase
+  .from('calves')
+  .select('*')
+  .limit(10);
+
+console.log('🐄 ÖSSZES CALVES (első 10):', allCalves);
         }
       } catch (err) {
         console.error('❌ Birth fetch hiba:', err);
@@ -537,36 +547,265 @@ React.useEffect(() => {
       .eq('mother_enar', animal?.enar)
       .order('birth_date', { ascending: false });
 
+      if (data && data.length > 0) {
+  // 🔥 MANUÁLIS CALVES HOZZÁADÁS
+  for (let i = 0; i < data.length; i++) {
+    const { data: calvesForBirth } = await supabase
+      .from('calves')
+      .select('*, planned_enar')
+      .eq('birth_id', data[i].id);
+    
+    data[i].calves = calvesForBirth || [];
+    console.log(`✅ Birth ${i}: ${calvesForBirth?.length || 0} borjú hozzáadva`);
+  }
+}
+
     setBirthHistory(data || []);
   };
+// 🔧 TISZTA USEEFFECT - DUPLIKÁCIÓ ELTÁVOLÍTVA
+React.useEffect(() => {
+  const fetchPossibleAnimals = async () => {
+    if (!assigningEarTag || !animal?.enar) {
+      console.log('🚫 Nincs assigningEarTag vagy animal.enar');
+      return;
+    }
 
-  React.useEffect(() => {
-    const fetchPossibleAnimals = async () => {
-      if (!assigningEarTag || !animal?.enar) return;
+    console.log('🔍 FEJLETT ÁLLAT KERESÉS DEBUG:');
+    console.log('🐄 Anya ENAR:', animal.enar);
+    console.log('🐮 Borjú temp_id:', assigningEarTag.temp_id);
+    console.log('📚 Történeti ellés?', selectedBirth?.historical);
+    
+    if (!selectedBirth?.historical) {
+      console.log('🆕 Új ellés - nincs keresés szükséges');
+      setPossibleAnimals([]);
+      return;
+    }
 
-      console.log('🔍 Keresés: állatok akiknek anyja =', animal.enar);
-
-      try {
-        const { data, error } = await supabase
-          .from('animals')
-          .select('enar, name, kategoria, birth_id')
-          .eq('anya_enar', animal.enar.replace(/\s/g, ''))
-          .eq('statusz', 'aktív')
-          .order('enar');
-
-        if (error) {
-          console.error('❌ Állatok keresési hiba:', error);
+    try {
+      const motherEnar = animal.enar;
+      const cleanEnar = motherEnar.replace(/\s/g, ''); // Szóközök nélkül
+      
+      // 🎯 1. LÉPÉS: ADATBÁZIS TELJES TESZT
+      console.log('📊 ADATBÁZIS TELJES TESZT - első 20 aktív állat:');
+      
+      const { data: allAnimals, error: allError } = await supabase
+        .from('animals')
+        .select('enar, name, kategoria, anya_enar, statusz, birth_id')
+        .eq('statusz', 'aktív')
+        .limit(20);
+      
+      console.log('📋 Első 20 aktív állat:', allAnimals);
+      console.log('❌ All animals hiba:', allError);
+      
+      if (allAnimals && allAnimals.length > 0) {
+        // Vizsgáljuk meg milyen anya_enar formátumok vannak
+        const motherEnarFormats = [...new Set(allAnimals.map(a => a.anya_enar).filter(Boolean))];
+        console.log('📊 Adatbázisban található anya_enar formátumok:', motherEnarFormats);
+        
+        // Különböző formátumokat keresünk
+        const searchFormats = [
+          motherEnar,                      // "HU 30038 9132 1"
+          cleanEnar,                       // "HU3003891321" 
+          motherEnar.replace(/\s+/g, ' '), // normalizált szóközök
+          motherEnar.toLowerCase(),        // kisbetűs
+          motherEnar.toUpperCase()         // nagybetűs
+        ];
+        
+        console.log('🎯 Keresési formátumok:', searchFormats);
+        
+        // Keressük meg azokat, ahol az anya megegyezik
+        const matchingAnimals = allAnimals.filter(animal => {
+          if (!animal.anya_enar) return false;
+          
+          return searchFormats.some(format => 
+            animal.anya_enar === format ||
+            animal.anya_enar.replace(/\s/g, '') === format.replace(/\s/g, '')
+          );
+        });
+        
+        console.log('🎯 EGYEZŐ ÁLLATOK TALÁLVA (összes):', matchingAnimals);
+        
+        // Szűrjük azokat, akiknek nincs birth_id
+        const availableAnimals = matchingAnimals.filter(a => !a.birth_id);
+        console.log('✅ ELÉRHETŐ ÁLLATOK (nincs birth_id):', availableAnimals);
+        
+        if (availableAnimals.length > 0) {
+          setPossibleAnimals(availableAnimals);
+          console.log('🎉 SIKER! Állatok beállítva:', availableAnimals);
+          return; // Kilépünk, mert találtunk
         } else {
-          console.log('✅ Talált állatok:', data);
-          setPossibleAnimals(data || []);
+          console.log('⚠️ Nincs elérhető állat (mindnek van birth_id)');
+          
+          // Debug céljából mutassuk az összeset
+          if (matchingAnimals.length > 0) {
+            console.log('🔧 DEBUG: Összes egyező állat (birth_id-val együtt):', matchingAnimals);
+            setPossibleAnimals(matchingAnimals); // Debug céljából mutassuk
+          }
         }
-      } catch (err) {
-        console.error('❌ Error fetching possible animals:', err);
       }
-    };
+      
+      // 🎯 2. LÉPÉS: KÖZVETLEN KERESÉS minden formátummal
+      console.log('🔍 KÖZVETLEN KERESÉS minden formátummal:');
+      
+      const searchFormats = [motherEnar, cleanEnar];
+      
+      for (const format of searchFormats) {
+        console.log(`🔍 Próbálkozás formátummal: "${format}"`);
+        
+        // Először birth_id = null szűréssel
+        let { data: directResult, error: directError } = await supabase
+          .from('animals')
+          .select('enar, name, kategoria, anya_enar, birth_id, statusz, szuletesi_datum')
+          .eq('anya_enar', format)
+          .eq('statusz', 'aktív')
+          .is('birth_id', null);
+        
+        console.log(`✅ "${format}" eredmény (birth_id=null):`, directResult);
+        console.log(`❌ "${format}" hiba:`, directError);
+        
+        if (directResult && directResult.length > 0) {
+          console.log(`🎉 TALÁLAT "${format}" formátummal!`, directResult);
+          setPossibleAnimals(directResult);
+          return; // Kilépünk ha találtunk
+        }
+        
+        // Ha nincs találat birth_id=null szűréssel, próbáljuk anélkül
+        const { data: allResult, error: allResultError } = await supabase
+          .from('animals')
+          .select('enar, name, kategoria, anya_enar, birth_id, statusz, szuletesi_datum')
+          .eq('anya_enar', format)
+          .eq('statusz', 'aktív');
+        
+        console.log(`📊 "${format}" ÖSSZES eredmény:`, allResult);
+        
+        // 🎯 TÖRTÉNETI ELLÉSHEZ: birth_id szűrés ELTÁVOLÍTÁSA
+        if (allResult && allResult.length > 0) {
+          if (selectedBirth?.historical) {
+            console.log(`🎉 TÖRTÉNETI ELLÉS - ÖSSZES TALÁLAT "${format}" formátummal!`, allResult);
+            setPossibleAnimals(allResult); // Minden találat, birth_id-val együtt
+            return;
+          } else {
+            // Új elléshez megtartjuk a szűrést
+            const available = allResult.filter(a => !a.birth_id);
+            if (available.length > 0) {
+              console.log(`🎉 ÚJ ELLÉS - SZŰRT TALÁLAT "${format}" formátummal!`, available);
+              setPossibleAnimals(available);
+              return;
+            } else {
+              console.log(`⚠️ "${format}" formátumnál mind birth_id-val rendelkezik:`, allResult);
+              setPossibleAnimals([]);
+            }
+          }
+        }
+      }
+      
+      // Ha semmit nem találtunk
+      console.log('❌ NINCS TALÁLAT - üres lista beállítása');
+      setPossibleAnimals([]);
+      
+    } catch (err) {
+      console.error('❌ Fejlett keresési hiba:', err);
+      setPossibleAnimals([]);
+    }
+  };
 
-    fetchPossibleAnimals();
-  }, [assigningEarTag, animal?.enar]);
+  fetchPossibleAnimals();
+}, [assigningEarTag, selectedBirth?.historical, animal?.enar]);
+
+// 🔧 JAVÍTOTT MODAL UI RÉSZ IS:
+// Az assigningEarTag modal-ban cseréld le a találatok megjelenítését:
+
+<div className="bg-gray-50 p-3 rounded-lg mb-3">
+  <p className="text-sm text-gray-600 mb-2">
+    💡 Javasolt állatok ({possibleAnimals.length} találat):
+  </p>
+
+  <div className="space-y-2 max-h-60 overflow-y-auto">
+    {possibleAnimals.length > 0 ? (
+      possibleAnimals.map((possibleAnimal, index) => (
+        <div key={possibleAnimal.enar} className="flex items-center p-2 bg-white border border-gray-200 rounded hover:bg-green-50">
+          <input
+            type="radio"
+            name="selectedAnimal"
+            value={possibleAnimal.enar}
+            className="mr-3 text-green-600"
+            id={`animal-${index}`}
+          />
+          <label htmlFor={`animal-${index}`} className="flex-1 cursor-pointer">
+            <div className="font-medium text-green-800">
+              🎯 {possibleAnimal.enar}
+              {index === 0 && (
+                <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded ml-2">
+                  Ajánlott
+                </span>
+              )}
+            </div>
+            
+            {/* További részletek */}
+            <div className="text-xs text-gray-600 mt-1">
+              {possibleAnimal.name && (
+                <div>📝 Név: {possibleAnimal.name}</div>
+              )}
+              <div>🏷️ Kategória: {possibleAnimal.kategoria}</div>
+              {possibleAnimal.szuletesi_datum && (
+                <div>📅 Születés: {new Date(possibleAnimal.szuletesi_datum).toLocaleDateString('hu-HU')}</div>
+              )}
+              <div className="text-blue-600">
+                🔍 Anya: {possibleAnimal.anya_enar || possibleAnimal.mother_enar || 'nincs megadva'}
+              </div>
+            </div>
+          </label>
+        </div>
+      ))
+    ) : (
+      <div className="text-center py-4 text-gray-500 text-sm">
+        <div className="text-2xl mb-2">🔍</div>
+        <p className="font-medium">Állatok keresése...</p>
+        <p className="text-xs mt-1">
+          Ha nem látod a megfelelő állatot, ellenőrizd:
+        </p>
+        <ul className="text-xs mt-1 text-left">
+          <li>• Az állat létezik-e az állatok listában</li>
+          <li>• Az állat státusza "aktív"-e</li>
+          <li>• Nincs-e már összekapcsolva másik elléshez</li>
+        </ul>
+      </div>
+    )}
+  </div>
+</div>
+
+{/* MANUÁLIS ENAR BEVITEL OPCIÓ */}
+<div className="border-t pt-3 mt-3">
+  <p className="text-sm text-gray-600 mb-2">
+    🔧 Vagy add meg manuálisan az ENAR-t:
+  </p>
+  <input
+    type="text"
+    placeholder="HU 36050 0011 8"
+    className="w-full p-2 border border-gray-300 rounded text-sm"
+    onBlur={(e) => {
+      if (e.target.value.trim()) {
+        // Ellenőrizzük hogy létezik-e ez az ENAR
+        supabase
+          .from('animals')
+          .select('enar, name, kategoria')
+          .eq('enar', e.target.value.trim())
+          .eq('statusz', 'aktív')
+          .single()
+          .then(({ data, error }) => {
+            if (data) {
+              // Hozzáadjuk a listához
+              setPossibleAnimals(prev => [data, ...prev.filter(a => a.enar !== data.enar)]);
+              console.log('✅ Manual ENAR hozzáadva:', data);
+            } else {
+              console.log('❌ ENAR nem található:', e.target.value);
+              alert('❌ Ez az ENAR nem található az aktív állatok között');
+            }
+          });
+      }
+    }}
+  />
+</div>
 
   const handleEditBirth = (birth: any) => {
     console.log('Edit Birth:', birth);
@@ -884,6 +1123,7 @@ React.useEffect(() => {
                         {calf.birth_weight && (
                           <p><strong>Születési súly:</strong> {calf.birth_weight} kg</p>
                         )}
+
                         {calf.enar ? (
                           <div>
                             <p><strong>ENAR:</strong> {calf.enar}</p>
@@ -899,12 +1139,53 @@ React.useEffect(() => {
                             ) : (
                               <p className="text-orange-600 mb-2"><strong>ENAR:</strong> ⏳ Függőben</p>
                             )}
+
+                           {/* 🎯 JAVASOLT ÁLLAT MEGJELENÍTÉSE */}
+{!calf.enar && possibleAnimals.length > 0 && (
+  <div className="mt-2 mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+    <p className="text-sm font-medium text-green-800 mb-2">
+      🎯 Javasolt állat összekapcsoláshoz:
+    </p>
+    <div className="bg-white p-2 rounded border border-green-300">
+      <div className="font-medium text-green-900">
+        📋 {possibleAnimals[0].enar}
+      </div>
+      {possibleAnimals[0].name && (
+        <div className="text-sm text-gray-600">
+          📝 Név: {possibleAnimals[0].name}
+        </div>
+      )}
+      <div className="text-sm text-gray-600">
+        🏷️ Kategória: {possibleAnimals[0].kategoria}
+      </div>
+      {possibleAnimals[0].szuletesi_datum && (
+        <div className="text-sm text-gray-600">
+          📅 Születés: {new Date(possibleAnimals[0].szuletesi_datum).toLocaleDateString('hu-HU')}
+        </div>
+      )}
+    </div>
+  </div>
+)}
+
                             <div className="flex gap-2">
                               <button
-                                onClick={() => setAssigningEarTag(calf)}
-                                className="bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-1 rounded transition-colors inline-flex items-center"
-                              >
-                                🏷️ {selectedBirth.historical ? 'Összekapcsolás' : 'Fülszám hozzárendelése'}
+                                onClick={() => {
+    console.log('🏷️ ÖSSZEKAPCSOLÁS GOMB KATTINTÁS DEBUG:');
+    console.log('📋 Calf adat:', calf);
+    console.log('🐄 Animal ENAR:', animal?.enar);
+    
+    // 🔧 FORCE RESET ELŐSZÖR
+    setPossibleAnimals([]); // Tiszta állapot
+    
+    // Kis késleltetéssel state beállítás
+    setTimeout(() => {
+      setAssigningEarTag(calf);
+      console.log('✅ AssigningEarTag state beállítva:', calf);
+    }, 100);
+  }}
+  className="bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-1 rounded transition-colors inline-flex items-center"
+>
+  🏷️ {selectedBirth?.historical ? 'Összekapcsolás' : 'Fülszám hozzárendelése'}
                               </button>
                               {!calf.planned_enar && (
                                 <button
@@ -1013,7 +1294,7 @@ React.useEffect(() => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal - EGYSZER! */}
       {deletingBirth && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-sm border max-w-md w-full mx-4">
@@ -1101,41 +1382,94 @@ React.useEffect(() => {
                   Válaszd ki a megfelelő állatot:
                 </label>
 
-                <div className="bg-gray-50 p-3 rounded-lg mb-3">
-                  <p className="text-sm text-gray-600 mb-2">💡 Javasolt állatok (anya: {animal.enar}):</p>
+                <div className="bg-gray-50 p-3 rounded-lg mb-3 max-h-60 overflow-y-auto">
+                  <p className="text-sm text-gray-600 mb-2">
+                    💡 Javasolt állatok ({possibleAnimals.length} találat):
+                  </p>
 
                   <div className="space-y-2">
                     {possibleAnimals.length > 0 ? (
                       possibleAnimals.map((possibleAnimal, index) => (
-                        <div key={possibleAnimal.enar} className="flex items-center p-2 bg-green-50 border border-green-200 rounded">
+                        <div key={possibleAnimal.enar} className="flex items-center p-2 bg-white border border-gray-200 rounded hover:bg-green-50">
                           <input
                             type="radio"
                             name="selectedAnimal"
                             value={possibleAnimal.enar}
-                            className="mr-3"
+                            className="mr-3 text-green-600"
+                            id={`animal-${index}`}
                           />
-                          <div className="flex-1">
-                            <span className="font-medium text-green-800">
+                          <label htmlFor={`animal-${index}`} className="flex-1 cursor-pointer">
+                            <div className="font-medium text-green-800">
                               🎯 {possibleAnimal.enar}
-                            </span>
-                            {index === 0 && (
-                              <span className="text-xs text-green-600 ml-2">(Ajánlott)</span>
-                            )}
-                            {possibleAnimal.name && (
-                              <div className="text-xs text-gray-600">{possibleAnimal.name}</div>
-                            )}
-                          </div>
+                              {index === 0 && (
+                                <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded ml-2">
+                                  Ajánlott
+                                </span>
+                              )}
+                            </div>
+                            
+                            {/* További részletek */}
+                            <div className="text-xs text-gray-600 mt-1">
+                              {possibleAnimal.name && (
+                                <div>📝 Név: {possibleAnimal.name}</div>
+                              )}
+                              <div>🏷️ Kategória: {possibleAnimal.kategoria}</div>
+                              {possibleAnimal.szuletesi_datum && (
+                                <div>📅 Születés: {new Date(possibleAnimal.szuletesi_datum).toLocaleDateString('hu-HU')}</div>
+                              )}
+                            </div>
+                          </label>
                         </div>
                       ))
                     ) : (
-                      <div className="text-center py-2 text-gray-500 text-sm">
-                        Állatok betöltése...
+                      <div className="text-center py-4 text-gray-500 text-sm">
+                        <div className="text-2xl mb-2">🔍</div>
+                        <p className="font-medium">Állatok keresése...</p>
+                        <p className="text-xs mt-1">
+                          {selectedBirth?.historical 
+                            ? 'Történeti ellés - keresünk olyan állatokat, amelyek már léteznek.'
+                            : 'Új ellés - keresünk olyan állatokat, amelyeknek nincs még fülszám hozzárendelve.'
+                          }
+                        </p>
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div className="text-xs text-gray-500 bg-yellow-50 p-2 rounded">
+                {/* MANUÁLIS ENAR BEVITEL OPCIÓ */}
+                <div className="border-t pt-3 mt-3">
+                  <p className="text-sm text-gray-600 mb-2">
+                    🔧 Vagy add meg manuálisan az ENAR-t:
+                  </p>
+                  <input
+                    type="text"
+                    placeholder="HU 36050 0011 8"
+                    className="w-full p-2 border border-gray-300 rounded text-sm"
+                    onBlur={(e) => {
+                      if (e.target.value.trim()) {
+                        // Ellenőrizzük hogy létezik-e ez az ENAR
+                        supabase
+                          .from('animals')
+                          .select('enar, name, kategoria')
+                          .eq('enar', e.target.value.trim())
+                          .eq('statusz', 'aktív')
+                          .single()
+                          .then(({ data, error }) => {
+                            if (data) {
+                              // Hozzáadjuk a listához
+                              setPossibleAnimals(prev => [data, ...prev.filter(a => a.enar !== data.enar)]);
+                              console.log('✅ Manual ENAR hozzáadva:', data);
+                            } else {
+                              console.log('❌ ENAR nem található:', e.target.value);
+                              alert('❌ Ez az ENAR nem található az aktív állatok között');
+                            }
+                          });
+                      }
+                    }}
+                  />
+                </div>
+
+                <div className="text-xs text-gray-500 bg-yellow-50 p-2 rounded mt-2">
                   ⚠️ {selectedBirth?.historical
                     ? 'Történeti ellés - keresünk olyan állatokat, amelyek már léteznek, de nincs ellési kapcsolatuk.'
                     : 'Új ellés - keresünk olyan állatokat, amelyeknek nincs még fülszám hozzárendelve és az anya egyezik.'
@@ -1195,55 +1529,6 @@ React.useEffect(() => {
                   className="bg-blue-500 hover:bg-blue-600 text-white font-medium px-6 py-3 rounded-lg transition-colors"
                 >
                   🏷️ {selectedBirth?.historical ? 'Összekapcsolás' : 'Hozzárendelés'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {deletingBirth && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-sm border max-w-md w-full mx-4">
-            <div className="p-6">
-              <div className="flex items-center mb-4">
-                <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                  <span className="text-red-600 text-xl">⚠️</span>
-                </div>
-                <div className="ml-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Ellés Törlése</h3>
-                  <p className="text-sm text-gray-600">Ez a művelet nem visszafordítható!</p>
-                </div>
-              </div>
-
-              <div className="bg-gray-50 p-3 rounded-lg mb-4">
-                <p className="text-sm"><strong>Ellés dátuma:</strong> {new Date(deletingBirth.birth_date).toLocaleDateString('hu-HU')}</p>
-                <p className="text-sm"><strong>Eredmény:</strong> {
-                  deletingBirth.birth_outcome === 'successful' ? 'Sikeres ellés' :
-                    deletingBirth.birth_outcome === 'stillborn' ? 'Halva születés' : 'Vetélés'
-                }</p>
-                <p className="text-sm"><strong>Borjak:</strong> {deletingBirth.calves?.length || 0} db</p>
-              </div>
-
-              <p className="text-gray-700 mb-6">
-                Biztosan törölni szeretnéd ezt az ellési rekordot? Ez törölni fogja az összes kapcsolódó borjú adatot is.
-              </p>
-
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setDeletingBirth(null)}
-                  className="bg-white hover:bg-gray-50 text-gray-700 font-medium px-6 py-3 rounded-lg border border-gray-300 transition-colors inline-flex items-center"
-                >
-                  <span className="mr-2">❌</span>
-                  Mégse
-                </button>
-                <button
-                  onClick={confirmDeleteBirth}
-                  className="bg-red-500 hover:bg-red-600 text-white font-medium px-6 py-3 rounded-lg transition-colors inline-flex items-center"
-                >
-                  <span className="mr-2">🗑️</span>
-                  Törlés
                 </button>
               </div>
             </div>
