@@ -13,6 +13,7 @@ import { supabase } from '@/lib/supabase';
 import VVForm from '@/components/vv-form';
 import CurrentStatusTab from './components/current-status-tab';
 import BirthForm from '@/components/birth-form';
+import { FatherOption, Birth, FatherLoadData } from '@/types/birth-types';
 
 interface Animal {
   id: number;
@@ -1539,6 +1540,22 @@ React.useEffect(() => {
   );
 }
 
+// Helper funkció a tenyészbika adatok lekéréséhez
+const getTenyeszbikaByEnar = (enar: string) => {
+  const tenyeszbikak = [
+    { enar: 'HU 35163 0088 0', name: 'Béla (Aldiar Ulán)', kplsz: '42813' },
+    { enar: 'HU 35163 0117 9', name: 'Bonucci', kplsz: '44753' },
+    { enar: 'HU 35163 0114 8', name: 'Beckham', kplsz: '44707' },
+    { enar: 'HU 35163 0093 6', name: 'Mózes (BasileBoli Ulán)', kplsz: '43049' },
+    { enar: 'HU 35163 0087 3', name: 'Géza (Ardilles Nevető)', kplsz: '42962' },
+    { enar: 'HU 35159 0087 4', name: 'Balotelli', kplsz: '44247' },
+    { enar: 'HU 35159 0083 6', name: 'Bettega', kplsz: '44084' },
+    { enar: 'HU 34843 0025 3', name: 'Pawel (Vetúriusz)', kplsz: '39136' }
+  ];
+  
+  return tenyeszbikak.find(t => t.enar === enar);
+};
+
 export default function AnimalDetailPage() {
   const router = useRouter();
 
@@ -1552,6 +1569,15 @@ export default function AnimalDetailPage() {
   const [weaningDate, setWeaningDate] = useState('');
   const [weaningNotes, setWeaningNotes] = useState('');
   const [savingWeaning, setSavingWeaning] = useState(false);
+  const [showBloodTestModal, setShowBloodTestModal] = useState(false);
+  const [showManualFatherModal, setShowManualFatherModal] = useState(false);
+const [editingFatherData, setEditingFatherData] = useState(false);
+const [manualFatherForm, setManualFatherForm] = useState({
+  father_enar: '',
+  father_name: '',
+  father_kplsz: '',
+  uncertain_paternity: false
+});
 
   // Manual URL parsing
   useEffect(() => {
@@ -1582,106 +1608,232 @@ export default function AnimalDetailPage() {
   }, []);
 
   // Fetch animal data
-  const fetchAnimal = async (enar: string) => {
-    try {
-      setLoading(true);
-      setError(null);
+const fetchAnimal = async (enar: string) => {
+  try {
+    setLoading(true);
+    setError(null);
 
-      console.log('🔍 Searching for animal with ENAR:', enar);
+    console.log('🔍 Searching for animal with ENAR:', enar);
 
-      const { data, error: supabaseError } = await supabase
-        .from('animals')
-        .select(`
-    *,
-    animal_pen_assignments!left(
-      pen_id,
-      assigned_at,
-      removed_at,
-      pens(
-        pen_number,
-        location,
-        pen_type
-      )
-    )
-  `)
-        .eq('enar', enar)
-        .single();
+    // 1. ÁLLAT ALAPADATOK LEKÉRDEZÉSE
+    const { data: animalData, error: supabaseError } = await supabase
+      .from('animals')
+      .select(`
+        *,
+        animal_pen_assignments!left(
+          pen_id,
+          assigned_at,
+          removed_at,
+          pens(
+            pen_number,
+            location,
+            pen_type
+          )
+        )
+      `)
+      .eq('enar', enar)
+      .single();
 
-      if (supabaseError) {
-        console.error('❌ Supabase error:', supabaseError);
-        if (supabaseError.code === 'PGRST116') {
-          setError(`Állat nem található: ${enar}`);
-        } else {
-          setError(`Adatbázis hiba: ${supabaseError.message}`);
-        }
-        return;
-      }
-
-      if (!data) {
-        setError(`Nincs állat ezzel az ENAR-ral: ${enar}`);
-        return;
-      }
-
-      console.log('✅ Animal loaded successfully:', data);
-
-      if (!isEditing) {
-        setAnimal(data);
-        setEditedAnimal(data);
+    if (supabaseError) {
+      console.error('❌ Supabase error:', supabaseError);
+      if (supabaseError.code === 'PGRST116') {
+        setError(`Állat nem található: ${enar}`);
       } else {
-        setAnimal(data);
-        console.log('🔒 Editing in progress - preserving edited state');
+        setError(`Adatbázis hiba: ${supabaseError.message}`);
       }
-    } catch (err) {
-      console.error('❌ Fetch error:', err);
-      setError('Hiba történt az adatok betöltése során');
-    } finally {
-      setLoading(false);
+      return;
     }
-  };
 
-  // Save changes
-  const handleSave = async () => {
-    if (!editedAnimal || !animal) return;
+    if (!animalData) {
+      setError(`Nincs állat ezzel az ENAR-ral: ${enar}`);
+      return;
+    }
 
-    try {
-      setSaving(true);
+    console.log('✅ Állat alapadatok betöltve:', animalData);
 
-      const { error } = await supabase
-        .from('animals')
-        .update({
-          kategoria: editedAnimal.kategoria,
-          ivar: editedAnimal.ivar,
-          statusz: editedAnimal.statusz,
-          jelenlegi_karam: editedAnimal.jelenlegi_karam,
-          anya_enar: editedAnimal.anya_enar,
-          apa_enar: editedAnimal.apa_enar,
-          kplsz: editedAnimal.kplsz,
-          szuletesi_datum: editedAnimal.szuletesi_datum,
-          bekerules_datum: editedAnimal.bekerules_datum,
-          name: editedAnimal.name,
-          breed: editedAnimal.breed,
-          birth_location: editedAnimal.birth_location
-        })
-        .eq('enar', animal.enar);
+    // 2. APA ADATOK INTELLIGENS BETÖLTÉSE
+    let enhancedAnimal = { ...animalData };
 
-      if (error) {
-        console.error('Save error:', error);
-        alert('Hiba a mentés során: ' + error.message);
-        return;
+    // 2A. Ha van közvetlen apa adat, azt használjuk
+    if (animalData.father_enar) {
+      console.log('✅ Közvetlen apa adatok már jelen vannak:', {
+        father_enar: animalData.father_enar,
+        father_name: animalData.father_name,
+        father_kplsz: animalData.father_kplsz
+      });
+    }
+    // 2B. Ha nincs közvetlen apa adat, de van anya, keressük az ellési rekordokban ÉS VV-ben
+    else if (animalData.anya_enar && !animalData.father_enar) {
+      console.log('🔍 Apa adatok keresése ellési rekordokban az anya alapján:', animalData.anya_enar);
+      
+      // ENAR formátum normalizálás
+      const cleanMotherEnar = animalData.anya_enar.replace(/\s/g, ''); // Szóközök eltávolítása
+      const formattedMotherEnar = cleanMotherEnar.replace(/(.{2})(.{5})(.{4})(.{1})/, '$1 $2 $3 $4'); // Szóközök hozzáadása
+      
+      let foundFatherData = false;
+      
+      try {
+        // ELŐSZÖR: Keresés ellési rekordokban
+        const { data: birthData, error: birthError } = await supabase
+          .from('births')
+          .select(`
+            father_enar, 
+            father_name, 
+            father_kplsz, 
+            uncertain_paternity, 
+            possible_fathers,
+            birth_date,
+            birth_outcome,
+            historical
+          `)
+          .in('mother_enar', [animalData.anya_enar, cleanMotherEnar, formattedMotherEnar])
+          .order('birth_date', { ascending: false });
+        
+        if (birthError) {
+          console.error('❌ Birth data hiba:', birthError);
+        } else if (birthData && birthData.length > 0) {
+          console.log('✅ Talált ellési rekordok:', birthData);
+          
+          // Legutóbbi sikeres ellés keresése
+          const successfulBirth = birthData.find(birth => 
+            birth.birth_outcome === 'successful' || birth.birth_outcome === null
+          ) || birthData[0];
+          
+          if (successfulBirth && successfulBirth.father_enar) {
+            console.log('🎯 Kiválasztott ellési rekord apa adatokhoz:', successfulBirth);
+            
+            enhancedAnimal = {
+              ...enhancedAnimal,
+              father_enar: successfulBirth.father_enar,
+              father_name: successfulBirth.father_name,
+              father_kplsz: successfulBirth.father_kplsz,
+              uncertain_paternity: successfulBirth.uncertain_paternity,
+              possible_fathers: successfulBirth.possible_fathers,
+              father_source: 'birth_record',
+              mother_birth_record: successfulBirth
+            };
+            
+            console.log('✅ Apa adatok sikeresen hozzáadva ellési rekordból:', {
+              father_enar: successfulBirth.father_enar,
+              father_name: successfulBirth.father_name,
+              father_kplsz: successfulBirth.father_kplsz,
+              source: 'birth_record'
+            });
+            
+            foundFatherData = true;
+          } else {
+            console.log('⚠️ Ellési rekord megvan, de nincs apa adat benne');
+          }
+        } else {
+          console.log('⚠️ Nem találhatók ellési rekordok az anya ENAR-jához');
+        }
+        
+        // MÁSODSZOR: Ha nincs apa adat az ellési rekordban, keressük VV eredményekben
+        if (!foundFatherData) {
+          console.log('🔍 Keresés VV eredményekben az anya alapján:', animalData.anya_enar);
+          
+          const { data: vvData, error: vvError } = await supabase
+            .from('vv_results')
+            .select(`
+              father_enar,
+              father_name, 
+              father_kplsz,
+              uncertain_paternity,
+              possible_fathers,
+              vv_date,
+              pregnancy_status
+            `)
+            .in('animal_enar', [animalData.anya_enar, cleanMotherEnar, formattedMotherEnar])
+            .eq('pregnancy_status', 'vemhes')
+            .order('vv_date', { ascending: false });
+          
+          if (vvError) {
+            console.error('❌ VV data hiba:', vvError);
+          } else if (vvData && vvData.length > 0) {
+            console.log('✅ Talált VV eredmények:', vvData);
+            
+            const latestVV = vvData[0]; // Legutóbbi vemhes VV
+            
+            if (latestVV && latestVV.father_enar) {
+              console.log('🎯 Kiválasztott VV eredmény apa adatokhoz:', latestVV);
+              
+              enhancedAnimal = {
+                ...enhancedAnimal,
+                father_enar: latestVV.father_enar,
+                father_name: latestVV.father_name,
+                father_kplsz: latestVV.father_kplsz,
+                uncertain_paternity: latestVV.uncertain_paternity,
+                possible_fathers: latestVV.possible_fathers,
+                father_source: 'vv_record',
+                mother_vv_record: latestVV
+              };
+              
+              console.log('✅ Apa adatok sikeresen hozzáadva VV rekordból:', {
+                father_enar: latestVV.father_enar,
+                father_name: latestVV.father_name,
+                father_kplsz: latestVV.father_kplsz,
+                source: 'vv_record'
+              });
+              
+              foundFatherData = true;
+            }
+          } else {
+            console.log('⚠️ Nem találhatók VV eredmények sem az anya ENAR-jához');
+          }
+        }
+        
+        if (!foundFatherData) {
+          console.log('❌ Sem ellési rekordban, sem VV eredményben nem találhatók apa adatok');
+        }
+        
+      } catch (searchError) {
+        console.error('❌ Hiba az apa adatok keresése során:', searchError);
       }
-
-      setAnimal(editedAnimal);
-      setIsEditing(false);
-
-      await new Promise(resolve => setTimeout(resolve, 50));
-
-    } catch (err) {
-      console.error('Save error:', err);
-      alert('Hiba történt a mentés során');
-    } finally {
-      setSaving(false);
     }
-  };
+    // 2C. Ha nincs anya sem, próbáljuk a régi apa_enar mezőt
+    else if (animalData.apa_enar && !animalData.father_enar) {
+      console.log('📝 Régi apa_enar mező használata:', animalData.apa_enar);
+      enhancedAnimal = {
+        ...enhancedAnimal,
+        father_enar: animalData.apa_enar,
+        father_source: 'legacy'
+      };
+    }
+    // 2D. Tenyészbika vagy vásárolt állat esetén
+    else if (animalData.birth_location === 'vásárolt' || animalData.kategoria === 'tenyészbika') {
+      console.log('ℹ️ Vásárolt állat vagy tenyészbika - apa adatok nem alkalmazhatók');
+      enhancedAnimal = {
+        ...enhancedAnimal,
+        father_source: 'not_applicable'
+      };
+    }
+    // 2E. Minden egyéb esetben
+    else {
+      console.log('❓ Apa adatok nem találhatók');
+      enhancedAnimal = {
+        ...enhancedAnimal,
+        father_source: 'unknown'
+      };
+    }
+
+    console.log('🏁 Végső állat objektum apa adatokkal:', enhancedAnimal);
+
+    // 3. STATE BEÁLLÍTÁSA
+    if (!isEditing) {
+      setAnimal(enhancedAnimal);
+      setEditedAnimal(enhancedAnimal);
+    } else {
+      setAnimal(enhancedAnimal);
+      console.log('🔒 Editing in progress - preserving edited state');
+    }
+    
+  } catch (err) {
+    console.error('❌ Fetch error:', err);
+    setError('Hiba történt az adatok betöltése során');
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ✅ IDE JÖN A handleWeaningSubmit FÜGGVÉNY:
   const handleWeaningSubmit = async () => {
@@ -2423,19 +2575,176 @@ const handleDeleteWeaning = async () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  🐂 Apa ENAR
+                  🐂 Apa Adatok
                 </label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={editedAnimal.apa_enar || ''}
-                    onChange={(e) => updateField('apa_enar', e.target.value)}
-                    placeholder="Pl. HU 30223 0444 9"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-                  />
+                
+                {/* BIZONYTALAN APASÁG */}
+                {(animal as any).uncertain_paternity ? (
+                  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start">
+                        <span className="text-2xl mr-3">⚠️</span>
+                        <div className="flex-1">
+                          <h3 className="text-yellow-800 font-semibold mb-2">Bizonytalan Apaság</h3>
+                          <p className="text-yellow-700 mb-3">
+                            🩸 <strong>Vérvizsgálat szükséges a pontos apa meghatározásához!</strong>
+                          </p>
+                          
+                          <div className="bg-yellow-100 p-3 rounded mb-3">
+                            <p className="font-medium text-yellow-800 mb-2">Lehetséges apák:</p>
+                            <div className="space-y-1">
+                              {(animal as any).possible_fathers?.map((father: any) => {
+                                const father_enar = typeof father === 'string' ? father : father.enar;
+                                const tenyeszbika = getTenyeszbikaByEnar(father_enar);
+                                return (
+                                  <div key={father_enar} className="text-yellow-800">
+                                    🐂 {tenyeszbika?.name || father.name || 'Ismeretlen'} ({father_enar})
+                                    {(tenyeszbika?.kplsz || father.kplsz) && 
+                                      ` - KPLSZ: ${tenyeszbika?.kplsz || father.kplsz}`
+                                    }
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => setShowBloodTestModal(true)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm transition-colors"
+                            >
+                              🔬 Vérvizsgálat Eredmény
+                            </button>
+                            <button 
+                              onClick={() => setShowManualFatherModal(true)}
+                              className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded text-sm transition-colors"
+                            >
+                              ✏️ Manual Módosítás
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                /* EGYÉRTELMŰ APASÁG */
+                ) : (animal as any).father_enar ? (
+                  <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded-r-lg">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">✅</span>
+                        <div>
+                          <h3 className="text-green-800 font-semibold mb-1">Apa Azonosítva</h3>
+                          <p className="text-green-700">
+                            🐂 <strong>{(animal as any).father_name || getTenyeszbikaByEnar((animal as any).father_enar)?.name || 'Névtelen'}</strong> ({(animal as any).father_enar})
+                          </p>
+                          {((animal as any).father_kplsz || getTenyeszbikaByEnar((animal as any).father_enar)?.kplsz) && (
+                            <p className="text-green-700">
+                              KPLSZ: {(animal as any).father_kplsz || getTenyeszbikaByEnar((animal as any).father_enar)?.kplsz}
+                            </p>
+                          )}
+                          <p className="text-sm text-green-600 mt-1">
+                            📋 {(animal as any).father_source === 'birth_record' ? 'Ellési rekordból automatikusan' : 
+                                 (animal as any).father_source === 'vv_result' ? 'VV eredményből' : 
+                                 (animal as any).father_source === 'manual' ? 'Manual rögzítés' : 'Manuálisan rögzítve'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => {
+                            setManualFatherForm({
+                              father_enar: (animal as any).father_enar || '',
+                              father_name: (animal as any).father_name || '',
+                              father_kplsz: (animal as any).father_kplsz || '',
+                              uncertain_paternity: (animal as any).uncertain_paternity || false
+                            });
+                            setShowManualFatherModal(true);
+                          }}
+                          className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-colors"
+                        >
+                          ✏️ Szerkesztés
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setManualFatherForm({
+                              father_enar: '',
+                              father_name: '',
+                              father_kplsz: '',
+                              uncertain_paternity: false
+                            });
+                            setShowManualFatherModal(true);
+                          }}
+                          className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm transition-colors"
+                        >
+                          🔄 Felülírás
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                /* RÉGI APA ENAR RENDSZER */
+                ) : animal.apa_enar ? (
+                  <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">🐂</span>
+                        <div>
+                          <h3 className="text-blue-800 font-semibold mb-1">Apa (Régi Rendszer)</h3>
+                          <p className="text-blue-700">{animal.apa_enar}</p>
+                          <p className="text-sm text-blue-600 mt-1">
+                            💡 Frissítsd VV vagy ellési adatokkal a részletes apa információkért
+                          </p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          setManualFatherForm({
+                            father_enar: animal.apa_enar || '',
+                            father_name: '',
+                            father_kplsz: '',
+                            uncertain_paternity: false
+                          });
+                          setShowManualFatherModal(true);
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition-colors"
+                      >
+                        ⬆️ Modern Frissítés
+                      </button>
+                    </div>
+                  </div>
+
+                /* NINCS APA ADAT */
                 ) : (
-                  <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
-                    {animal.apa_enar || 'Nincs megadva'}
+                  <div className="bg-gray-50 border-l-4 border-gray-400 p-4 rounded-r-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">❓</span>
+                        <div>
+                          <h3 className="text-gray-700 font-semibold">Apa Adat Hiányzik</h3>
+                          <p className="text-gray-600">
+                            Az apa adatok még nem kerültek rögzítésre ehhez az állathoz.
+                          </p>
+                          <p className="text-sm text-gray-500 mt-1">
+                            💡 Rögzítsd VV eredményben vagy ellési adatoknál az apa információkat.
+                          </p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          setManualFatherForm({
+                            father_enar: '',
+                            father_name: '',
+                            father_kplsz: '',
+                            uncertain_paternity: false
+                          });
+                          setShowManualFatherModal(true);
+                        }}
+                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-colors"
+                      >
+                        ➕ Apa Rögzítése
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -2460,6 +2769,129 @@ const handleDeleteWeaning = async () => {
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+         {/* MANUAL FATHER MODAL */}
+        {showManualFatherModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+              <h3 className="text-lg font-semibold mb-4 flex items-center">
+                🐂 Apa Adatok Manual Rögzítése
+              </h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    🐂 Apa ENAR *
+                  </label>
+                  <input
+                    type="text"
+                    value={manualFatherForm.father_enar}
+                    onChange={(e) => setManualFatherForm({...manualFatherForm, father_enar: e.target.value})}
+                    placeholder="Pl. HU 35163 0088 0"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    📝 Apa Neve (opcionális)
+                  </label>
+                  <input
+                    type="text"
+                    value={manualFatherForm.father_name}
+                    onChange={(e) => setManualFatherForm({...manualFatherForm, father_name: e.target.value})}
+                    placeholder="Pl. Béla"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    📋 KPLSZ (opcionális)
+                  </label>
+                  <input
+                    type="text"
+                    value={manualFatherForm.father_kplsz}
+                    onChange={(e) => setManualFatherForm({...manualFatherForm, father_kplsz: e.target.value})}
+                    placeholder="Pl. 42813"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+                
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="uncertain"
+                    checked={manualFatherForm.uncertain_paternity}
+                    onChange={(e) => setManualFatherForm({...manualFatherForm, uncertain_paternity: e.target.checked})}
+                    className="mr-2"
+                  />
+                  <label htmlFor="uncertain" className="text-sm text-gray-700">
+                    ⚠️ Bizonytalan apaság (vérvizsgálat szükséges)
+                  </label>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-2 mt-6">
+                <button
+                  onClick={() => {
+                    setShowManualFatherModal(false);
+                    setManualFatherForm({
+                      father_enar: '',
+                      father_name: '',
+                      father_kplsz: '',
+                      uncertain_paternity: false
+                    });
+                  }}
+                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  Mégse
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      const updateData = {
+                        father_enar: manualFatherForm.father_enar || null,
+                        father_name: manualFatherForm.father_name || null,
+                        father_kplsz: manualFatherForm.father_kplsz || null,
+                        uncertain_paternity: manualFatherForm.uncertain_paternity,
+                        father_source: 'manual'
+                      };
+
+                      const { error } = await supabase
+                        .from('animals')
+                        .update(updateData)
+                        .eq('enar', animal?.enar);
+
+                      if (error) {
+                        console.error('Error updating father data:', error);
+                        alert('❌ Hiba történt az apa adatok mentésekor!');
+                      } else {
+                        alert('✅ Apa adatok sikeresen mentve!');
+                        setShowManualFatherModal(false);
+                        setManualFatherForm({
+                          father_enar: '',
+                          father_name: '',
+                          father_kplsz: '',
+                          uncertain_paternity: false
+                        });
+                        // Oldal frissítése
+                        window.location.reload();
+                      }
+                    } catch (error) {
+                      console.error('Error:', error);
+                      alert('❌ Hiba történt!');
+                    }
+                  }}
+                  disabled={!manualFatherForm.father_enar}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                >
+                  💾 Mentés
+                </button>
+              </div>
             </div>
           </div>
         )}

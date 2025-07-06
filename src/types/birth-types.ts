@@ -145,6 +145,46 @@ export interface BirthFormProps {
   };
 }
 
+// ANIMAL INTERFACE - Apa adatok támogatással
+export interface Animal {
+  enar: string;
+  name?: string;
+  szuletesi_datum?: string;
+  ivar?: string;
+  kategoria?: string;
+  statusz?: string;
+  anya_enar?: string;
+  
+  // ÚJ: Apa adatok bővítése
+  father_enar?: string;
+  father_name?: string;
+  father_kplsz?: string;
+  uncertain_paternity?: boolean;
+  possible_fathers?: FatherOption[];
+  father_source?: 'birth_record' | 'manual' | 'vv_result';
+  
+  // Flexibilis mezők
+  [key: string]: any;
+}
+
+// Apa betöltési művelet típusai  
+export interface FatherLoadData {
+  father_enar?: string;
+  father_name?: string;
+  father_kplsz?: string;
+  uncertain_paternity: boolean;
+  possible_fathers?: FatherOption[];
+  father_source: 'birth_record' | 'manual' | 'vv_result';
+}
+
+// Vérvizsgálat eredmény típus
+export interface BloodTestResult {
+  confirmed_father_enar: string;
+  test_date: string;
+  test_method: string;
+  notes?: string;
+}
+
 // Constants for form options
 export const BIRTH_TYPE_OPTIONS = [
   { value: 'easy_no_help', label: '🟢 Könnyű, segítség nélkül' },
