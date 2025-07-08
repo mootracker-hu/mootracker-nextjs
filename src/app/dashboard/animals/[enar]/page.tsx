@@ -1579,6 +1579,51 @@ const [manualFatherForm, setManualFatherForm] = useState({
   uncertain_paternity: false
 });
 
+// ✅ IDE JÖN A handleSave FÜGGVÉNY:
+const handleSave = async () => {
+  if (!editedAnimal || !animal) return;
+
+  try {
+    setSaving(true);
+
+    const { error } = await supabase
+      .from('animals')
+      .update({
+        name: editedAnimal.name,
+        kategoria: editedAnimal.kategoria,
+        ivar: editedAnimal.ivar,
+        statusz: editedAnimal.statusz,
+        breed: editedAnimal.breed,
+        birth_location: editedAnimal.birth_location,
+        szuletesi_datum: editedAnimal.szuletesi_datum,
+        bekerules_datum: editedAnimal.bekerules_datum,
+        anya_enar: editedAnimal.anya_enar,
+        kplsz: editedAnimal.kplsz,
+        notes: editedAnimal.notes
+      })
+      .eq('enar', animal.enar);
+
+    if (error) {
+      console.error('❌ Mentési hiba:', error);
+      alert('❌ Hiba történt a mentés során!');
+      return;
+    }
+
+    console.log('✅ Állat adatok sikeresen mentve');
+    alert('✅ Állat adatok sikeresen mentve!');
+    
+    // State frissítés
+    setAnimal(editedAnimal);
+    setIsEditing(false);
+
+  } catch (error) {
+    console.error('❌ Mentési hiba:', error);
+    alert('❌ Váratlan hiba történt!');
+  } finally {
+    setSaving(false);
+  }
+};
+
   // Manual URL parsing
   useEffect(() => {
     console.log('🔍 ENAR Extraction Starting...');
@@ -2579,7 +2624,9 @@ const handleDeleteWeaning = async () => {
                 </label>
                 
                 {/* BIZONYTALAN APASÁG */}
-                {(animal as any).uncertain_paternity ? (
+                {(animal as any).uncertain_paternity && 
+ (animal as any).possible_fathers && 
+ (animal as any).possible_fathers.length > 1 ? (
                   <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg">
                     <div className="flex items-start justify-between">
                       <div className="flex items-start">

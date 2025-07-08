@@ -20,18 +20,88 @@ export default function ExpectedBirthsWidget() {
   useEffect(() => {
     const fetchExpectedBirths = async () => {
       try {
-        const { data, error } = await supabase
+        // 🔍 1. Lekérdezzük a vemhes állatokat
+        const { data: animalsData, error: animalsError } = await supabase
           .from('animals')
           .select('enar, name, expected_birth_date')
           .eq('pregnancy_status', 'vemhes')
+          .eq('statusz', 'aktív')
           .not('expected_birth_date', 'is', null)
           .order('expected_birth_date', { ascending: true })
-          .limit(5);
+          .limit(10); // Több mint 5, hogy biztosan legyen elég
 
-        if (error) throw error;
+        if (animalsError) throw animalsError;
 
+        // 🔍 2. HÁROM módon ellenőrizzük az elléseket párhuzamosan
+        const [birthsResponse, calvesResponse, offspringResponse] = await Promise.all([
+          // 2a. Births tábla - ellési rekordok
+          supabase
+            .from('births')
+            .select('mother_enar'),
+          
+          // 2b. Calves tábla - temp ID-s borjak
+          supabase
+            .from('calves')
+            .select(`
+              temp_id, 
+              birth_id,
+              births!inner(mother_enar)
+            `)
+            .not('temp_id', 'is', null),
+          
+          // 2c. Animals tábla - önálló ENAR-os utódok
+          supabase
+            .from('animals')
+            .select('anya_enar')
+            .not('anya_enar', 'is', null)
+            .eq('statusz', 'aktív')
+        ]);
+
+        if (birthsResponse.error) throw birthsResponse.error;
+        if (calvesResponse.error) throw calvesResponse.error;
+        if (offspringResponse.error) throw offspringResponse.error;
+
+        // 🚫 3. Minden módon ellettek állatok gyűjtése
+        const animalsWithBirths = new Set<string>();
+
+        // 3a. Direkt births rekordok
+        (birthsResponse.data || []).forEach(birth => {
+          if (birth.mother_enar) {
+            animalsWithBirths.add(birth.mother_enar);
+          }
+        });
+
+        // 3b. Temp ID-s borjak anyái (calves + births JOIN)
+        (calvesResponse.data || []).forEach((calf: any) => {
+          if (calf.births?.mother_enar) {
+            animalsWithBirths.add(calf.births.mother_enar);
+          }
+        });
+
+        // 3c. Önálló ENAR-os utódok anyái
+        (offspringResponse.data || []).forEach(animal => {
+          if (animal.anya_enar) {
+            animalsWithBirths.add(animal.anya_enar);
+          }
+        });
+
+        // 🔍 4. Szűrés
+        const filteredAnimals = (animalsData || []).filter(animal => 
+          !animalsWithBirths.has(animal.enar)
+        );
+
+        console.log('💡 DASHBOARD WIDGET DEBUG - Várható ellések:');
+        console.log('📊 Összes vemhes állat:', animalsData?.length || 0);
+        console.log('📋 Births rekordok:', birthsResponse.data?.length || 0);
+        console.log('🐮 Temp ID-s borjak:', calvesResponse.data?.length || 0);
+        console.log('👶 Önálló utódok:', offspringResponse.data?.length || 0);
+        console.log('🚫 Már ellettek:', animalsWithBirths.size);
+        console.log('✅ Widget - valóban várható ellések:', filteredAnimals.length);
+        console.log('🎯 Widget ENARok:', filteredAnimals.map(a => a.enar));
+
+        // 📊 5. Adatok feldolgozása és TOP 5 kiválasztása
         const today = new Date();
-        const processedBirths = (data || []).map(birth => {
+        const processedBirths = filteredAnimals.map(birth => {
           const birthDate = new Date(birth.expected_birth_date);
           const diffTime = birthDate.getTime() - today.getTime();
           const daysUntilBirth = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -47,11 +117,11 @@ export default function ExpectedBirthsWidget() {
             days_until_birth: daysUntilBirth,
             alert_level: alertLevel
           };
-        });
+        }).slice(0, 5); // TOP 5 legközelebbi
 
         setExpectedBirths(processedBirths);
       } catch (error) {
-        console.error('Várható ellések lekérdezési hiba:', error);
+        console.error('❌ Dashboard widget - Várható ellések lekérdezési hiba:', error);
       } finally {
         setLoading(false);
       }
@@ -90,7 +160,7 @@ export default function ExpectedBirthsWidget() {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border p-6">
+    <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
           <span className="text-2xl mr-3">🐄🍼</span>
@@ -114,6 +184,7 @@ export default function ExpectedBirthsWidget() {
         <div className="text-center py-8 text-gray-500">
           <div className="text-4xl mb-2">🐄</div>
           <p>Nincs várható ellés a közeljövőben</p>
+          <p className="text-sm mt-1">✅ Minden ellés már rögzítve van!</p>
         </div>
       ) : (
         <div className="space-y-3">

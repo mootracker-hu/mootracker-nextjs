@@ -19,49 +19,121 @@ const BirthsByDate: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const { data, error } = await supabase
-  .from('animals')
-  .select(`
-    id,
-    enar,
-    name,
-    kategoria,
-    expected_birth_date,
-    pregnancy_status,
-    animal_pen_assignments!left(
-      pen_id,
-      pens(pen_number, pen_type)
-    )
-  `)
-  .eq('pregnancy_status', 'vemhes')
-  .eq('statusz', 'aktív')
-  .not('expected_birth_date', 'is', null)
-  .order('expected_birth_date', { ascending: true });
+      // 🔍 1. Lekérdezzük a vemhes állatokat
+      const { data: animalsData, error: animalsError } = await supabase
+        .from('animals')
+        .select(`
+          id,
+          enar,
+          name,
+          kategoria,
+          expected_birth_date,
+          pregnancy_status,
+          animal_pen_assignments!left(
+            pen_id,
+            pens(pen_number, pen_type)
+          )
+        `)
+        .eq('pregnancy_status', 'vemhes')
+        .eq('statusz', 'aktív')
+        .not('expected_birth_date', 'is', null)
+        .order('expected_birth_date', { ascending: true });
 
-      if (error) throw error;
+      if (animalsError) throw animalsError;
 
-     // Adatok feldolgozása
-const processedBirths: ExpectedBirth[] = (data || []).map((animal: any) => {
-  const today = new Date();
-  const birthDate = new Date(animal.expected_birth_date);
-  const daysRemaining = Math.ceil((birthDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      // 🔍 2. HÁROM módon ellenőrizzük az elléseket párhuzamosan
+      const [birthsResponse, calvesResponse, offspringResponse] = await Promise.all([
+        // 2a. Births tábla - ellési rekordok
+        supabase
+          .from('births')
+          .select('mother_enar'),
+        
+        // 2b. Calves tábla - temp ID-s borjak
+        supabase
+          .from('calves')
+          .select(`
+            temp_id, 
+            birth_id,
+            births!inner(mother_enar)
+          `)
+          .not('temp_id', 'is', null),
+        
+        // 2c. Animals tábla - önálló ENAR-os utódok
+        supabase
+          .from('animals')
+          .select('anya_enar')
+          .not('anya_enar', 'is', null)
+          .eq('statusz', 'aktív')
+      ]);
 
-  // Karám info kinyerése
-  const assignment = animal.animal_pen_assignments?.[0];
-  const pen = assignment?.pens;
+      if (birthsResponse.error) throw birthsResponse.error;
+      if (calvesResponse.error) throw calvesResponse.error;
+      if (offspringResponse.error) throw offspringResponse.error;
 
-  return {
-    enar: animal.enar,
-    name: animal.name,
-    kategoria: animal.kategoria,
-    expected_birth_date: animal.expected_birth_date,
-    pregnancy_status: animal.pregnancy_status,
-    pen_number: pen?.pen_number || 'Nincs karám',
-    pen_type: pen?.pen_type || 'ismeretlen',
-    days_remaining: daysRemaining,
-    alert_level: getAlertLevel(daysRemaining)
-  };
-});
+      // 🚫 3. Minden módon ellettek állatok gyűjtése
+      const animalsWithBirths = new Set<string>();
+
+      // 3a. Direkt births rekordok
+      (birthsResponse.data || []).forEach(birth => {
+        if (birth.mother_enar) {
+          animalsWithBirths.add(birth.mother_enar);
+        }
+      });
+
+      // 3b. Temp ID-s borjak anyái (calves + births JOIN)
+      (calvesResponse.data || []).forEach((calf: any) => {
+        if (calf.births?.mother_enar) {
+          animalsWithBirths.add(calf.births.mother_enar);
+        }
+      });
+
+      // 3c. Önálló ENAR-os utódok anyái
+      (offspringResponse.data || []).forEach(animal => {
+        if (animal.anya_enar) {
+          animalsWithBirths.add(animal.anya_enar);
+        }
+      });
+
+      // 🔍 4. Szűrés és részletes debug
+      const filteredAnimals = (animalsData || []).filter(animal => 
+        !animalsWithBirths.has(animal.enar)
+      );
+
+      console.log('🔍 === VÁRHATÓ ELLÉSEK DEBUG ===');
+      console.log('💡 Összes vemhes állat:', animalsData?.length || 0);
+      console.log('📋 Births rekordok száma:', birthsResponse.data?.length || 0);
+      console.log('🐮 Temp ID-s borjak száma:', calvesResponse.data?.length || 0);
+      console.log('👶 Önálló utódok száma:', offspringResponse.data?.length || 0);
+      console.log('🚫 Már ellettek (összesen):', animalsWithBirths.size);
+      console.log('✅ Valóban várható ellések:', filteredAnimals.length);
+      console.log('🎯 Várható ellések ENARok:', filteredAnimals.map(a => a.enar));
+      
+      // Debug: mely anyák vannak kizárva
+      const excludedMothers = Array.from(animalsWithBirths);
+      console.log('🚫 Kizárt anyák (már ellettek):', excludedMothers);
+
+      // 📊 5. Adatok feldolgozása
+      const processedBirths: ExpectedBirth[] = filteredAnimals.map((animal: any) => {
+        const today = new Date();
+        const birthDate = new Date(animal.expected_birth_date);
+        const daysRemaining = Math.ceil((birthDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+        // Karám info kinyerése
+        const assignment = animal.animal_pen_assignments?.[0];
+        const pen = assignment?.pens;
+
+        return {
+          enar: animal.enar,
+          name: animal.name,
+          kategoria: animal.kategoria,
+          expected_birth_date: animal.expected_birth_date,
+          pregnancy_status: animal.pregnancy_status,
+          pen_number: pen?.pen_number || 'Nincs karám',
+          pen_type: pen?.pen_type || 'ismeretlen',
+          days_remaining: daysRemaining,
+          alert_level: getAlertLevel(daysRemaining)
+        };
+      });
 
       setBirths(processedBirths);
     } catch (error) {
@@ -116,7 +188,10 @@ const processedBirths: ExpectedBirth[] = (data || []).map((animal: any) => {
           Nincs várható ellés
         </h3>
         <p className="text-green-600">
-          Jelenleg nincs vemhes állat várható ellési dátummal.
+          ✅ Minden ellés már rögzítve van! 🎉
+        </p>
+        <p className="text-sm text-gray-500 mt-2">
+          (Births + temp ID-s borjak + önálló utódok is figyelembe véve)
         </p>
       </div>
     );

@@ -19,8 +19,8 @@ const BirthsByPen: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // Egyszerű lekérdezés: vemhes állatok + karám info
-      const { data, error } = await supabase
+      // 🔍 1. Lekérdezzük a vemhes állatokat
+      const { data: animalsData, error: animalsError } = await supabase
         .from('animals')
         .select(`
           id,
@@ -44,13 +44,31 @@ const BirthsByPen: React.FC = () => {
         .not('expected_birth_date', 'is', null)
         .order('expected_birth_date', { ascending: true });
 
-      if (error) throw error;
+      if (animalsError) throw animalsError;
 
-      // Adatok feldolgozása karám szerint
+      // 🔍 2. Lekérdezzük az összes ellést
+      const { data: birthsData, error: birthsError } = await supabase
+        .from('births')
+        .select('mother_enar');
+
+      if (birthsError) throw birthsError;
+
+      // 🚫 3. Kizárjuk azokat az állatokat, akiknek már van ellésük
+      const animalsWithBirths = new Set(birthsData?.map(birth => birth.mother_enar) || []);
+
+      const filteredAnimals = (animalsData || []).filter(animal => 
+        !animalsWithBirths.has(animal.enar)
+      );
+
+      console.log('💡 Összes vemhes állat (karám szerint):', animalsData?.length || 0);
+      console.log('🚫 Már ellettek (kizárva):', (animalsData?.length || 0) - filteredAnimals.length);
+      console.log('✅ Valóban várható ellések:', filteredAnimals.length);
+
+      // 📊 4. Adatok feldolgozása karám szerint
+      const today = new Date();
       const penMap = new Map<string, PenBirths>();
 
-      (data || []).forEach((animal: any) => {
-        const today = new Date();
+      filteredAnimals.forEach((animal: any) => {
         const birthDate = new Date(animal.expected_birth_date);
         const daysRemaining = Math.ceil((birthDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
@@ -195,7 +213,10 @@ const BirthsByPen: React.FC = () => {
           Nincs várható ellés karamokban
         </h3>
         <p className="text-green-600">
-          Jelenleg nincs karám vemhes állatokkal.
+          ✅ Minden ellés már rögzítve van! 🎉
+        </p>
+        <p className="text-sm text-gray-500 mt-2">
+          (Temp ID-s borjak és történeti ellések is figyelembe véve)
         </p>
       </div>
     );
