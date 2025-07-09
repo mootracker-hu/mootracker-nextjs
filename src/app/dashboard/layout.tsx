@@ -33,6 +33,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     current: pathname.startsWith('/dashboard/calves')
   },
   { 
+    name: 'Tenyészbikák', 
+    href: '/dashboard/bulls', 
+    icon: '🐂',
+    current: pathname.startsWith('/dashboard/bulls')
+  },
+  { 
     name: 'Karamok', 
     href: '/dashboard/pens', 
     icon: '🏠',
