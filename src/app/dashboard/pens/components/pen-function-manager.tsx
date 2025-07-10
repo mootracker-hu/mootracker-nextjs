@@ -27,14 +27,20 @@ interface PenFunctionManagerProps {
   isOpen: boolean;
   onClose: () => void;
   pen: Pen;
-  onFunctionChange: (newFunction: PenFunctionType, metadata: any, notes: string) => void;
+  onFunctionChange: any;       // Egyszerűsített
+  editMode?: boolean;          // ÚJ - edit mód flag
+  editPeriod?: any;           // ÚJ - szerkesztendő periódus adatai
+  onPeriodUpdate?: any;       // ÚJ - update callback
 }
 
 export default function PenFunctionManager({
   isOpen,
   onClose,
   pen,
-  onFunctionChange
+  onFunctionChange,
+  editMode = false,           // ÚJ
+  editPeriod = null,          // ÚJ  
+  onPeriodUpdate              // ÚJ         // ÚJ
 }: PenFunctionManagerProps) {
   const [newFunction, setNewFunction] = useState<PenFunctionType>(pen.current_function?.function_type || 'üres');
   const [notes, setNotes] = useState(pen.current_function?.notes || '');
@@ -85,22 +91,22 @@ export default function PenFunctionManager({
   }, []);
 
   // ÚJ: Jelenlegi állatok betöltése
-useEffect(() => {
-  if (isOpen && pen?.id) {
-    fetchCurrentAnimals();
-  }
-}, [isOpen, pen?.id]);
+  useEffect(() => {
+    if (isOpen && pen?.id) {
+      fetchCurrentAnimals();
+    }
+  }, [isOpen, pen?.id]);
 
-const fetchCurrentAnimals = async () => {
-  try {
-    const animals = await getCurrentAnimalsInPen(pen.id);
-    setCurrentAnimals(animals);
-    console.log('🐄 Jelenlegi állatok betöltve:', animals.length);
-  } catch (error) {
-    console.error('❌ Állatok betöltési hiba:', error);
-    setCurrentAnimals([]);
-  }
-};
+  const fetchCurrentAnimals = async () => {
+    try {
+      const animals = await getCurrentAnimalsInPen(pen.id);
+      setCurrentAnimals(animals);
+      console.log('🐄 Jelenlegi állatok betöltve:', animals.length);
+    } catch (error) {
+      console.error('❌ Állatok betöltési hiba:', error);
+      setCurrentAnimals([]);
+    }
+  };
 
   // ✅ Hárem metadata inicializálása
   useEffect(() => {
@@ -108,6 +114,43 @@ const fetchCurrentAnimals = async () => {
       setSelectedBulls(pen.current_function.metadata.bulls);
     }
   }, [pen.current_function]);
+
+  // ÚJ: Edit mód inicializálása
+useEffect(() => {
+  if (editMode && editPeriod) {
+    console.log('🔧 Edit mód inicializálása:', editPeriod);
+    
+    // Funkció típus beállítása
+    setNewFunction(editPeriod.function_type);
+    
+    // Dátumok beállítása
+    setStartDate(editPeriod.start_date.split('T')[0]);
+    setEndDate(editPeriod.end_date ? editPeriod.end_date.split('T')[0] : '');
+    setIsHistoricalEntry(!!editPeriod.end_date);
+    
+    // Hárem specifikus adatok
+    if (editPeriod.function_type === 'hárem' && editPeriod.metadata) {
+      if (editPeriod.metadata.bulls) {
+        setSelectedBulls(editPeriod.metadata.bulls);
+      }
+      if (editPeriod.metadata.parozas_kezdete) {
+        setParozasKezdete(editPeriod.metadata.parozas_kezdete);
+      }
+      if (editPeriod.metadata.vv_esedekssege) {
+        setVvEsedekessege(editPeriod.metadata.vv_esedekssege);
+      }
+      if (editPeriod.metadata.females) {
+        const femaleENARs = editPeriod.metadata.females.map((f: any) => f.enar).join(', ');
+        setHistoricalFemales(femaleENARs);
+      }
+    }
+    
+    // Megjegyzések
+    if (editPeriod.notes) {
+      setNotes(editPeriod.notes);
+    }
+  }
+}, [editMode, editPeriod]);
 
   const fetchBulls = async () => {
     console.log('🚀 fetchBulls started');
@@ -192,87 +235,87 @@ const fetchCurrentAnimals = async () => {
   };
 
   const createHaremSnapshot = async (penId: string, selectedBulls: any[], parozasKezdete: string, vvEsedekssege: string) => {
-  try {
-    console.log('📸 Hárem snapshot készítése...', { penId, bullCount: selectedBulls.length, isHistorical: isHistoricalEntry });
+    try {
+      console.log('📸 Hárem snapshot készítése...', { penId, bullCount: selectedBulls.length, isHistorical: isHistoricalEntry });
 
-    let females = [];
+      let females = [];
 
-    if (isHistoricalEntry && historicalFemales.trim()) {
-      // Történeti mód: manual ENAR lista használata
-      console.log('📚 Történeti mód: manual nőivarok használata');
-      
-      const manualFemales = historicalFemales
-        .split(',')
-        .map(enar => enar.trim())
-        .filter(enar => enar.length > 0)
-        .map(enar => ({
-          enar: enar,
-          kategoria: 'historical_entry',
-          birth_date: null,
-          birth_location: 'historical'
-        }));
+      if (isHistoricalEntry && historicalFemales.trim()) {
+        // Történeti mód: manual ENAR lista használata
+        console.log('📚 Történeti mód: manual nőivarok használata');
 
-      females = manualFemales;
-      console.log('📝 Manual nőivarok:', females.length);
-      
-    } else {
-      // Normál mód: jelenlegi állatok lekérdezése
-      console.log('🔄 Normál mód: jelenlegi állatok lekérdezése');
-      
-      const currentAnimals = await getCurrentAnimalsInPen(penId);
-      
-      females = currentAnimals
-        .filter(animal => animal.ivar === 'nő' || animal.ivar === 'nőivar')
-        .map(animal => ({
-          enar: animal.enar,
-          kategoria: animal.kategoria,
-          birth_date: animal.szuletesi_datum,
-          birth_location: animal.birth_location || 'ismeretlen'
-        }));
+        const manualFemales = historicalFemales
+          .split(',')
+          .map(enar => enar.trim())
+          .filter(enar => enar.length > 0)
+          .map(enar => ({
+            enar: enar,
+            kategoria: 'historical_entry',
+            birth_date: null,
+            birth_location: 'historical'
+          }));
+
+        females = manualFemales;
+        console.log('📝 Manual nőivarok:', females.length);
+
+      } else {
+        // Normál mód: jelenlegi állatok lekérdezése
+        console.log('🔄 Normál mód: jelenlegi állatok lekérdezése');
+
+        const currentAnimals = await getCurrentAnimalsInPen(penId);
+
+        females = currentAnimals
+          .filter(animal => animal.ivar === 'nő' || animal.ivar === 'nőivar')
+          .map(animal => ({
+            enar: animal.enar,
+            kategoria: animal.kategoria,
+            birth_date: animal.szuletesi_datum,
+            birth_location: animal.birth_location || 'ismeretlen'
+          }));
+      }
+
+      // Snapshot metadata összeállítása
+      const snapshot = {
+        // Tenyészbikák
+        bulls: selectedBulls,
+        bull_count: selectedBulls.length,
+
+        // Nőivarok
+        females: females,
+        female_count: females.length,
+
+        // Hárem adatok
+        parozas_kezdete: parozasKezdete,
+        vv_esedekssege: vvEsedekssege,
+
+        // Snapshot metaadatok
+        snapshot_created_at: new Date().toISOString(),
+        total_animals: females.length + selectedBulls.length,
+        pen_id: penId,
+        historical: isHistoricalEntry || false
+      };
+
+      console.log('✅ Hárem snapshot kész:', {
+        bulls: snapshot.bull_count,
+        females: snapshot.female_count,
+        total: snapshot.total_animals,
+        historical: snapshot.historical
+      });
+
+      return snapshot;
+
+    } catch (error) {
+      console.error('💥 createHaremSnapshot hiba:', error);
+      return {
+        bulls: selectedBulls,
+        bull_count: selectedBulls.length,
+        parozas_kezdete: parozasKezdete,
+        vv_esedekssege: vvEsedekssege,
+        snapshot_created_at: new Date().toISOString(),
+        snapshot_error: 'Pillanatkép készítése sikertelen'
+      };
     }
-
-    // Snapshot metadata összeállítása
-    const snapshot = {
-      // Tenyészbikák
-      bulls: selectedBulls,
-      bull_count: selectedBulls.length,
-
-      // Nőivarok
-      females: females,
-      female_count: females.length,
-
-      // Hárem adatok
-      parozas_kezdete: parozasKezdete,
-      vv_esedekssege: vvEsedekssege,
-
-      // Snapshot metaadatok
-      snapshot_created_at: new Date().toISOString(),
-      total_animals: females.length + selectedBulls.length,
-      pen_id: penId,
-      historical: isHistoricalEntry || false
-    };
-
-    console.log('✅ Hárem snapshot kész:', {
-      bulls: snapshot.bull_count,
-      females: snapshot.female_count,
-      total: snapshot.total_animals,
-      historical: snapshot.historical
-    });
-
-    return snapshot;
-
-  } catch (error) {
-    console.error('💥 createHaremSnapshot hiba:', error);
-    return {
-      bulls: selectedBulls,
-      bull_count: selectedBulls.length,
-      parozas_kezdete: parozasKezdete,
-      vv_esedekssege: vvEsedekssege,
-      snapshot_created_at: new Date().toISOString(),
-      snapshot_error: 'Pillanatkép készítése sikertelen'
-    };
-  }
-};
+  };
 
   // ✅ Bull kezelő funkciók
   const addBullToHarem = (bull: { id: string, name: string, enar: string, kplsz: string }) => {
@@ -531,33 +574,64 @@ const fetchCurrentAnimals = async () => {
         console.log('📚 Történeti mód - régi funkció nem érintett');
       }
 
-      // ✅ ÚJ FUNKCIÓ BESZÚRÁSA
-      const { data: newPenFunction, error: insertError } = await supabase
-        .from('pen_functions')
-        .insert(insertData)
-        .select()
-        .single();
+      // ✅ EDIT MÓD vs ÚJ FUNKCIÓ LOGIKA
+if (editMode && editPeriod) {
+  // EDIT MÓD: Meglévő periódus frissítése
+  console.log('🔧 Edit mód: periódus frissítése...', editPeriod.id);
+  
+  const { data: updatedPenFunction, error: updateError } = await supabase
+    .from('pen_functions')
+    .update({
+      function_type: newFunction,
+      start_date: insertData.start_date,
+      end_date: insertData.end_date,
+      metadata: insertData.metadata,
+      notes: insertData.notes
+    })
+    .eq('id', editPeriod.id)
+    .select()
+    .single();
 
-      if (insertError) {
-        console.error('❌ Új funkció beszúrási hiba:', insertError);
-        throw insertError;
-      }
+  if (updateError) {
+    console.error('❌ Periódus frissítési hiba:', updateError);
+    throw updateError;
+  }
 
-      console.log('✅ Új funkció sikeresen létrehozva:', newPenFunction);
+  console.log('✅ Periódus sikeresen frissítve:', updatedPenFunction);
+  
+} else {
+  // NORMÁL MÓD: Új funkció beszúrása
+  console.log('➕ Normál mód: új funkció beszúrása...');
+  
+  const { data: newPenFunction, error: insertError } = await supabase
+    .from('pen_functions')
+    .insert(insertData)
+    .select()
+    .single();
 
-      // ✅ SIKERES MENTÉS
-      const successMessage = isHistoricalEntry
-        ? `✅ Történeti ${newFunction} periódus rögzítve!\n📅 ${startDate} - ${endDate}`
-        : `✅ Karám funkció váltás sikeres!\n🔄 Új funkció: ${newFunction}`;
+  if (insertError) {
+    console.error('❌ Új funkció beszúrási hiba:', insertError);
+    throw insertError;
+  }
 
-      alert(successMessage);
+  console.log('✅ Új funkció sikeresen létrehozva:', newPenFunction);
+}
 
-      onClose();
+// ✅ SIKERES MENTÉS
+const successMessage = editMode 
+  ? `✅ ${newFunction.toUpperCase()} periódus frissítve!\n📅 ${startDate} - ${endDate}`
+  : isHistoricalEntry
+    ? `✅ Történeti ${newFunction} periódus rögzítve!\n📅 ${startDate} - ${endDate}`
+    : `✅ Karám funkció váltás sikeres!\n🔄 Új funkció: ${newFunction}`;
 
-      // UI frissítés
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+alert(successMessage);
+
+onClose();
+
+// UI frissítés
+setTimeout(() => {
+  window.location.reload();
+}, 1000);
 
     } catch (error) {
       console.error('💥 Funkció váltási hiba:', error);
@@ -1098,40 +1172,40 @@ const fetchCurrentAnimals = async () => {
           )}
 
           {/* ÚJ: Nőivarok snapshot - csak történeti módban és hárem funkcióban */}
-{isHistoricalEntry && newFunction === 'hárem' && (
-  <div className="mt-4 p-4 bg-pink-50 border border-pink-200 rounded-lg">
-    <h4 className="font-medium text-pink-800 mb-3">🐄 Nőivarok Snapshot</h4>
-    
-    <div>
-      <label className="block text-sm font-medium text-pink-700 mb-1">
-        Nőivarok ENAR számai (vesszővel elválasztva):
-      </label>
-      <textarea
-        value={historicalFemales}
-        onChange={(e) => setHistoricalFemales(e.target.value)}
-        placeholder="HU 36050 0006 2, HU 36050 0003 1, HU 36050 0007 9"
-        className="w-full px-3 py-2 border border-pink-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
-        rows={3}
-      />
-      <p className="text-xs text-pink-500 mt-1">
-        Minden ENAR-t vesszővel válassz el. Formátum: "HU 36050 0006 2"
-      </p>
-    </div>
+          {isHistoricalEntry && newFunction === 'hárem' && (
+            <div className="mt-4 p-4 bg-pink-50 border border-pink-200 rounded-lg">
+              <h4 className="font-medium text-pink-800 mb-3">🐄 Nőivarok Snapshot</h4>
 
-    {/* Előnézet */}
-    <div className="mt-3 p-3 bg-white border border-pink-200 rounded-md">
-      <p className="text-sm text-pink-600">
-        📸 <strong>Snapshot előnézet:</strong>
-      </p>
-      <p className="text-sm">
-        🐂 Tenyészbikák: {selectedBulls.map(b => b.name).join(', ') || 'Nincs kiválasztva'}
-      </p>
-      <p className="text-sm">
-        🐄 Nőivarok: {historicalFemales.split(',').filter(s => s.trim()).length} manual ENAR
-      </p>
-    </div>
-  </div>
-)}
+              <div>
+                <label className="block text-sm font-medium text-pink-700 mb-1">
+                  Nőivarok ENAR számai (vesszővel elválasztva):
+                </label>
+                <textarea
+                  value={historicalFemales}
+                  onChange={(e) => setHistoricalFemales(e.target.value)}
+                  placeholder="HU 36050 0006 2, HU 36050 0003 1, HU 36050 0007 9"
+                  className="w-full px-3 py-2 border border-pink-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
+                  rows={3}
+                />
+                <p className="text-xs text-pink-500 mt-1">
+                  Minden ENAR-t vesszővel válassz el. Formátum: "HU 36050 0006 2"
+                </p>
+              </div>
+
+              {/* Előnézet */}
+              <div className="mt-3 p-3 bg-white border border-pink-200 rounded-md">
+                <p className="text-sm text-pink-600">
+                  📸 <strong>Snapshot előnézet:</strong>
+                </p>
+                <p className="text-sm">
+                  🐂 Tenyészbikák: {selectedBulls.map(b => b.name).join(', ') || 'Nincs kiválasztva'}
+                </p>
+                <p className="text-sm">
+                  🐄 Nőivarok: {historicalFemales.split(',').filter(s => s.trim()).length} manual ENAR
+                </p>
+              </div>
+            </div>
+          )}
 
           {!isHistoricalEntry && endDate && (
             <div className="mt-4 p-3 bg-orange-100 border border-orange-200 rounded-lg">

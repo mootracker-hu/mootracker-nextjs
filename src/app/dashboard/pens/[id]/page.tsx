@@ -67,6 +67,9 @@ export default function PenDetailsPage() {
     const [haremHistory, setHaremHistory] = useState<any[]>([]);
     const [showPenHistory, setShowPenHistory] = useState(false);
     const [penHistory, setPenHistory] = useState<any[]>([]);
+    // Szerkesztési state-ek
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editingPeriod, setEditingPeriod] = useState<any>(null);
 
 
     // Riasztások hook hozzáadása
@@ -292,87 +295,96 @@ export default function PenDetailsPage() {
         }
     };
 
-         // Teljes karám történet betöltése - ÚJ FUNKCIÓ
-const fetchFullPenHistory = async () => {
-  try {
-    console.log('📚 Teljes karám történet betöltése...', pen?.id);
-    
-    const { data, error } = await supabase
-      .from('pen_functions')
-      .select('*')
-      .eq('pen_id', pen?.id)
-      .order('start_date', { ascending: false });
+    // Teljes karám történet betöltése - ÚJ FUNKCIÓ
+    const fetchFullPenHistory = async () => {
+        try {
+            console.log('📚 Teljes karám történet betöltése...', pen?.id);
 
-    if (error) {
-      console.error('❌ Történet betöltési hiba:', error);
-      return;
-    }
+            const { data, error } = await supabase
+                .from('pen_functions')
+                .select('*')
+                .eq('pen_id', pen?.id)
+                .order('start_date', { ascending: false });
 
-    console.log('✅ Karám történet betöltve:', data?.length || 0, 'periódus');
-    setPenHistory(data || []);
-    
-  } catch (error) {
-    console.error('💥 fetchFullPenHistory hiba:', error);
-  }
+            if (error) {
+                console.error('❌ Történet betöltési hiba:', error);
+                return;
+            }
+
+            console.log('✅ Karám történet betöltve:', data?.length || 0, 'periódus');
+            setPenHistory(data || []);
+
+        } catch (error) {
+            console.error('💥 fetchFullPenHistory hiba:', error);
+        }
+    };
+
+    // Egyedi periódus törlése - ÚJ FUNKCIÓ
+    const deletePeriod = async (periodId: string, functionType: string, isActive: boolean) => {
+        const confirmMessage = isActive
+            ? `🚨 AKTÍV ${functionType.toUpperCase()} periódus törlése?\n\nEz visszaállítja a karamot ÜRES állapotba!\n\nBiztosan folytatod?`
+            : `🗑️ ${functionType.toUpperCase()} periódus törlése?\n\nEz a művelet nem vonható vissza!\n\nBiztosan törlöd?`;
+
+        if (!confirm(confirmMessage)) return;
+
+        try {
+            console.log('🗑️ Periódus törlése...', periodId);
+
+            const { error } = await supabase
+                .from('pen_functions')
+                .delete()
+                .eq('id', periodId);
+
+            if (error) throw error;
+
+            console.log('✅ Periódus sikeresen törölve');
+            alert('✅ Periódus sikeresen törölve!');
+
+            if (isActive) {
+                alert('📝 A karám most ÜRES funkcióra vált.');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                fetchFullPenHistory(); // Lista frissítése
+            }
+        } catch (error) {
+            console.error('❌ Törlési hiba:', error);
+            alert('❌ Hiba a törlés során: ' + (error instanceof Error ? error.message : 'Ismeretlen hiba'));
+        }
+    };
+
+    // Periódus szerkesztése - ÚJ FUNKCIÓ  
+const editPeriod = async (period: any) => {
+  console.log('✏️ Periódus szerkesztése...', period);
+  
+  // Edit módban megnyitjuk a Function Manager-t
+  setEditingPeriod(period);
+  setShowFunctionManager(true);
 };
 
-// Egyedi periódus törlése - ÚJ FUNKCIÓ
-const deletePeriod = async (periodId: string, functionType: string, isActive: boolean) => {
-  const confirmMessage = isActive 
-    ? `🚨 AKTÍV ${functionType.toUpperCase()} periódus törlése?\n\nEz visszaállítja a karamot ÜRES állapotba!\n\nBiztosan folytatod?`
-    : `🗑️ ${functionType.toUpperCase()} periódus törlése?\n\nEz a művelet nem vonható vissza!\n\nBiztosan törlöd?`;
-    
-  if (!confirm(confirmMessage)) return;
+    // Tömeges régi periódusok törlése - ÚJ FUNKCIÓ  
+    // Tömeges hárem törlés - csak régi hárem periódusok
+    const deleteAllOldHaremPeriods = async () => {
+        if (!confirm('🗑️ TÖMEGES TÖRLÉS\n\nTörölni szeretnéd az ÖSSZES régi (lezárt) periódust?\n\n✅ Az aktív periódus megmarad\n❌ A régi periódusok véglegesen törlődnek\n\nBiztosan folytatod?')) return;
 
-  try {
-    console.log('🗑️ Periódus törlése...', periodId);
-    
-    const { error } = await supabase
-      .from('pen_functions')
-      .delete()
-      .eq('id', periodId);
+        try {
+            console.log('🗑️ Tömeges törlés kezdése...');
 
-    if (error) throw error;
-    
-    console.log('✅ Periódus sikeresen törölve');
-    alert('✅ Periódus sikeresen törölve!');
-    
-    if (isActive) {
-      alert('📝 A karám most ÜRES funkcióra vált.');
-      setTimeout(() => window.location.reload(), 1000);
-    } else {
-      fetchFullPenHistory(); // Lista frissítése
-    }
-  } catch (error) {
-    console.error('❌ Törlési hiba:', error);
-    alert('❌ Hiba a törlés során: ' + (error instanceof Error ? error.message : 'Ismeretlen hiba'));
-  }
-};
+            const { error } = await supabase
+                .from('pen_functions')
+                .delete()
+                .eq('pen_id', pen?.id)
+                .not('end_date', 'is', null);
 
-// Tömeges régi periódusok törlése - ÚJ FUNKCIÓ  
-// Tömeges hárem törlés - csak régi hárem periódusok
-const deleteAllOldHaremPeriods = async () => {
-  if (!confirm('🗑️ TÖMEGES TÖRLÉS\n\nTörölni szeretnéd az ÖSSZES régi (lezárt) periódust?\n\n✅ Az aktív periódus megmarad\n❌ A régi periódusok véglegesen törlődnek\n\nBiztosan folytatod?')) return;
+            if (error) throw error;
 
-  try {
-    console.log('🗑️ Tömeges törlés kezdése...');
-    
-    const { error } = await supabase
-      .from('pen_functions')
-      .delete()
-      .eq('pen_id', pen?.id)
-      .not('end_date', 'is', null);
-
-    if (error) throw error;
-    
-    console.log('✅ Régi periódusok törölve');
-    alert('✅ Régi periódusok sikeresen törölve!');
-    fetchFullPenHistory();
-  } catch (error) {
-    console.error('❌ Tömeges törlési hiba:', error);
-    alert('❌ Hiba a tömeges törlés során: ' + (error instanceof Error ? error.message : 'Ismeretlen hiba'));
-  }
-};
+            console.log('✅ Régi periódusok törölve');
+            alert('✅ Régi periódusok sikeresen törölve!');
+            fetchFullPenHistory();
+        } catch (error) {
+            console.error('❌ Tömeges törlési hiba:', error);
+            alert('❌ Hiba a tömeges törlés során: ' + (error instanceof Error ? error.message : 'Ismeretlen hiba'));
+        }
+    };
 
     // Hárem történet betöltése
     const fetchHaremHistory = async () => {
@@ -855,7 +867,7 @@ const deleteAllOldHaremPeriods = async () => {
                         alerts={penSpecificAlerts as any}
                         className="mt-6"
                     />
-                     {/* Univerzális Karám Történet Gomb */}
+                    {/* Univerzális Karám Történet Gomb */}
                     <div className="mt-6">
                         <button
                             onClick={() => {
@@ -1032,53 +1044,50 @@ const deleteAllOldHaremPeriods = async () => {
                 }}
             />
 
-            {/* Function Manager Modal */}
             <PenFunctionManager
-                isOpen={showFunctionManager}
-                onClose={() => setShowFunctionManager(false)}
-                pen={pen as any}
-                onFunctionChange={async (newFunction: string, metadata: any, notes: string) => {
-                    try {
-                        console.log('🔄 Funkció váltás indítása:', { newFunction, metadata, notes });
-
-                        // 1. RÉGI FUNKCIÓ LEZÁRÁSA
-                        const { error: closeError } = await supabase
-                            .from('pen_functions')
-                            .update({ end_date: new Date().toISOString() })
-                            .eq('pen_id', pen?.id)
-                            .is('end_date', null);
-
-                        if (closeError) throw closeError;
-
-                        // 2. ÚJ FUNKCIÓ LÉTREHOZÁSA
-                        const { data: newPenFunction, error: insertError } = await supabase
-                            .from('pen_functions')
-                            .insert({
-                                pen_id: pen?.id,
-                                function_type: newFunction,
-                                start_date: new Date().toISOString(),
-                                end_date: null,
-                                metadata: metadata || {},
-                                notes: notes || ''
-                            })
-                            .select()
-                            .single();
-
-                        if (insertError) throw insertError;
-
-                        console.log('✅ Funkció váltás sikeres!', newPenFunction);
-
-                        setShowFunctionManager(false);
-                        alert('Funkció sikeresen megváltoztatva!');
-
-                        // NE RELOAD - csak refresh a pen adatokat
-                        window.location.reload();
-                    } catch (error) {
-                        console.error('💥 Funkció váltási hiba:', error);
-                        alert('Hiba történt: ' + (error instanceof Error ? error.message : String(error)));
-                    }
-                }}
-            />
+  isOpen={showFunctionManager}
+  onClose={() => {
+    setShowFunctionManager(false);
+    setEditingPeriod(null); // Reset edit state
+  }}
+  pen={pen}
+  editMode={!!editingPeriod}        // ÚJ - edit mód ha van editingPeriod
+  editPeriod={editingPeriod}        // ÚJ - szerkesztendő periódus
+  onPeriodUpdate={(periodId: any, newData: any) => {  // ÚJ - update callback
+    console.log('✅ Periódus frissítve:', periodId, newData);
+    fetchFullPenHistory(); // Lista frissítése
+  }}
+  onFunctionChange={async (newFunction: any, metadata: any, notes: any) => {
+    // ... eredeti kód változatlan marad ...
+    try {
+      // Close old function
+      await supabase
+        .from('pen_functions')
+        .update({ end_date: new Date().toISOString() })
+        .eq('pen_id', pen?.id)
+        .is('end_date', null);
+      
+      // Add new function
+      await supabase
+        .from('pen_functions')
+        .insert({
+          pen_id: pen?.id,
+          function_type: newFunction,
+          start_date: new Date().toISOString(),
+          metadata: metadata,
+          notes: notes
+        });
+      
+      setShowFunctionManager(false);
+      setEditingPeriod(null); // Reset edit state
+      alert('Funkció sikeresen megváltoztatva!');
+      window.location.reload();
+    } catch (error) {
+      console.error('Hiba:', error);
+      alert('Hiba történt a funkció váltáskor!');
+    }
+  }}
+/>
             {/* Hárem Történet Modal */}
             {showHaremHistory && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -1138,8 +1147,8 @@ const deleteAllOldHaremPeriods = async () => {
                                                     <button
                                                         onClick={() => deleteHaremPeriod(period.id, index === 0)}
                                                         className={`px-2 py-1 rounded text-xs font-medium transition-colors inline-flex items-center ${index === 0
-                                                                ? 'bg-red-100 hover:bg-red-200 text-red-700 border border-red-300'
-                                                                : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300'
+                                                            ? 'bg-red-100 hover:bg-red-200 text-red-700 border border-red-300'
+                                                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300'
                                                             }`}
                                                         title={index === 0 ? 'Aktív periódus törlése' : 'Periódus törlése'}
                                                     >
@@ -1219,246 +1228,253 @@ const deleteAllOldHaremPeriods = async () => {
                 </div>
             )}
             {/* Teljes Karám Történet Modal - ÚJ */}
-{showPenHistory && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div className="bg-white rounded-lg w-full max-w-5xl max-h-[85vh] overflow-hidden">
-      <div className="flex items-center justify-between p-6 border-b">
-        <h3 className="text-lg font-medium text-gray-900 flex items-center">
-          <span className="text-2xl mr-3">📚</span>
-          Karám {pen.pen_number} - Teljes Történet
-        </h3>
-        
-       {/* Szűrő gombok */}
-<div className="flex items-center space-x-2">
-  <button className="px-3 py-1 bg-green-100 text-green-800 rounded-lg text-sm font-medium">
-    🏠 Minden ({penHistory.length})
-  </button>
-  <button className="px-3 py-1 bg-pink-100 text-pink-800 rounded-lg text-sm">
-    💕 Hárem ({penHistory.filter(p => p.function_type === 'hárem').length})
-  </button>
-  
-  {/* TÖMEGES TÖRLÉS GOMB */}
-  {penHistory.length > 1 && (
-    <button
-      onClick={deleteAllOldHaremPeriods}
-      className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
-      title="Régi periódusok törlése"
-    >
-      🗑️ Régi törlése
-    </button>
-  )}
-  
-  <button
-    onClick={() => setShowPenHistory(false)}
-    className="text-gray-400 hover:text-gray-600"
-  >
-    <span className="text-xl">❌</span>
-  </button>
-</div>
-      </div>
-      
-      <div className="p-6 overflow-y-auto max-h-[70vh]">
-        {penHistory.length === 0 ? (
-          <div className="text-center py-8">
-            <span className="text-4xl mb-4 block">📚</span>
-            <p className="text-gray-500">Még nincs karám történet</p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {/* HÁREM PERIÓDUSOK - KIEMELVE */}
-            {penHistory.filter(p => p.function_type === 'hárem').length > 0 && (
-              <div>
-                <h4 className="text-lg font-semibold text-pink-800 mb-4 flex items-center">
-                  <span className="mr-2">💕</span>
-                  Hárem Periódusok ({penHistory.filter(p => p.function_type === 'hárem').length})
-                </h4>
-                
-                <div className="space-y-4">
-                  {penHistory
-                    .filter(p => p.function_type === 'hárem')
-                    .map((period, index) => (
-                    <div key={period.id} className="border-2 border-pink-200 rounded-lg p-6 bg-pink-50">
-                      <div className="flex items-center justify-between mb-3">
-  <div className="flex items-center">
-    <span className="text-xl mr-2">🐄💕</span>
-    <span className="font-medium text-pink-800">
-      {(!period.end_date || period.end_date === null || period.end_date === '') 
-        ? 'AKTÍV HÁREM' 
-        : `Hárem Periódus ${penHistory.filter(p => p.function_type === 'hárem').length - index}`}
-    </span>
-  </div>
-  
-  <div className="flex items-center space-x-3">
-    <div className="text-sm text-pink-600">
-      {new Date(period.start_date).toLocaleDateString('hu-HU')} - 
-      {period.end_date ? new Date(period.end_date).toLocaleDateString('hu-HU') : 'Folyamatban'}
-    </div>
-    
-    {/* TÖRLÉS GOMB */}
-    <button
-      onClick={() => deletePeriod(
-        period.id, 
-        'hárem', 
-        !period.end_date || period.end_date === null || period.end_date === ''
-      )}
-      className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-        (!period.end_date || period.end_date === null || period.end_date === '')
-          ? 'bg-red-100 hover:bg-red-200 text-red-700 border border-red-300' 
-          : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300'
-      }`}
-      title={(!period.end_date || period.end_date === null || period.end_date === '') ? 'Aktív hárem törlése' : 'Hárem periódus törlése'}
-    >
-      🗑️ Törlés
-    </button>
-  </div>
-</div>
+            {showPenHistory && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg w-full max-w-5xl max-h-[85vh] overflow-hidden">
+                        <div className="flex items-center justify-between p-6 border-b">
+                            <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                                <span className="text-2xl mr-3">📚</span>
+                                Karám {pen.pen_number} - Teljes Történet
+                            </h3>
 
-                      {/* Hárem snapshot adatok */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Tenyészbikák */}
-                        <div>
-                          <span className="text-sm font-medium text-pink-700 flex items-center mb-2">
-                            <span className="mr-1">🐂</span>
-                            Tenyészbikák ({period.metadata?.bull_count || 0}):
-                          </span>
-                          {period.metadata?.bulls ? (
-                            <div className="space-y-1">
-                              {period.metadata.bulls.map((bull: any, i: number) => (
-                                <div key={i} className="text-sm text-pink-600 bg-white px-2 py-1 rounded border">
-                                  🐂 {bull.name} ({bull.enar})
+                            {/* Szűrő gombok */}
+                            <div className="flex items-center space-x-2">
+                                <button className="px-3 py-1 bg-green-100 text-green-800 rounded-lg text-sm font-medium">
+                                    🏠 Minden ({penHistory.length})
+                                </button>
+                                <button className="px-3 py-1 bg-pink-100 text-pink-800 rounded-lg text-sm">
+                                    💕 Hárem ({penHistory.filter(p => p.function_type === 'hárem').length})
+                                </button>
+
+                                {/* TÖMEGES TÖRLÉS GOMB */}
+                                {penHistory.length > 1 && (
+                                    <button
+                                        onClick={deleteAllOldHaremPeriods}
+                                        className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
+                                        title="Régi periódusok törlése"
+                                    >
+                                        🗑️ Régi törlése
+                                    </button>
+                                )}
+
+                                <button
+                                    onClick={() => setShowPenHistory(false)}
+                                    className="text-gray-400 hover:text-gray-600"
+                                >
+                                    <span className="text-xl">❌</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-6 overflow-y-auto max-h-[70vh]">
+                            {penHistory.length === 0 ? (
+                                <div className="text-center py-8">
+                                    <span className="text-4xl mb-4 block">📚</span>
+                                    <p className="text-gray-500">Még nincs karám történet</p>
                                 </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="text-sm text-gray-500">Nincs snapshot adat</div>
-                          )}
-                        </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    {/* HÁREM PERIÓDUSOK - KIEMELVE */}
+                                    {penHistory.filter(p => p.function_type === 'hárem').length > 0 && (
+                                        <div>
+                                            <h4 className="text-lg font-semibold text-pink-800 mb-4 flex items-center">
+                                                <span className="mr-2">💕</span>
+                                                Hárem Periódusok ({penHistory.filter(p => p.function_type === 'hárem').length})
+                                            </h4>
 
-                        {/* Nőivarok */}
-                        <div>
-                          <span className="text-sm font-medium text-pink-700 flex items-center mb-2">
-                            <span className="mr-1">🐄</span>
-                            Nőivarok ({period.metadata?.female_count || 0}):
-                          </span>
-                          {period.metadata?.females ? (
-                            <div className="max-h-24 overflow-y-auto bg-white p-2 rounded border">
-                              <div className="text-xs text-pink-600">
-                                {period.metadata.females.map((f: any, i: number) => f.enar).join(', ')}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-sm text-gray-500">Nincs snapshot</div>
-                          )}
-                        </div>
-                      </div>
+                                            <div className="space-y-4">
+                                                {penHistory
+                                                    .filter(p => p.function_type === 'hárem')
+                                                    .map((period, index) => (
+                                                        <div key={period.id} className="border-2 border-pink-200 rounded-lg p-6 bg-pink-50">
+                                                            <div className="flex items-center justify-between mb-3">
+                                                                <div className="flex items-center">
+                                                                    <span className="text-xl mr-2">🐄💕</span>
+                                                                    <span className="font-medium text-pink-800">
+                                                                        {(!period.end_date || period.end_date === null || period.end_date === '')
+                                                                            ? 'AKTÍV HÁREM'
+                                                                            : `Hárem Periódus ${penHistory.filter(p => p.function_type === 'hárem').length - index}`}
+                                                                    </span>
+                                                                </div>
 
-                      {/* Hárem timeline */}
-                      {(period.metadata?.parozas_kezdete || period.metadata?.vv_esedekssege) && (
-                        <div className="mt-4 pt-3 border-t border-pink-200">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                            {period.metadata?.parozas_kezdete && (
-                              <div>
-                                <span className="text-pink-600">💕 Párzás kezdete:</span>
-                                <p className="font-medium">{new Date(period.metadata.parozas_kezdete).toLocaleDateString('hu-HU')}</p>
-                              </div>
+                                                                <div className="flex items-center space-x-3">
+                                                                    <div className="text-sm text-pink-600">
+                                                                        {new Date(period.start_date).toLocaleDateString('hu-HU')} -
+                                                                        {period.end_date ? new Date(period.end_date).toLocaleDateString('hu-HU') : 'Folyamatban'}
+                                                                    </div>
+
+                                                                    {/* SZERKESZTÉS GOMB */}
+                                                                    <button
+                                                                        onClick={() => editPeriod(period)}
+                                                                        className="px-2 py-1 rounded text-xs font-medium transition-colors bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-300 mr-2"
+                                                                        title="Hárem periódus szerkesztése"
+                                                                    >
+                                                                        ✏️ Szerkesztés
+                                                                    </button>
+
+                                                                    {/* TÖRLÉS GOMB */}
+                                                                    <button
+                                                                        onClick={() => deletePeriod(
+                                                                            period.id,
+                                                                            'hárem',
+                                                                            !period.end_date || period.end_date === null || period.end_date === ''
+                                                                        )}
+                                                                        className={`px-2 py-1 rounded text-xs font-medium transition-colors ${(!period.end_date || period.end_date === null || period.end_date === '')
+                                                                            ? 'bg-red-100 hover:bg-red-200 text-red-700 border border-red-300'
+                                                                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300'
+                                                                            }`}
+                                                                        title={(!period.end_date || period.end_date === null || period.end_date === '') ? 'Aktív hárem törlése' : 'Hárem periódus törlése'}
+                                                                    >
+                                                                        🗑️ Törlés
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Hárem snapshot adatok */}
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                {/* Tenyészbikák */}
+                                                                <div>
+                                                                    <span className="text-sm font-medium text-pink-700 flex items-center mb-2">
+                                                                        <span className="mr-1">🐂</span>
+                                                                        Tenyészbikák ({period.metadata?.bull_count || 0}):
+                                                                    </span>
+                                                                    {period.metadata?.bulls ? (
+                                                                        <div className="space-y-1">
+                                                                            {period.metadata.bulls.map((bull: any, i: number) => (
+                                                                                <div key={i} className="text-sm text-pink-600 bg-white px-2 py-1 rounded border">
+                                                                                    🐂 {bull.name} ({bull.enar})
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="text-sm text-gray-500">Nincs snapshot adat</div>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Nőivarok */}
+                                                                <div>
+                                                                    <span className="text-sm font-medium text-pink-700 flex items-center mb-2">
+                                                                        <span className="mr-1">🐄</span>
+                                                                        Nőivarok ({period.metadata?.female_count || 0}):
+                                                                    </span>
+                                                                    {period.metadata?.females ? (
+                                                                        <div className="max-h-24 overflow-y-auto bg-white p-2 rounded border">
+                                                                            <div className="text-xs text-pink-600">
+                                                                                {period.metadata.females.map((f: any, i: number) => f.enar).join(', ')}
+                                                                            </div>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="text-sm text-gray-500">Nincs snapshot</div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Hárem timeline */}
+                                                            {(period.metadata?.parozas_kezdete || period.metadata?.vv_esedekssege) && (
+                                                                <div className="mt-4 pt-3 border-t border-pink-200">
+                                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                                                        {period.metadata?.parozas_kezdete && (
+                                                                            <div>
+                                                                                <span className="text-pink-600">💕 Párzás kezdete:</span>
+                                                                                <p className="font-medium">{new Date(period.metadata.parozas_kezdete).toLocaleDateString('hu-HU')}</p>
+                                                                            </div>
+                                                                        )}
+                                                                        {period.metadata?.vv_esedekssege && (
+                                                                            <div>
+                                                                                <span className="text-pink-600">🔬 VV esedékessége:</span>
+                                                                                <p className="font-medium">{new Date(period.metadata.vv_esedekssege).toLocaleDateString('hu-HU')}</p>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* EGYÉB FUNKCIÓK - KOMPAKT */}
+                                    {penHistory.filter(p => p.function_type !== 'hárem').length > 0 && (
+                                        <div>
+                                            <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                                                <span className="mr-2">🔄</span>
+                                                Egyéb Funkciók ({penHistory.filter(p => p.function_type !== 'hárem').length})
+                                            </h4>
+
+                                            <div className="space-y-3">
+                                                {penHistory
+                                                    .filter(p => p.function_type !== 'hárem')
+                                                    .map((period) => (
+                                                        <div key={period.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                                            <div className="flex items-center justify-between">
+                                                                <div className="flex items-center">
+                                                                    <span className="text-xl mr-2">{getFunctionEmoji(period.function_type)}</span>
+                                                                    <div>
+                                                                        <span className="font-medium text-gray-800">{period.function_type?.toUpperCase()}</span>
+                                                                        <div className="text-sm text-gray-600">
+                                                                            {new Date(period.start_date).toLocaleDateString('hu-HU')} -
+                                                                            {period.end_date ? new Date(period.end_date).toLocaleDateString('hu-HU') : 'Folyamatban'}
+                                                                            {period.end_date && (
+                                                                                <span className="ml-2 text-gray-500">
+                                                                                    ({Math.ceil((new Date(period.end_date).getTime() - new Date(period.start_date).getTime()) / (1000 * 60 * 60 * 24))} nap)
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="flex items-center space-x-3">
+                                                                    {/* Funkció-specifikus összefoglaló */}
+                                                                    <div className="text-sm text-gray-600">
+                                                                        {period.function_type === 'bölcsi' && '🐮 Borjú nevelés'}
+                                                                        {period.function_type === 'óvi' && '🐄 Üsző fejlesztés'}
+                                                                        {period.function_type === 'ellető' && '🍼 Ellés körül'}
+                                                                        {period.function_type === 'vemhes' && '🤰 Vemhesség'}
+                                                                        {period.function_type === 'hízóbika' && '🐂 Hizlalás'}
+                                                                        {period.function_type === 'tehén' && '🐄🍼 Anyaság'}
+                                                                        {period.function_type === 'üres' && '⭕ Használaton kívül'}
+                                                                        {period.function_type === 'átmeneti' && '🔄 Átmeneti'}
+                                                                        {period.function_type === 'kórház' && '🏥 Kezelés'}
+                                                                        {period.function_type === 'karantén' && '🔒 Elkülönítés'}
+                                                                        {period.function_type === 'selejt' && '📦 Értékesítésre vár'}
+                                                                    </div>
+
+                                                                    {/* TÖRLÉS GOMB */}
+                                                                    <button
+                                                                        onClick={() => deletePeriod(
+                                                                            period.id,
+                                                                            period.function_type,
+                                                                            !period.end_date || period.end_date === null || period.end_date === ''
+                                                                        )}
+                                                                        className={`px-2 py-1 rounded text-xs font-medium transition-colors ${(!period.end_date || period.end_date === null || period.end_date === '')
+                                                                            ? 'bg-red-100 hover:bg-red-200 text-red-700 border border-red-300'
+                                                                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300'
+                                                                            }`}
+                                                                        title={(!period.end_date || period.end_date === null || period.end_date === '') ? 'Aktív periódus törlése' : 'Periódus törlése'}
+                                                                    >
+                                                                        🗑️ Törlés
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Ha van metadata, mutassunk belőle valamit */}
+                                                            {period.metadata && Object.keys(period.metadata).length > 0 && (
+                                                                <div className="mt-2 pt-2 border-t border-gray-200 text-xs text-gray-500">
+                                                                    📋 Metadata: {Object.keys(period.metadata).length} adat mentve
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             )}
-                            {period.metadata?.vv_esedekssege && (
-                              <div>
-                                <span className="text-pink-600">🔬 VV esedékessége:</span>
-                                <p className="font-medium">{new Date(period.metadata.vv_esedekssege).toLocaleDateString('hu-HU')}</p>
-                              </div>
-                            )}
-                          </div>
                         </div>
-                      )}
                     </div>
-                  ))}
                 </div>
-              </div>
             )}
-
-            {/* EGYÉB FUNKCIÓK - KOMPAKT */}
-            {penHistory.filter(p => p.function_type !== 'hárem').length > 0 && (
-              <div>
-                <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                  <span className="mr-2">🔄</span>
-                  Egyéb Funkciók ({penHistory.filter(p => p.function_type !== 'hárem').length})
-                </h4>
-                
-                <div className="space-y-3">
-                  {penHistory
-                    .filter(p => p.function_type !== 'hárem')
-                    .map((period) => (
-                    <div key={period.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                      <div className="flex items-center justify-between">
-  <div className="flex items-center">
-    <span className="text-xl mr-2">{getFunctionEmoji(period.function_type)}</span>
-    <div>
-      <span className="font-medium text-gray-800">{period.function_type?.toUpperCase()}</span>
-      <div className="text-sm text-gray-600">
-        {new Date(period.start_date).toLocaleDateString('hu-HU')} - 
-        {period.end_date ? new Date(period.end_date).toLocaleDateString('hu-HU') : 'Folyamatban'}
-        {period.end_date && (
-          <span className="ml-2 text-gray-500">
-            ({Math.ceil((new Date(period.end_date).getTime() - new Date(period.start_date).getTime()) / (1000 * 60 * 60 * 24))} nap)
-          </span>
-        )}
-      </div>
-    </div>
-  </div>
-  
-  <div className="flex items-center space-x-3">
-    {/* Funkció-specifikus összefoglaló */}
-    <div className="text-sm text-gray-600">
-      {period.function_type === 'bölcsi' && '🐮 Borjú nevelés'}
-      {period.function_type === 'óvi' && '🐄 Üsző fejlesztés'}
-      {period.function_type === 'ellető' && '🍼 Ellés körül'}
-      {period.function_type === 'vemhes' && '🤰 Vemhesség'}
-      {period.function_type === 'hízóbika' && '🐂 Hizlalás'}
-      {period.function_type === 'tehén' && '🐄🍼 Anyaság'}
-      {period.function_type === 'üres' && '⭕ Használaton kívül'}
-      {period.function_type === 'átmeneti' && '🔄 Átmeneti'}
-      {period.function_type === 'kórház' && '🏥 Kezelés'}
-      {period.function_type === 'karantén' && '🔒 Elkülönítés'}
-      {period.function_type === 'selejt' && '📦 Értékesítésre vár'}
-    </div>
-    
-    {/* TÖRLÉS GOMB */}
-    <button
-      onClick={() => deletePeriod(
-        period.id, 
-        period.function_type, 
-        !period.end_date || period.end_date === null || period.end_date === ''
-      )}
-      className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-        (!period.end_date || period.end_date === null || period.end_date === '')
-          ? 'bg-red-100 hover:bg-red-200 text-red-700 border border-red-300' 
-          : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300'
-      }`}
-      title={(!period.end_date || period.end_date === null || period.end_date === '') ? 'Aktív periódus törlése' : 'Periódus törlése'}
-    >
-      🗑️ Törlés
-    </button>
-  </div>
-</div>
-                      
-                      {/* Ha van metadata, mutassunk belőle valamit */}
-                      {period.metadata && Object.keys(period.metadata).length > 0 && (
-                        <div className="mt-2 pt-2 border-t border-gray-200 text-xs text-gray-500">
-                          📋 Metadata: {Object.keys(period.metadata).length} adat mentve
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  </div>
-)}
         </div>
     );
 }
