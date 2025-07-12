@@ -2,7 +2,8 @@
 'use client';
 
 import React from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 
 interface Animal {
   id: number;
@@ -10,7 +11,6 @@ interface Animal {
   kategoria: string;
 }
 
-// ✅ JAVÍTOTT PEN INTERFACE - onMove eltávolítva
 interface Pen {
   id: string;
   pen_number: string;
@@ -19,11 +19,16 @@ interface Pen {
   location?: string;
   current_function?: PenFunction;
   animal_count: number;
-  // ❌ onMove: (...) => void; - ELTÁVOLÍTVA!
 }
 
 interface PenFunction {
   function_type: 'bölcsi' | 'óvi' | 'hárem' | 'vemhes' | 'hízóbika' | 'ellető' | 'üres' | 'tehén';
+}
+
+interface TenyeszbikaOption {
+  enar: string;
+  kplsz: string;
+  name: string;
 }
 
 interface AnimalMovementPanelProps {
@@ -33,7 +38,7 @@ interface AnimalMovementPanelProps {
   animals: Animal[];
   availablePens: Pen[];
   currentPenId: string;
-  onMove: (targetPenId: string, reason: string, notes: string, isHistorical?: boolean, moveDate?: string) => void;
+  onMove: (targetPenId: string, reason: string, notes: string, isHistorical?: boolean, moveDate?: string, functionType?: string, metadata?: any) => void;
 }
 
 export default function AnimalMovementPanel({
@@ -51,12 +56,89 @@ export default function AnimalMovementPanel({
   const [loading, setLoading] = useState(false);
   const [isHistorical, setIsHistorical] = useState(false);
   const [historicalDate, setHistoricalDate] = useState('');
+  const [functionType, setFunctionType] = useState('');
+  
+  // Hárem state változók
+  const [availableBulls, setAvailableBulls] = useState<TenyeszbikaOption[]>([]);
+  const [selectedBulls, setSelectedBulls] = useState<string[]>([]);
+  const [paringStartDate, setPairingStartDate] = useState('');
+  const [expectedVVDate, setExpectedVVDate] = useState('');
+
+  // ⭐ ÚJ: HÁREM MÓDBAN JELENLEGI KARÁM IS VÁLASZTHATÓ
+  const [isHaremMode, setIsHaremMode] = useState(false);
+
+  // Tenyészbikák betöltése
+  useEffect(() => {
+    const fetchBulls = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('animals')
+          .select('enar, kplsz, name')
+          .eq('kategoria', 'tenyészbika')
+          .eq('statusz', 'aktív')
+          .order('name');
+
+        if (error) {
+          console.error('Tenyészbikák betöltési hiba:', error);
+        } else {
+          console.log('✅ Tenyészbikák betöltve:', data);
+          setAvailableBulls(data || []);
+        }
+      } catch (error) {
+        console.error('Tenyészbikák fetch hiba:', error);
+      }
+    };
+
+    if (isOpen) {
+      fetchBulls();
+    }
+  }, [isOpen]);
+
+  // ⭐ ÚJ: HÁREM MÓD AUTOMATIKUS BEKAPCSOLÁSA
+  useEffect(() => {
+    if (functionType === 'hárem') {
+      setIsHaremMode(true);
+      // Ha hárem funkciót választ, automatikusan jelenlegi karám legyen a cél
+      if (!targetPenId && currentPenId) {
+        setTargetPenId(currentPenId);
+      }
+    } else {
+      setIsHaremMode(false);
+    }
+  }, [functionType, currentPenId]);
+
+  // VV dátum automatikus számítás
+  useEffect(() => {
+    if (paringStartDate && functionType === 'hárem') {
+      const startDate = new Date(paringStartDate);
+      const vvDate = new Date(startDate);
+      vvDate.setDate(vvDate.getDate() + 75);
+      setExpectedVVDate(vvDate.toISOString().split('T')[0]);
+    } else {
+      setExpectedVVDate('');
+    }
+  }, [paringStartDate, functionType]);
 
   // Kiválasztott állatok adatai
   const selectedAnimalData = animals.filter(animal => selectedAnimals.includes(animal.id));
 
-  // Elérhető karamok (nem a jelenlegi)
-  const filteredPens = availablePens.filter(pen => pen.id !== currentPenId);
+  // ⭐ JAVÍTOTT: Karamok szűrése - hárem módban jelenlegi karám is elérhető
+  const filteredPens = availablePens.filter(pen => {
+    if (isHaremMode) {
+      // Hárem módban minden karám elérhető (beleértve a jelenlegi)
+      return true;
+    } else {
+      // Normál mozgatásnál kizárjuk a jelenlegi karamot
+      return pen.id !== currentPenId;
+    }
+  });
+
+  console.log('📋 Karamok szűrés:', {
+    isHaremMode,
+    currentPenId,
+    allPens: availablePens.length,
+    filteredPens: filteredPens.length
+  });
 
   // Funkció emoji
   const getFunctionEmoji = (functionType: string): string => {
@@ -75,6 +157,11 @@ export default function AnimalMovementPanel({
 
   // Kapacitás ellenőrzés
   const getCapacityWarning = (pen: Pen): string | null => {
+    // Ha ugyanabban a karámban vagyunk (hárem beállítás), nincs kapacitás probléma
+    if (pen.id === currentPenId && isHaremMode) {
+      return null;
+    }
+
     const remainingCapacity = pen.capacity - pen.animal_count;
     if (remainingCapacity < selectedAnimals.length) {
       return `Figyelem: ${selectedAnimals.length - remainingCapacity} állattal túllépi a kapacitást!`;
@@ -85,43 +172,70 @@ export default function AnimalMovementPanel({
     return null;
   };
 
-  // JAVÍTOTT Mozgatás végrehajtása
+  // Mozgatás végrehajtása
   const handleMove = async () => {
     if (!targetPenId || !movementReason) return;
     if (isHistorical && !historicalDate) return;
 
+    // Hárem validáció
+    if (functionType === 'hárem' && (selectedBulls.length === 0 || !paringStartDate)) {
+      alert('⚠️ Hárem funkció esetén kötelező legalább 1 tenyészbika és párzási kezdet megadása!');
+      return;
+    }
+
     setLoading(true);
     try {
-      // DEBUG INFORMÁCIÓK
       console.log('🔧 AnimalMovementPanel handleMove hívás:', {
         targetPenId,
         movementReason,
         notes,
         isHistorical,
-        historicalDate
+        historicalDate,
+        functionType,
+        selectedBulls,
+        paringStartDate,
+        expectedVVDate,
+        isHaremMode
       });
 
       // Dátum formázás
       const moveDate = isHistorical ? historicalDate : new Date().toISOString().split('T')[0];
       
-      console.log('📅 Számított moveDate:', moveDate);
-      console.log('🔄 onMove hívás paraméterekkel:', {
-        targetPenId,
-        reason: movementReason,
-        notes,
-        isHistorical,  // ← 4. paraméter
-        moveDate       // ← 5. paraméter
-      });
+      // Metadata készítése hárem esetén
+      let metadata = null;
+      if (functionType === 'hárem') {
+        const bullsData = selectedBulls.map(enar => {
+          const bullData = availableBulls.find(bull => bull.enar === enar);
+          return {
+            enar: enar,
+            name: bullData?.name || '',
+            kplsz: bullData?.kplsz || ''
+          };
+        });
 
-      // ✅ JAVÍTOTT: Most már átadjuk a történeti paramétereket!
-      await onMove(targetPenId, movementReason, notes, isHistorical, moveDate);
+        metadata = {
+          bulls: bullsData,
+          bull_count: selectedBulls.length,
+          pairing_start_date: paringStartDate,
+          expected_vv_date: expectedVVDate,
+          pairing_method: 'natural'
+        };
+      }
+
+      await onMove(targetPenId, movementReason, notes, isHistorical, moveDate, functionType, metadata);
       
       // Reset form
       setTargetPenId('');
       setMovementReason('');
       setNotes('');
-      setIsHistorical(false);  // ← Reset a checkbox-ot is
+      setIsHistorical(false);
       setHistoricalDate('');
+      setFunctionType('');
+      setSelectedBulls([]);
+      setPairingStartDate('');
+      setExpectedVVDate('');
+      setIsHaremMode(false);
+      
       onClose();
     } catch (error) {
       console.error('Hiba a mozgatáskor:', error);
@@ -138,9 +252,9 @@ export default function AnimalMovementPanel({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center">
-            <span className="text-2xl mr-3">🔄</span>
+            <span className="text-2xl mr-3">{isHaremMode ? '💕' : '🔄'}</span>
             <h3 className="text-lg font-medium text-gray-900">
-              Állatok Mozgatása ({selectedAnimals.length} állat)
+              {isHaremMode ? 'Hárem Beállítása' : 'Állatok Mozgatása'} ({selectedAnimals.length} állat)
             </h3>
           </div>
           <button
@@ -157,7 +271,7 @@ export default function AnimalMovementPanel({
           <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
             <h4 className="font-medium text-green-900 mb-3 flex items-center">
               <span className="text-lg mr-2">🐄</span>
-              Mozgatandó állatok:
+              {isHaremMode ? 'Hárembe állítandó állatok:' : 'Mozgatandó állatok:'}
             </h4>
             <div className="flex flex-wrap gap-2">
               {selectedAnimalData.slice(0, 10).map(animal => (
@@ -174,11 +288,55 @@ export default function AnimalMovementPanel({
           </div>
 
           <div className="space-y-6">
+            {/* ⭐ ÚJ: HÁREM MÓD FIGYELMEZTETŐ */}
+            {isHaremMode && (
+              <div className="bg-pink-50 p-4 rounded-lg border border-pink-200">
+                <div className="flex items-center">
+                  <span className="text-2xl mr-3">💕</span>
+                  <div>
+                    <h4 className="font-medium text-pink-900">Hárem Mód Aktív</h4>
+                    <p className="text-sm text-pink-700">
+                      A jelenlegi karám funkciója háremre változik. Az állatok nem mozognak el, csak a karám funkciója módosul.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Karám funkció - ELŐRE HELYEZVE! */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                <span className="text-lg mr-2">🏠</span>
+                Karám funkció: *
+              </label>
+              <select
+                value={functionType}
+                onChange={(e) => setFunctionType(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white"
+                required
+              >
+                <option value="">Válassz funkciót...</option>
+                <option value="bölcsi">🐮 Bölcsi (0-12 hónapos borjak)</option>
+                <option value="óvi">🐄 Óvi (12-24 hónapos üszők)</option>
+                <option value="hárem">💕 Hárem (tenyésztésben lévő állatok)</option>
+                <option value="vemhes">🤰 Vemhes (vemhes állatok)</option>
+                <option value="ellető">🍼 Ellető (ellés körüli állatok)</option>
+                <option value="tehén">🐄🍼 Tehén (borjas tehenek)</option>
+                <option value="hízóbika">🐂 Hízóbika (hústermelés)</option>
+                <option value="üres">⭕ Üres karám</option>
+                <option value="kórház">🏥 Kórház (beteg állatok)</option>
+                <option value="karantén">🔒 Karantén (megfigyelés)</option>
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                ℹ️ {isHaremMode ? 'Hárem funkció kiválasztva - jelenlegi karám funkciója módosul' : 'Milyen funkcióban lesz az állat a célkarámban'}
+              </p>
+            </div>
+
             {/* Célkarám választás */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
                 <span className="text-lg mr-2">🎯</span>
-                Célkarám: *
+                {isHaremMode ? 'Karám (jelenlegi funkció módosítása):' : 'Célkarám:'} *
               </label>
               <select
                 value={targetPenId}
@@ -191,11 +349,17 @@ export default function AnimalMovementPanel({
                   <option key={pen.id} value={pen.id}>
                     {getFunctionEmoji(pen.current_function?.function_type || 'üres')}
                     {pen.pen_number} - {pen.location}
+                    {pen.id === currentPenId ? ' (JELENLEGI)' : ''}
                     ({pen.animal_count}/{pen.capacity})
                     {pen.current_function?.function_type && ` - ${pen.current_function.function_type}`}
                   </option>
                 ))}
               </select>
+
+              <p className="mt-1 text-xs text-gray-500">
+                📊 {filteredPens.length} karám elérhető
+                {isHaremMode ? ' (jelenlegi karám is választható hárem beállításhoz)' : ' (jelenlegi karám kizárva)'}
+              </p>
 
               {/* Kapacitás figyelmeztetés */}
               {targetPenId && (() => {
@@ -206,8 +370,7 @@ export default function AnimalMovementPanel({
                     return (
                       <div className={`mt-2 p-3 rounded-lg flex items-start ${warning.includes('túllépi') ? 'bg-red-50 border border-red-200' : 'bg-orange-50 border border-orange-200'
                         }`}>
-                        <span className={`text-lg mt-0.5 mr-2 ${warning.includes('túllépi') ? '' : ''
-                          }`}>
+                        <span className="text-lg mt-0.5 mr-2">
                           {warning.includes('túllépi') ? '🚨' : '⚠️'}
                         </span>
                         <span className={`text-sm ${warning.includes('túllépi') ? 'text-red-800' : 'text-orange-800'
@@ -216,7 +379,7 @@ export default function AnimalMovementPanel({
                         </span>
                       </div>
                     );
-                  } else {
+                  } else if (!isHaremMode || selectedPen.id !== currentPenId) {
                     return (
                       <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg flex items-start">
                         <span className="text-lg mt-0.5 mr-2">✅</span>
@@ -235,7 +398,7 @@ export default function AnimalMovementPanel({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
                 <span className="text-lg mr-2">❓</span>
-                Mozgatás oka: *
+                {isHaremMode ? 'Hárem beállítás oka:' : 'Mozgatás oka:'} *
               </label>
               <select
                 value={movementReason}
@@ -255,49 +418,143 @@ export default function AnimalMovementPanel({
               </select>
             </div>
 
-            {/* JAVÍTOTT Történeti mozgás opció - DEBUG INFO */}
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  checked={isHistorical}
-                  onChange={(e) => {
-                    const newValue = e.target.checked;
-                    console.log('📚 Történeti checkbox változás:', newValue);
-                    setIsHistorical(newValue);
-                  }}
-                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <span className="text-sm font-medium text-blue-900 flex items-center">
-                  <span className="text-lg mr-2">📚</span>
-                  Történeti karám mozgás (múltbeli adat rögzítése)
-                </span>
-              </label>
-              
-              {isHistorical && (
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-blue-700 mb-2 flex items-center">
+            {/* Hárem specifikus mezők */}
+            {functionType === 'hárem' && (
+              <div className="bg-pink-50 p-4 rounded-lg border border-pink-200">
+                <h4 className="text-lg font-medium text-pink-900 mb-4 flex items-center">
+                  💕 Hárem Specifikus Adatok
+                </h4>
+                
+                <div className="space-y-4">
+                  {/* Tenyészbika multi-select */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      🐂 Tenyészbika(k) kiválasztása: *
+                    </label>
+                    
+                    {/* Kiválasztott bikák megjelenítése */}
+                    {selectedBulls.length > 0 && (
+                      <div className="mb-3 p-3 bg-white rounded border border-pink-300">
+                        <p className="text-sm font-medium text-pink-800 mb-2">
+                          Kiválasztott bikák ({selectedBulls.length}):
+                        </p>
+                        <div className="space-y-1">
+                          {selectedBulls.map((enar) => {
+                            const bullData = availableBulls.find(bull => bull.enar === enar);
+                            return (
+                              <div key={enar} className="flex items-center justify-between bg-pink-50 p-2 rounded">
+                                <span className="text-sm">
+                                  🐂 {bullData?.name || 'Ismeretlen'} - {enar}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedBulls(prev => prev.filter(e => e !== enar))}
+                                  className="text-red-500 hover:text-red-700 text-sm px-2 py-1"
+                                >
+                                  ❌
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Új bika hozzáadása */}
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        if (e.target.value && !selectedBulls.includes(e.target.value)) {
+                          setSelectedBulls(prev => [...prev, e.target.value]);
+                        }
+                      }}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-colors bg-white"
+                    >
+                      <option value="">+ Válassz tenyészbikát hozzáadáshoz...</option>
+                      {availableBulls
+                        .filter(bull => !selectedBulls.includes(bull.enar))
+                        .map((bull) => (
+                          <option key={bull.enar} value={bull.enar}>
+                            🐂 {bull.name} - {bull.enar} (KPLSZ: {bull.kplsz})
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  {/* Párzási időszak kezdete */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      💕 Párzási időszak kezdete: *
+                    </label>
+                    <input
+                      type="date"
+                      value={paringStartDate}
+                      onChange={(e) => setPairingStartDate(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-colors bg-white"
+                      max={new Date().toISOString().split('T')[0]}
+                      required
+                    />
+                  </div>
+
+                  {/* VV tervezett (automatikus) */}
+                  {expectedVVDate && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        🔍 VV vizsgálat tervezett időpontja:
+                      </label>
+                      <input
+                        type="date"
+                        value={expectedVVDate}
+                        disabled
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                      />
+                      <p className="mt-1 text-xs text-blue-600">
+                        ✨ Automatikusan számítva: párzási kezdet + 75 nap
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Dátum és történeti mezők - csak ha NEM hárem mód */}
+            {!isHaremMode && (
+              <>
+                {/* Mozgatás dátuma */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
                     <span className="text-lg mr-2">📅</span>
-                    Mozgatás dátuma: *
+                    Mozgatás dátuma:
                   </label>
-                  <input 
+                  <input
                     type="date"
                     value={historicalDate}
-                    onChange={(e) => {
-                      const newDate = e.target.value;
-                      console.log('📅 Dátum változás:', newDate);
-                      setHistoricalDate(newDate);
-                    }}
-                    className="w-full px-4 py-3 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white"
-                    max={new Date().toISOString().split('T')[0]} // Maximum ma
-                    required={isHistorical}
+                    onChange={(e) => setHistoricalDate(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white"
+                    max={new Date().toISOString().split('T')[0]}
                   />
-                  <p className="mt-1 text-xs text-blue-600">
-                    ℹ️ Történeti mozgások nem módosítják a jelenlegi karám hozzárendelést
+                  <p className="mt-1 text-xs text-gray-500">
+                    Hagyd üresen a mai dátumhoz, vagy adj meg korábbi dátumot
                   </p>
                 </div>
-              )}
-            </div>
+
+                {/* Történeti mozgatás */}
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <label className="flex items-center space-x-3 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={isHistorical}
+                      onChange={(e) => setIsHistorical(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-blue-900 flex items-center">
+                      <span className="text-lg mr-2">📚</span>
+                      Csak történeti rögzítés (nem változtatja a jelenlegi karám hozzárendelést)
+                    </span>
+                  </label>
+                </div>
+              </>
+            )}
 
             {/* Megjegyzés */}
             <div>
@@ -310,7 +567,7 @@ export default function AnimalMovementPanel({
                 onChange={(e) => setNotes(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                 rows={3}
-                placeholder="Opcionális megjegyzés a mozgatásról..."
+                placeholder="Opcionális megjegyzés..."
               />
             </div>
           </div>
@@ -328,18 +585,18 @@ export default function AnimalMovementPanel({
           </button>
           <button
             onClick={handleMove}
-            disabled={!targetPenId || !movementReason || (isHistorical && !historicalDate) || loading}
+            disabled={!targetPenId || !movementReason || loading || (functionType === 'hárem' && (selectedBulls.length === 0 || !paringStartDate))}
             className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center"
           >
             {loading ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Mozgatás...
+                {isHaremMode ? 'Hárem beállítás...' : 'Mozgatás...'}
               </>
             ) : (
               <>
-                <span className="mr-2">🔄</span>
-                {isHistorical ? '📚 Történeti Mozgatás' : '🔄 Mozgatás Végrehajtása'}
+                <span className="mr-2">{isHaremMode ? '💕' : '🔄'}</span>
+                {isHaremMode ? 'Hárem Beállítása' : (isHistorical ? '📚 Történeti Mozgatás' : '🔄 Mozgatás Végrehajtása')}
               </>
             )}
           </button>

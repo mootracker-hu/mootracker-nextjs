@@ -6,27 +6,41 @@ import {
   AlertCircle,
   FileText,
   TrendingUp,
-  Activity
+  Activity,
+  Edit3,
+  Trash2
 } from 'lucide-react';
 import AnimalMovementPanel from '../../../pens/components/animal-movement-panel';
+import UnifiedEventManager from '@/components/UnifiedEventManager';
 
 interface CurrentStatusTabProps {
   animal: any;
 }
 
-const CurrentStatusTab: React.FC<CurrentStatusTabProps> = ({ animal }) => {
-  const [loading, setLoading] = useState(false);
-  // Állat mozgatás modal állapotok
-  const [showMoveModal, setShowMoveModal] = useState(false);
-  const [allPens, setAllPens] = useState<any[]>([]);
-  // ✅ ÚJ: Animal movements state
-  const [animalMovements, setAnimalMovements] = useState<any[]>([]);
+// 📝 SZERKESZTÉSI MODAL INTERFACE
+interface EditMovementModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  movementData: any;
+  onSave: (updatedData: any) => Promise<void>;
+}
 
-  // Karamok betöltése
+// 📝 SZERKESZTÉSI MODAL KOMPONENS
+const EditMovementModal: React.FC<EditMovementModalProps> = ({ isOpen, onClose, movementData, onSave }) => {
+  const [formData, setFormData] = useState({
+    movement_reason: '',
+    function_type: '',
+    notes: '',
+    moved_at: '',
+    removed_at: '', // ⭐ ÚJ: Záró dátum
+    target_pen_id: '' // ⭐ ÚJ: Célkarám ID
+  });
+  const [availablePens, setAvailablePens] = useState<any[]>([]);
+
+  // ⭐ Karamok betöltése a szerkesztési modal-hoz
   useEffect(() => {
-    const fetchPens = async () => {
+    const fetchPensForEdit = async () => {
       try {
-        // Supabase import szükséges
         const { createClient } = await import('@supabase/supabase-js');
         const supabase = createClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,13 +49,257 @@ const CurrentStatusTab: React.FC<CurrentStatusTabProps> = ({ animal }) => {
 
         const { data: pens, error } = await supabase
           .from('pens')
-          .select(`
-            id,
-            pen_number,
-            pen_type,
-            capacity,
-            location
-          `)
+          .select('id, pen_number, location')
+          .order('pen_number');
+
+        if (!error && pens) {
+          setAvailablePens(pens);
+        }
+      } catch (error) {
+        console.error('Hiba karamok betöltésekor:', error);
+      }
+    };
+
+    if (isOpen) {
+      fetchPensForEdit();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (movementData) {
+      console.log('📝 TELJES movementData objektum:', JSON.stringify(movementData, null, 2));
+      
+      // ⭐ BIZTONSÁGOS ID KINYERÉS
+      let targetPenId = '';
+      
+      if (movementData.type === 'movement') {
+        // Movement esetén: to_pen_id vagy to_pen.id
+        targetPenId = movementData.to_pen_id || movementData.to_pen?.id || '';
+      } else if (movementData.type === 'assignment') {
+        // Assignment esetén: pen_id vagy pens.id
+        targetPenId = movementData.pen_id || movementData.pens?.id || movementData.pen_info?.id || '';
+      }
+      
+      console.log('🎯 Kinyert targetPenId:', targetPenId, typeof targetPenId);
+      
+      setFormData({
+        movement_reason: movementData.reason || '',
+        function_type: movementData.function_type || '',
+        notes: movementData.notes?.replace('[📚 Történeti] ', '') || '',
+        moved_at: movementData.display_date ? movementData.display_date.split('T')[0] : '',
+        removed_at: movementData.removed_at ? movementData.removed_at.split('T')[0] : '',
+        target_pen_id: targetPenId // ⭐ BIZTONSÁGOS ÉRTÉK
+      });
+      
+      console.log('📋 Form adatok beállítva:', {
+        movement_reason: movementData.reason || '',
+        function_type: movementData.function_type || '',
+        target_pen_id: targetPenId,
+        moved_at: movementData.display_date ? movementData.display_date.split('T')[0] : '',
+        removed_at: movementData.removed_at ? movementData.removed_at.split('T')[0] : ''
+      });
+    }
+  }, [movementData]);
+
+  if (!isOpen) return null;
+
+  const translateReason = (reason: string): string => {
+    const reasonMap: { [key: string]: string } = {
+      'age_separation': '🎂 Életkor alapú válogatás',
+      'breeding': '💕 Tenyésztésbe állítás',
+      'pregnancy': '🐄💖 Vemhesség',
+      'birthing': '🍼 Ellés előkészítés',
+      'health': '🏥 Egészségügyi ok',
+      'capacity': '📊 Kapacitás optimalizálás',
+      'function_change': '🔄 Karám funkció váltás',
+      'other': '❓ Egyéb'
+    };
+    return reasonMap[reason] || reason;
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={onClose}></div>
+
+        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+          <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <div className="sm:flex sm:items-start">
+              <div className="w-full">
+                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                  ✏️ Karámtörténet Szerkesztése
+                </h3>
+
+                <div className="space-y-4">
+                  {/* Dátum */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      📅 {movementData?.type === 'assignment' ? 'Hozzárendelés dátuma' : 'Mozgatás dátuma'}
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.moved_at}
+                      onChange={(e) => setFormData({...formData, moved_at: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                    />
+                  </div>
+
+                  {/* ⭐ ÚJ: KARÁM VÁLASZTÁS */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      🏠 Karám
+                    </label>
+                    <select
+                      value={formData.target_pen_id}
+                      onChange={(e) => setFormData({...formData, target_pen_id: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                    >
+                      <option value="">Válassz karamot...</option>
+                      {availablePens.map(pen => (
+                        <option key={pen.id} value={pen.id}>
+                          {pen.pen_number} - {pen.location}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Mozgatás oka */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      🎯 {movementData?.type === 'assignment' ? 'Hozzárendelés oka' : 'Mozgatás oka'}
+                    </label>
+                    <select
+                      value={formData.movement_reason}
+                      onChange={(e) => setFormData({...formData, movement_reason: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                    >
+                      <option value="">Válassz okot...</option>
+                      <option value="age_separation">🎂 Életkor alapú válogatás</option>
+                      <option value="breeding">💕 Tenyésztésbe állítás</option>
+                      <option value="pregnancy">🐄💖 Vemhesség</option>
+                      <option value="birthing">🍼 Ellés előkészítés</option>
+                      <option value="health">🏥 Egészségügyi ok</option>
+                      <option value="capacity">📊 Kapacitás optimalizálás</option>
+                      <option value="function_change">🔄 Karám funkció váltás</option>
+                      <option value="other">❓ Egyéb</option>
+                    </select>
+                  </div>
+
+                  {/* ⭐ ÚJ: KARÁM FUNKCIÓ MEZŐ - csak movement-ekhez */}
+                  {movementData?.type === 'movement' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        🏠 Karám funkció (célkarámban)
+                      </label>
+                      <select
+                        value={formData.function_type}
+                        onChange={(e) => setFormData({...formData, function_type: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                      >
+                        <option value="">Válassz funkciót...</option>
+                        <option value="bölcsi">🐮 Bölcsi (0-12 hónapos borjak)</option>
+                        <option value="óvi">🐄 Óvi (12-24 hónapos üszők)</option>
+                        <option value="hárem">💕 Hárem (tenyésztésben lévő állatok)</option>
+                        <option value="vemhes">🤰 Vemhes (vemhes állatok)</option>
+                        <option value="ellető">🍼 Ellető (ellés körüli állatok)</option>
+                        <option value="tehén">🐄🍼 Tehén (borjas tehenek)</option>
+                        <option value="hízóbika">🐂 Hízóbika (hústermelés)</option>
+                        <option value="üres">⭕ Üres karám</option>
+                        <option value="kórház">🏥 Kórház (beteg állatok)</option>
+                        <option value="karantén">🔒 Karantén (megfigyelés)</option>
+                      </select>
+                    </div>
+                  )}
+
+                  {/* ⭐ ÚJ: ZÁRÓ DÁTUM - csak assignment-ekhez */}
+                  {movementData?.type === 'assignment' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        📅 Záró dátum (mikor hagyta el a karamot)
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.removed_at}
+                        onChange={(e) => setFormData({...formData, removed_at: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Hagyd üresen, ha az állat még mindig ebben a karámban van
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Megjegyzés */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      📝 Megjegyzés
+                    </label>
+                    <textarea
+                      value={formData.notes}
+                      onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                      placeholder="Kiegészítő információk..."
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await onSave(formData);
+                  onClose();
+                } catch (error) {
+                  console.error('Szerkesztési hiba:', error);
+                }
+              }}
+              className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm"
+            >
+              💾 Mentés
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+            >
+              ❌ Mégse
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CurrentStatusTab: React.FC<CurrentStatusTabProps> = ({ animal }) => {
+  const [loading, setLoading] = useState(false);
+  const [showMoveModal, setShowMoveModal] = useState(false);
+  const [allPens, setAllPens] = useState<any[]>([]);
+  const [animalMovements, setAnimalMovements] = useState<any[]>([]);
+  
+  // ⭐ ÚJ: SZERKESZTÉSI MODAL STATE
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingMovement, setEditingMovement] = useState<any>(null);
+
+  // Karamok és mozgatások betöltése
+  useEffect(() => {
+    const fetchPens = async () => {
+      try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+
+        // Karamok betöltése
+        const { data: pens, error } = await supabase
+          .from('pens')
+          .select('id, pen_number, pen_type, capacity, location')
           .order('pen_number');
 
         if (error) {
@@ -49,53 +307,25 @@ const CurrentStatusTab: React.FC<CurrentStatusTabProps> = ({ animal }) => {
           return;
         }
 
-        // Karám formázás az AnimalMovementPanel-nek
         const formattedPens = (pens || []).map(pen => ({
           ...pen,
-          animal_count: 0, // TODO: valódi állat szám lekérdezése
-          current_function: null // TODO: aktuális funkció lekérdezése
+          animal_count: 0,
+          current_function: null
         }));
 
         setAllPens(formattedPens);
-        console.log('Betöltött karamok:', formattedPens);
 
-        // 🔍 DEBUG: Ellenőrizzük az animal_pen_assignments táblát
-        const { data: assignments, error: assignError } = await supabase
-          .from('animal_pen_assignments')
-          .select(`
-            *,
-            pens (
-              pen_number,
-              location
-            )
-          `)
-          .eq('animal_id', animal?.id)
-          .order('assigned_at', { ascending: false });
-
-        console.log('🔍 DEBUG: Animal pen assignments:', assignments);
-        console.log('🔍 DEBUG: Assignment query error:', assignError);
-
-        // 🔍 DEBUG: Ellenőrizzük az animal_movements táblát is
+        // Mozgatások betöltése (funkció mezővel együtt!)
         const { data: movements, error: moveError } = await supabase
           .from('animal_movements')
           .select(`
             *,
-            from_pen:pens!from_pen_id (
-              pen_number,
-              location
-            ),
-            to_pen:pens!to_pen_id (
-              pen_number,
-              location
-            )
+            from_pen:pens!from_pen_id (pen_number, location),
+            to_pen:pens!to_pen_id (pen_number, location)
           `)
           .eq('animal_id', animal?.id)
           .order('moved_at', { ascending: false });
 
-        console.log('🔍 DEBUG: Animal movements:', movements);
-        console.log('🔍 DEBUG: Movement query error:', moveError);
-
-        // ✅ Movements adatok mentése state-be
         if (!moveError && movements) {
           setAnimalMovements(movements);
         }
@@ -110,7 +340,7 @@ const CurrentStatusTab: React.FC<CurrentStatusTabProps> = ({ animal }) => {
     }
   }, [animal?.id]);
 
-  // Jelenlegi karám lekérése az animal adatból
+  // Helper funkciók
   const getCurrentPen = () => {
     const assignment = animal?.animal_pen_assignments?.find(
       (a: any) => a.removed_at === null
@@ -118,7 +348,6 @@ const CurrentStatusTab: React.FC<CurrentStatusTabProps> = ({ animal }) => {
     return assignment?.pens;
   };
 
-  // Karamban töltött idő számítása
   const getTimeInPen = () => {
     const assignment = animal?.animal_pen_assignments?.find(
       (a: any) => a.removed_at === null
@@ -135,7 +364,6 @@ const CurrentStatusTab: React.FC<CurrentStatusTabProps> = ({ animal }) => {
     return `${diffDays} nap`;
   };
 
-  // Mozgatási ok fordítása magyarra
   const translateReason = (reason: string): string => {
     const reasonMap: { [key: string]: string } = {
       'age_separation': '🎂 Életkor alapú válogatás',
@@ -150,7 +378,22 @@ const CurrentStatusTab: React.FC<CurrentStatusTabProps> = ({ animal }) => {
     return reasonMap[reason] || reason;
   };
 
-  // Életkor számítása
+  const translateFunction = (functionType: string): string => {
+    const functionMap: { [key: string]: string } = {
+      'bölcsi': '🐮 Bölcsi',
+      'óvi': '🐄 Óvi',
+      'hárem': '💕 Hárem',
+      'vemhes': '🤰 Vemhes',
+      'ellető': '🍼 Ellető',
+      'tehén': '🐄🍼 Tehén',
+      'hízóbika': '🐂 Hízóbika',
+      'üres': '⭕ Üres',
+      'kórház': '🏥 Kórház',
+      'karantén': '🔒 Karantén'
+    };
+    return functionMap[functionType] || functionType;
+  };
+
   const getAge = () => {
     if (!animal?.szuletesi_datum) return 'Nincs adat';
 
@@ -173,6 +416,93 @@ const CurrentStatusTab: React.FC<CurrentStatusTabProps> = ({ animal }) => {
     return new Date(dateString).toLocaleDateString('hu-HU');
   };
 
+  // ⭐ ÚJ: SZERKESZTÉS MENTÉS FUNKCIÓ
+  const handleEditSave = async (updatedData: any) => {
+    try {
+      console.log('💾 SZERKESZTÉS INDÍTÁSA:', {
+        editingMovement: editingMovement,
+        updatedData: updatedData
+      });
+
+      // ⭐ KRITIKUS VALIDÁCIÓ
+      if (!updatedData.target_pen_id || updatedData.target_pen_id.trim() === '' || updatedData.target_pen_id === 'undefined') {
+        console.error('❌ HIBÁS TARGET_PEN_ID:', updatedData.target_pen_id);
+        alert('❌ Kérlek válassz érvényes karamot! A karám mező nem lehet üres.');
+        return;
+      }
+
+      if (!editingMovement?.id) {
+        console.error('❌ HIÁNYZÓ EDITING MOVEMENT ID');
+        alert('❌ Hiba: nem található a szerkesztendő rekord ID-ja');
+        return;
+      }
+
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+
+      const tableName = editingMovement.type === 'assignment' ? 'animal_pen_assignments' : 'animal_movements';
+      
+      // Dátum formázás
+      const moveDateTime = updatedData.moved_at ? 
+        new Date(updatedData.moved_at + 'T12:00:00.000Z').toISOString() : 
+        editingMovement.display_date;
+
+      const removedDateTime = updatedData.removed_at ? 
+        new Date(updatedData.removed_at + 'T12:00:00.000Z').toISOString() : 
+        null;
+
+      let updateData: any = {};
+
+      if (editingMovement.type === 'assignment') {
+        // ⭐ ASSIGNMENT FRISSÍTÉS
+        updateData = {
+          pen_id: updatedData.target_pen_id, // ⭐ KÖTELEZŐ KARÁM ID
+          assigned_at: moveDateTime,
+          assignment_reason: updatedData.movement_reason || null,
+          notes: updatedData.notes || null,
+          removed_at: removedDateTime
+        };
+      } else {
+        // ⭐ MOVEMENT FRISSÍTÉS  
+        updateData = {
+          to_pen_id: updatedData.target_pen_id, // ⭐ KÖTELEZŐ KARÁM ID
+          moved_at: moveDateTime,
+          movement_reason: updatedData.movement_reason || null,
+          function_type: updatedData.function_type || null,
+          notes: updatedData.notes || null
+        };
+      }
+
+      console.log('💾 FINAL UPDATE DATA:', {
+        tableName,
+        recordId: editingMovement.id,
+        updateData
+      });
+
+      const { error: updateError } = await supabase
+        .from(tableName)
+        .update(updateData)
+        .eq('id', editingMovement.id);
+
+      if (updateError) {
+        console.error('❌ SUPABASE FRISSÍTÉSI HIBA:', updateError);
+        alert(`❌ Adatbázis hiba!\n\nTábla: ${tableName}\nHiba: ${updateError.message}\n\nKérlek ellenőrizd a karám választást.`);
+        return;
+      }
+
+      console.log('✅ SIKERES FRISSÍTÉS!');
+      alert('✅ Karámtörténet sikeresen frissítve!');
+      window.location.reload();
+
+    } catch (error) {
+      console.error('❌ ÁLTALÁNOS HIBA:', error);
+      alert(`❌ Váratlan hiba történt!\n\n${error instanceof Error ? error.message : 'Ismeretlen hiba'}`);
+    }
+  };
+
   const currentPen = getCurrentPen();
   const timeInPen = getTimeInPen();
   const age = getAge();
@@ -181,7 +511,6 @@ const CurrentStatusTab: React.FC<CurrentStatusTabProps> = ({ animal }) => {
     <div className="space-y-6">
       {/* Jelenlegi állapot összefoglaló */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Jelenlegi karám */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-center">
             <MapPin className="h-5 w-5 text-blue-600 mr-2" />
@@ -195,7 +524,6 @@ const CurrentStatusTab: React.FC<CurrentStatusTabProps> = ({ animal }) => {
           </div>
         </div>
 
-        {/* Karamban töltött idő */}
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-center">
             <Clock className="h-5 w-5 text-green-600 mr-2" />
@@ -209,7 +537,6 @@ const CurrentStatusTab: React.FC<CurrentStatusTabProps> = ({ animal }) => {
           </div>
         </div>
 
-        {/* Kategória */}
         <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
           <div className="flex items-center">
             <Activity className="h-5 w-5 text-purple-600 mr-2" />
@@ -221,7 +548,6 @@ const CurrentStatusTab: React.FC<CurrentStatusTabProps> = ({ animal }) => {
           </div>
         </div>
 
-        {/* Életkor */}
         <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
           <div className="flex items-center">
             <Calendar className="h-5 w-5 text-orange-600 mr-2" />
@@ -237,7 +563,7 @@ const CurrentStatusTab: React.FC<CurrentStatusTabProps> = ({ animal }) => {
       </div>
 
       {/* Alapinformációk */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
+      <div className="bg-white border border-gray-200 rounded-lg p-6" style={{display: 'none'}}>
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
           <FileText className="h-5 w-5 mr-2 text-gray-600" />
           Részletes információk
@@ -257,11 +583,12 @@ const CurrentStatusTab: React.FC<CurrentStatusTabProps> = ({ animal }) => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700">Státusz</label>
-              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${animal?.statusz === 'aktív' ? 'bg-green-100 text-green-800' :
+              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                animal?.statusz === 'aktív' ? 'bg-green-100 text-green-800' :
                 animal?.statusz === 'eladott' ? 'bg-blue-100 text-blue-800' :
-                  animal?.statusz === 'elhullott' ? 'bg-red-100 text-red-800' :
-                    'bg-gray-100 text-gray-800'
-                }`}>
+                animal?.statusz === 'elhullott' ? 'bg-red-100 text-red-800' :
+                'bg-gray-100 text-gray-800'
+              }`}>
                 {animal?.statusz}
               </span>
             </div>
@@ -285,13 +612,14 @@ const CurrentStatusTab: React.FC<CurrentStatusTabProps> = ({ animal }) => {
             {animal?.birth_location && (
               <div>
                 <label className="block text-sm font-medium text-gray-700">Származás</label>
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${animal.birth_location === 'nálunk' ? 'bg-green-100 text-green-800' :
+                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                  animal.birth_location === 'nálunk' ? 'bg-green-100 text-green-800' :
                   animal.birth_location === 'vásárolt' ? 'bg-blue-100 text-blue-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
+                  'bg-gray-100 text-gray-800'
+                }`}>
                   {animal.birth_location === 'nálunk' ? '🏠 Nálunk született' :
                     animal.birth_location === 'vásárolt' ? '🛒 Vásárolt' :
-                      '❓ Ismeretlen'}
+                    '❓ Ismeretlen'}
                 </span>
               </div>
             )}
@@ -312,188 +640,26 @@ const CurrentStatusTab: React.FC<CurrentStatusTabProps> = ({ animal }) => {
         </div>
       )}
 
-      {/* Karámtörténet - JAVÍTOTT: animal_movements + animal_pen_assignments */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-          <TrendingUp className="h-5 w-5 mr-2 text-blue-600" />
-          Karámtörténet
-        </h3>
-
-        <div className="space-y-4">
-          {(() => {
-            // ✅ KOMBINÁLT KARÁMTÖRTÉNET: assignments + movements
-            const assignments = (animal?.animal_pen_assignments || []).map((item: any) => ({
-              ...item,
-              type: 'assignment',
-              display_date: item.assigned_at,
-              pen_info: item.pens,
-              reason: item.assignment_reason
-            }));
-
-            const movements = animalMovements.map((item: any) => ({
-              ...item,
-              type: 'movement',
-              display_date: item.moved_at,
-              pen_info: item.to_pen, // Célkarám információ
-              reason: item.movement_reason
-            }));
-
-            // Minden elemet együtt rendezünk dátum szerint
-            const allHistoryItems = [...assignments, ...movements]
-              .sort((a: any, b: any) => new Date(b.display_date).getTime() - new Date(a.display_date).getTime());
-
-            console.log('📊 Kombinált karámtörténet:', allHistoryItems);
-
-            if (allHistoryItems.length > 0) {
-              return allHistoryItems.map((item: any, index: number) => (
-                <div key={`${item.type}-${item.id}-${index}`} className="relative">
-                  {/* Timeline vonal */}
-                  {index < allHistoryItems.length - 1 && (
-                    <div className="absolute left-6 top-12 w-0.5 h-full bg-gray-200"></div>
-                  )}
-
-                  <div className="flex items-start space-x-4">
-                    {/* Timeline pont */}
-                    <div className="flex-shrink-0">
-                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                        {item.type === 'movement' ? '🔄' : (item.removed_at ? '🔄' : '📍')}
-                      </div>
-                    </div>
-
-                    {/* Tartalom */}
-                    <div className="flex-grow pb-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-grow">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <span className="font-medium text-gray-900">
-                              📍 {item.pen_info?.pen_number || 'Ismeretlen karám'}
-                              {item.type === 'movement' ? ' (mozgatás)' : 
-                               item.removed_at ? ' (elhagyta)' : ' (jelenlegi)'}
-                            </span>
-                            
-                            {/* Státusz badge */}
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              item.type === 'movement' ? 'bg-purple-100 text-purple-800' :
-                              item.removed_at ? 'bg-gray-100 text-gray-800' : 'bg-green-100 text-green-800'
-                            }`}>
-                              {item.type === 'movement' ? 'Mozgatás' :
-                               item.removed_at ? 'Korábbi' : 'Aktív'}
-                            </span>
-                            
-                            {/* Történeti jelzés */}
-                            {item.notes && item.notes.includes('[📚 Történeti]') && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                📚 Történeti
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="text-sm text-gray-600 mb-1">
-                            <Calendar className="h-4 w-4 inline mr-1" />
-                            {formatDate(item.display_date)}
-                            {item.removed_at && (
-                              <span> - {formatDate(item.removed_at)}</span>
-                            )}
-                            <span className="ml-2 text-blue-600 font-medium">
-                              ({(() => {
-                                const start = new Date(item.display_date);
-                                const end = item.removed_at ? new Date(item.removed_at) : new Date();
-                                const diffDays = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-
-                                if (diffDays === 0) return 'ma';
-                                if (diffDays === 1) return '1 nap';
-                                if (diffDays < 30) return `${diffDays} nap`;
-                                if (diffDays < 365) return `${Math.floor(diffDays / 30)} hó`;
-                                return `${Math.floor(diffDays / 365)} év`;
-                              })()})
-                            </span>
-                          </div>
-
-                          {item.reason && (
-                            <div className="text-sm text-gray-700">
-                              <span className="font-medium">Ok:</span> {translateReason(item.reason)}
-                            </div>
-                          )}
-
-                          {item.notes && (
-                            <div className="text-sm text-gray-700 flex items-start mt-1">
-                              <FileText className="h-4 w-4 mr-1 mt-0.5 flex-shrink-0" />
-                              {item.notes}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Szerkesztés/Törlés gombok */}
-                        <div className="flex space-x-2 ml-4">
-                          <button
-                            onClick={() => {
-                              alert(`🔧 Szerkesztés funkció hamarosan!\n\nTípus: ${item.type}\nKarám: ${item.pen_info?.pen_number}\nDátum: ${formatDate(item.display_date)}\nOk: ${item.reason || 'Nincs megadva'}`);
-                            }}
-                            className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded hover:bg-blue-50 transition-colors"
-                            title="Szerkesztés"
-                          >
-                            ✏️
-                          </button>
-                          <button
-                            onClick={async () => {
-                              if (confirm(`🗑️ Biztosan törölni szeretnéd?\n\nTípus: ${item.type}\nKarám: ${item.pen_info?.pen_number}\nDátum: ${formatDate(item.display_date)}`)) {
-                                try {
-                                  console.log('🗑️ Törlés kezdése:', item);
-                                  
-                                  const { createClient } = await import('@supabase/supabase-js');
-                                  const supabase = createClient(
-                                    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                                    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-                                  );
-
-                                  // Törlés a megfelelő táblából
-                                  const tableName = item.type === 'assignment' ? 'animal_pen_assignments' : 'animal_movements';
-                                  
-                                  console.log(`🗑️ Törlés táblából: ${tableName}, ID: ${item.id}`);
-                                  
-                                  const { error: deleteError } = await supabase
-                                    .from(tableName)
-                                    .delete()
-                                    .eq('id', item.id);
-
-                                  if (deleteError) {
-                                    console.error('❌ Törlési hiba:', deleteError);
-                                    alert(`❌ Hiba a törlés során!\n${deleteError.message}`);
-                                    return;
-                                  }
-
-                                  console.log('✅ Törlés sikeres!');
-                                  alert('✅ Karámtörténet bejegyzés sikeresen törölve!');
-                                  
-                                  // Frissítés az adatok újratöltésével
-                                  window.location.reload();
-
-                                } catch (error) {
-                                  console.error('❌ Váratlan hiba:', error);
-                                  alert('❌ Váratlan hiba történt!');
-                                }
-                              }
-                            }}
-                            className="text-red-600 hover:text-red-800 text-sm px-2 py-1 rounded hover:bg-red-50 transition-colors"
-                            title="Törlés"
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ));
-            } else {
-              return (
-                <div className="text-center py-8 text-gray-500">
-                  <Calendar className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-                  <p>Nincs rögzített karámtörténet</p>
-                </div>
-              );
-            }
-          })()}
+      {/* ⭐ ÚJ: EGYSÉGES KARÁMTÖRTÉNET & ESEMÉNYEK */}
+      <div className="bg-white border border-gray-200 rounded-lg">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+            <span className="mr-2">📋</span>
+            Teljes Karámtörténet & Események
+          </h3>
+          <p className="text-sm text-gray-600 mt-1">
+            Komplett életútvonal: mozgatások, funkció váltások, hárem időszakok, történeti rögzítések
+          </p>
+        </div>
+        
+        <div className="p-6">
+          <UnifiedEventManager 
+            mode="animal" 
+            animalId={animal.id}
+            animalEnar={animal.enar}
+            allowEdit={true}
+            maxHeight="500px"
+          />
         </div>
       </div>
 
@@ -505,13 +671,7 @@ const CurrentStatusTab: React.FC<CurrentStatusTabProps> = ({ animal }) => {
             Karám mozgatás
           </h3>
           <button
-            onClick={() => {
-              console.log('🔄 Mozgatás gomb megnyomva!');
-              console.log('📊 availablePens:', allPens.length, 'karám');
-              console.log('🐄 Animal ID:', animal?.id);
-              setShowMoveModal(true);
-              console.log('✅ showMoveModal = true');
-            }}
+            onClick={() => setShowMoveModal(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center transition-colors"
           >
             <span className="mr-2">🔄</span>
@@ -523,114 +683,64 @@ const CurrentStatusTab: React.FC<CurrentStatusTabProps> = ({ animal }) => {
         </p>
       </div>
 
-      {/* Animal Movement Modal - JAVÍTOTT PARAMÉTEREK + DEBUG */}
+      {/* AnimalMovementPanel - A funkcióval bővítve */}
       {showMoveModal && (
-        <div>
-          <h1 className="text-red-500 text-xl font-bold mb-4">🔧 DEBUG: Modal megnyílt!</h1>
-          <p>showMoveModal: {showMoveModal.toString()}</p>
-          <p>availablePens length: {allPens.length}</p>
-          <p>currentPenId: {animal?.animal_pen_assignments?.find((a: any) => a.removed_at === null)?.pen_id || 'NINCS'}</p>
-          
         <AnimalMovementPanel
           isOpen={showMoveModal}
-          onClose={() => {
-            console.log('❌ Modal bezárása...');
-            setShowMoveModal(false);
-          }}
+          onClose={() => setShowMoveModal(false)}
           selectedAnimals={[animal?.id]}
           animals={[animal]}
           availablePens={allPens}
           currentPenId={animal?.animal_pen_assignments?.find((a: any) => a.removed_at === null)?.pen_id || ''}
-          onMove={async (targetPenId: string, reason: string, notes: string, isHistorical?: boolean, moveDate?: string) => {
+          onMove={async (targetPenId: string, reason: string, notes: string, isHistorical?: boolean, moveDate?: string, functionType?: string) => {
             try {
-              console.log('🔍 onMove paraméterek (HELYES SORREND):', {
-                targetPenId,
-                reason, 
-                notes,
-                isHistorical, // ← 4. paraméter (mint az interface-ben)
-                moveDate      // ← 5. paraméter (mint az interface-ben)
-              });
-
-              // KRITIKUS DEBUG INFORMÁCIÓK
-              console.log('🔍 isHistorical értéke:', isHistorical, typeof isHistorical);
-              console.log('🔍 moveDate értéke:', moveDate, typeof moveDate);
-              
-              // Supabase import
               const { createClient } = await import('@supabase/supabase-js');
               const supabase = createClient(
                 process.env.NEXT_PUBLIC_SUPABASE_URL!,
                 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
               );
 
-              // JAVÍTOTT DÁTUM KEZELÉS
               let moveDateTime;
               
               if (isHistorical === true && moveDate) {
-                // TÖRTÉNETI: Megadott dátum használata
                 const historicalDate = new Date(moveDate);
-                
-                // Ellenőrizzük hogy valid dátum-e
                 if (isNaN(historicalDate.getTime())) {
-                  console.error('❌ Hibás történeti dátum:', moveDate);
                   alert('❌ Hibás dátum formátum!');
                   return;
                 }
-                
-                // ISO string generálása 12:00 órával (timezone problémák elkerülésére)
                 moveDateTime = historicalDate.toISOString().split('T')[0] + 'T12:00:00.000Z';
-                
-                console.log('📚 TÖRTÉNETI mozgatás:', {
-                  inputDate: moveDate,
-                  parsedDate: historicalDate,
-                  finalDateTime: moveDateTime
-                });
-                
               } else {
-                // MAI: Jelenlegi időpont
                 moveDateTime = new Date().toISOString();
-                console.log('📅 MAI mozgatás:', moveDateTime);
               }
 
-              console.log('🕛 Végső moveDateTime:', moveDateTime);
-
-              // 1. Mozgatási rekord létrehozása (audit trail)
+              // ⭐ MOZGATÁSI REKORD FUNKCIÓ MEZŐVEL
               const movementRecord = {
                 animal_id: animal?.id,
                 from_pen_id: animal?.animal_pen_assignments?.find((a: any) => a.removed_at === null)?.pen_id || null,
                 to_pen_id: targetPenId,
                 moved_at: moveDateTime,
                 movement_reason: reason,
+                function_type: functionType, // ⭐ ÚJ MEZŐ!
                 notes: `${isHistorical ? '[📚 Történeti] ' : ''}${notes}`,
               };
-
-              console.log('💾 Mozgatási rekord:', movementRecord);
 
               const { error: movementError } = await supabase
                 .from('animal_movements')
                 .insert(movementRecord);
 
               if (movementError) {
-                console.error('❌ Mozgatási rekord hiba:', movementError);
                 alert('❌ Hiba a mozgatási rekord mentésekor!');
                 return;
               }
 
-              // 2. Csak NEM történeti mozgásnál frissítjük a jelenlegi hozzárendelést
               if (isHistorical !== true) {
-                console.log('📝 Jelenlegi hozzárendelés frissítése (nem történeti)...');
-                
-                // Jelenlegi hozzárendelés lezárása
+                // Jelenlegi hozzárendelés frissítése
                 const { error: closeError } = await supabase
                   .from('animal_pen_assignments')
                   .update({ removed_at: moveDateTime })
                   .eq('animal_id', animal?.id)
                   .is('removed_at', null);
 
-                if (closeError) {
-                  console.error('❌ Hozzárendelés lezárás hiba:', closeError);
-                }
-
-                // Új hozzárendelés létrehozása
                 const newAssignment = {
                   animal_id: animal?.id,
                   pen_id: targetPenId,
@@ -639,31 +749,22 @@ const CurrentStatusTab: React.FC<CurrentStatusTabProps> = ({ animal }) => {
                   notes: notes
                 };
 
-                console.log('💾 Új hozzárendelés:', newAssignment);
-
                 const { error: assignError } = await supabase
                   .from('animal_pen_assignments')
                   .insert(newAssignment);
 
                 if (assignError) {
-                  console.error('❌ Új hozzárendelés hiba:', assignError);
                   alert('❌ Hiba az új karám hozzárendelésekor!');
                   return;
                 }
-              } else {
-                console.log('📚 Történeti mozgatás - jelenlegi hozzárendelés nem módosul');
               }
 
-              // SIKER!
               const successMessage = isHistorical 
-                ? `✅ Történeti mozgatás sikeresen rögzítve!\n📚 Dátum: ${moveDate}\nÁllat: ${animal?.enar}\nCélkarám: ${targetPenId}`
-                : `✅ Mozgatás sikeresen rögzítve!\n📅 Mai dátum\nÁllat: ${animal?.enar}\nCélkarám: ${targetPenId}`;
+                ? `✅ Történeti mozgatás sikeresen rögzítve!\n📚 Dátum: ${moveDate}\n🏠 Funkció: ${functionType ? translateFunction(functionType) : 'Nincs megadva'}`
+                : `✅ Mozgatás sikeresen rögzítve!\n📅 Mai dátum\n🏠 Funkció: ${functionType ? translateFunction(functionType) : 'Nincs megadva'}`;
               
-              console.log('✅ Mozgatás sikeresen mentve!');
               alert(successMessage);
               setShowMoveModal(false);
-
-              // Oldal frissítése (új karám megjelenítése)
               window.location.reload();
 
             } catch (error) {
@@ -672,8 +773,15 @@ const CurrentStatusTab: React.FC<CurrentStatusTabProps> = ({ animal }) => {
             }
           }}
         />
-        </div>
       )}
+
+      {/* ⭐ ÚJ: SZERKESZTÉSI MODAL */}
+      <EditMovementModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        movementData={editingMovement}
+        onSave={handleEditSave}
+      />
     </div>
   );
 };
