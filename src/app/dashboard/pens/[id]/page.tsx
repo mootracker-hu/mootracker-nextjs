@@ -14,6 +14,9 @@ import {
 import { useAlertsNew } from '@/hooks/useAlertsNew';
 import { PenAlertsWidget } from '../components/pen-alerts-widget';
 import * as XLSX from 'xlsx';
+// A többi import után, körülbelül a 12. sor környékén:
+import TeljesKaramTortenelem from '@/components/TeljesKaramTortenelem';
+import HaremDashboard from '@/components/HaremDashboard';
 
 // TypeScript interfaces - egyértelműen definiálva
 interface Animal {
@@ -72,6 +75,8 @@ export default function PenDetailsPage() {
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingPeriod, setEditingPeriod] = useState<any>(null);
     const [allPens, setAllPens] = useState<any[]>([]);
+    const [activeTab, setActiveTab] = useState<'animals' | 'dashboard' | 'timeline'>('animals');
+
 
 
     // Riasztások hook hozzáadása
@@ -1099,89 +1104,147 @@ const calculateAgeInMonths = (birthDate: string): number => {
                 </div>
             </div>
 
-            {/* Állatok lista */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                {/* Vezérlők */}
-                <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
-                    <div className="flex items-center space-x-4 mb-4 sm:mb-0">
-                        <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-                            <span className="text-2xl mr-2">🐄</span>
-                            Állatok ({filteredAnimals.length})
-                        </h2>
-                        {selectedAnimals.length > 0 && (
-                            <div className="flex items-center space-x-2">
-                                <span className="text-sm text-gray-600">
-                                    {selectedAnimals.length} kiválasztva
-                                </span>
-                                <button
-                                    onClick={clearSelection}
-                                    className="text-xs text-blue-600 hover:text-blue-800"
-                                >
-                                    Törlés
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                    <div className="flex items-center space-x-4">
-                        {/* Keresés */}
-                        <div className="relative">
-                            <input
-                                type="text"
-                                placeholder="🔎 ENAR vagy kategória keresése..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-                            />
+{/* Tab Navigation - JAVÍTOTT */}
+<div className="flex border-b mb-6">
+  <button
+    onClick={() => setActiveTab('animals')}
+    className={`px-4 py-2 font-medium ${activeTab === 'animals' ? 'border-b-2 border-green-500 text-green-600' : 'text-gray-500'}`}
+  >
+    🐄 Állatok ({filteredAnimals.length})
+  </button>
+  <button
+    onClick={() => setActiveTab('dashboard')}
+    className={`px-4 py-2 font-medium ${activeTab === 'dashboard' ? 'border-b-2 border-green-500 text-green-600' : 'text-gray-500'}`}
+  >
+    📊 Hárem Dashboard
+  </button>
+  <button
+    onClick={() => setActiveTab('timeline')}
+    className={`px-4 py-2 font-medium ${activeTab === 'timeline' ? 'border-b-2 border-green-500 text-green-600' : 'text-gray-500'}`}
+  >
+    📅 Karám Történet
+  </button>
+</div>
+
+{/* Tab Content */}
+<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    
+    {/* Állatok Tab */}
+    {activeTab === 'animals' && (
+        <>
+            {/* Vezérlők */}
+            <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
+                <div className="flex items-center space-x-4 mb-4 sm:mb-0">
+                    <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                        <span className="text-2xl mr-2">🐄</span>
+                        Állatok ({filteredAnimals.length})
+                    </h2>
+                    {selectedAnimals.length > 0 && (
+                        <div className="flex items-center space-x-2">
+                            <span className="text-sm text-gray-600">
+                                {selectedAnimals.length} kiválasztva
+                            </span>
+                            <button
+                                onClick={clearSelection}
+                                className="text-xs text-blue-600 hover:text-blue-800"
+                            >
+                                Törlés
+                            </button>
                         </div>
-                        {/* Kiválasztás vezérlők */}
-                        <button
-                            onClick={selectAllAnimals}
-                            className="text-sm text-blue-600 hover:text-blue-800"
-                        >
-                            Mind kiválaszt
-                        </button>
-                        <button
-                            onClick={exportToExcel}
-                            className="bg-white hover:bg-gray-50 text-gray-700 font-medium px-4 py-2 rounded-lg border border-gray-300 transition-colors inline-flex items-center"
-                        >
-                            <span className="mr-2">📥</span>
-                            Export
-                        </button>
-                    </div>
+                    )}
                 </div>
-
-                {/* Karám-specifikus állatok táblázat */}
-                <PenSpecificAnimalTable
-                    penFunction={pen.current_function?.function_type || 'üres'}
-                    animals={filteredAnimals.map(animal => ({
-                        ...animal,
-                        id: animal.id.toString()
-                    }))}
-                    selectedAnimals={selectedAnimals.map(id => id.toString())}
-                    onToggleAnimal={(id) => toggleAnimalSelection(parseInt(id))}
-                    onSelectAll={selectAllAnimals}
-                    onClearSelection={clearSelection}
-                />
-
-                {filteredAnimals.length === 0 && (
-                    <div className="text-center py-12">
-                        <span className="text-6xl mb-4 block">🐄</span>
-                        <h3 className="mt-2 text-sm font-medium text-gray-900">Nincsenek állatok</h3>
-                        <p className="mt-1 text-sm text-gray-500">
-                            {searchTerm ? 'Nincs találat a keresési feltételre.' : 'Ez a karám jelenleg üres.'}
-                        </p>
+                <div className="flex items-center space-x-4">
+                    {/* Keresés */}
+                    <div className="relative">
+                        <input
+                            type="text"
+                            placeholder="🔎 ENAR vagy kategória keresése..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                        />
                     </div>
-                )}
+                    {/* Kiválasztás vezérlők */}
+                    <button
+                        onClick={selectAllAnimals}
+                        className="text-sm text-blue-600 hover:text-blue-800"
+                    >
+                        Mind kiválaszt
+                    </button>
+                    <button
+                        onClick={exportToExcel}
+                        className="bg-white hover:bg-gray-50 text-gray-700 font-medium px-4 py-2 rounded-lg border border-gray-300 transition-colors inline-flex items-center"
+                    >
+                        <span className="mr-2">📥</span>
+                        Export
+                    </button>
+                </div>
             </div>
 
-            {/* Movement Panel Modal */}
-            <AnimalMovementPanel
-                isOpen={showMovementPanel}
-                onClose={() => setShowMovementPanel(false)}
-                selectedAnimals={selectedAnimals}
-                animals={filteredAnimals}
-                availablePens={allPens}
-                currentPenId={penId}
+            {/* Karám-specifikus állatok táblázat */}
+            <PenSpecificAnimalTable
+                penFunction={pen.current_function?.function_type || 'üres'}
+                animals={filteredAnimals.map(animal => ({
+                    ...animal,
+                    id: animal.id.toString()
+                }))}
+                selectedAnimals={selectedAnimals.map(id => id.toString())}
+                onToggleAnimal={(id) => toggleAnimalSelection(parseInt(id))}
+                onSelectAll={selectAllAnimals}
+                onClearSelection={clearSelection}
+            />
+
+            {filteredAnimals.length === 0 && (
+                <div className="text-center py-12">
+                    <span className="text-6xl mb-4 block">🐄</span>
+                    <h3 className="mt-2 text-sm font-medium text-gray-900">Nincsenek állatok</h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                        {searchTerm ? 'Nincs találat a keresési feltételre.' : 'Ez a karám jelenleg üres.'}
+                    </p>
+                </div>
+            )}
+        </>
+    )}
+
+ // ✅ ÚJ - dinamikus komponens:
+{activeTab === 'dashboard' && (
+    <HaremDashboard 
+        penId={pen.id}
+        penNumber={pen.pen_number}
+        onDataChange={() => {
+            console.log('🔄 Hárem dashboard adatok változtak');
+            fetchPenDetails();
+            fetchAnimalsInPen();
+        }}
+    />
+)}
+    
+    {/* Timeline Tab - ÚJ TELJES KARÁM TÖRTÉNELEM */}
+{activeTab === 'timeline' && (
+    <TeljesKaramTortenelem 
+        penId={pen.id}
+        penNumber={pen.pen_number}
+        penLocation={pen.location}
+        onDataChange={() => {
+            console.log('🔄 Karám történelem adatok változtak');
+            fetchPenDetails();
+            fetchAnimalsInPen();
+        }}
+        mode="pen"
+    />
+)}
+</div>
+
+{/* Movement Panel Modal */}
+<AnimalMovementPanel
+    isOpen={showMovementPanel}
+    onClose={() => setShowMovementPanel(false)}
+    selectedAnimals={selectedAnimals}
+    animals={filteredAnimals}
+    availablePens={allPens}
+    currentPenId={penId}
+
+                
                 // ⭐ CSAK AZ onMove FUNKCIÓ FRISSÍTÉSE - METADATA TÁMOGATÁSSAL
 // Keresd meg ezt a részt a fájlban (787. sor környékén) és cseréld le:
 
@@ -1247,15 +1310,30 @@ onMove={async (targetPenId, reason, notes, isHistorical, moveDate, functionType,
             moved_by: 'manual'
         }));
 
-        const { error: movementError } = await supabase
-            .from('animal_movements')
-            .insert(movements);
+       // 3. ✅ EGYSÉGES ESEMÉNY RÖGZÍTÉS - animal_events táblába!
+const events = selectedAnimals.map(animalId => ({
+    animal_id: animalId,
+    event_type: 'pen_movement',
+    event_date: actualMoveDate.split('T')[0],
+    event_time: actualMoveDate.split('T')[1]?.substring(0, 8) || '12:00:00',
+    pen_id: targetPenId,
+    previous_pen_id: penId,
+    pen_function: functionType || null,
+    function_metadata: metadata || null,
+    reason: reason,
+    notes: notes || null,
+    is_historical: isHistorical || false
+}));
 
-        if (movementError) {
-            console.warn('⚠️ Mozgatási történet mentése sikertelen:', movementError.message);
-        } else {
-            console.log('✅ Mozgatási történet mentve metadata-val:', movements);
-        }
+const { error: eventError } = await supabase
+    .from('animal_events')
+    .insert(events);
+
+if (eventError) {
+    console.warn('⚠️ Esemény mentése sikertelen:', eventError.message);
+} else {
+    console.log('✅ Események mentve animal_events táblába:', events);
+}
 
         // 4. ✅ UI FRISSÍTÉS - SIKERÜZENET HÁREM INFORMÁCIÓKKAL
         console.log(`✅ ${selectedAnimals.length} állat sikeresen mozgatva ${targetPenId} karamra`);
