@@ -14,6 +14,8 @@ import VVForm from '@/components/vv-form';
 import CurrentStatusTab from './components/current-status-tab';
 import BirthForm from '@/components/birth-form';
 import { FatherOption, Birth, FatherLoadData } from '@/types/birth-types';
+import AnimalTimeline from '@/components/AnimalTimeline';
+import TeljesKaramTortenelem from '@/components/TeljesKaramTortenelem';
 
 interface Animal {
   id: number;
@@ -2210,6 +2212,7 @@ export default function AnimalDetailPage() {
     { id: 'reszletek', name: '📋 Részletek' },
     { id: 'szuletesi', name: '📅 Születési adatok' },
     { id: 'helyzet', name: '📍 Jelenlegi helyzet' },
+    { id: 'karam-tortenelem', name: '📚 Karám Történelem' },
     { id: 'csalad', name: '🐄💕🐂 Család' },
     { id: 'szaporitas', name: '🔬 Szaporítás' },
     { id: 'elles', name: '🐄 Ellés' },
@@ -2444,108 +2447,26 @@ export default function AnimalDetailPage() {
                   )}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    📍 Jelenlegi karám
-                  </label>
-                  {isEditing ? (
-  <div className="space-y-3" style={{display: 'none'}}>
-                      {/* ⭐ KARÁM DROPDOWN */}
-                      <select
-                        value={editedAnimal.jelenlegi_karam || ''}
-                        onChange={(e) => handlePenChange(e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white"
-                      >
-                        {penOptions.map(option => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-
-                      {/* ⭐ ÚJ: KARÁM HOZZÁRENDELÉS DÁTUMA */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-600 mb-1">
-                          📅 Karámba kerülés dátuma
-                        </label>
-                        <input
-                          type="date"
-                          value={editedAnimal.pen_assignment_date || new Date().toISOString().split('T')[0]}
-                          onChange={(e) => updateField('pen_assignment_date', e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white"
-                          max={new Date().toISOString().split('T')[0]}
-                        />
-                        <p className="mt-1 text-xs text-gray-500">
-                          Mikor került az állat ebbe a karámba
-                        </p>
-                      </div>
-
-                      {/* ⭐ ÚJ: HOZZÁRENDELÉS OKA */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-600 mb-1">
-                          🎯 Hozzárendelés oka
-                        </label>
-                        <select
-                          value={editedAnimal.pen_assignment_reason || 'other'}
-                          onChange={(e) => updateField('pen_assignment_reason', e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white"
-                        >
-                          <option value="age_separation">🎂 Életkor alapú válogatás</option>
-                          <option value="breeding">💕 Tenyésztésbe állítás</option>
-                          <option value="pregnancy">🐄💖 Vemhesség</option>
-                          <option value="birthing">🍼 Ellés előkészítés</option>
-                          <option value="health">🏥 Egészségügyi ok</option>
-                          <option value="capacity">📊 Kapacitás optimalizálás</option>
-                          <option value="function_change">🔄 Karám funkció váltás</option>
-                          <option value="other">❓ Egyéb</option>
-                        </select>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      {(() => {
-                        const assignment = (animal as any).animal_pen_assignments?.find(
-                          (a: any) => a.removed_at === null
-                        );
-
-                        const penInfo = assignment?.pens;
-
-                        if (penInfo?.pen_number) {
-                          return (
-                            <div className="space-y-2">
-                              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                                📍 {penInfo.pen_number} - {penInfo.location}
-                              </span>
-                              {assignment?.assigned_at && (
-                                <div className="text-xs text-gray-500">
-                                  📅 {new Date(assignment.assigned_at).toLocaleDateString('hu-HU')} óta
-                                  {assignment.assignment_reason && (
-                                    <span className="ml-2">
-                                      • {assignment.assignment_reason === 'age_separation' ? '🎂 Életkor alapú válogatás' :
-                                        assignment.assignment_reason === 'breeding' ? '💕 Tenyésztésbe állítás' :
-                                          assignment.assignment_reason === 'pregnancy' ? '🐄💖 Vemhesség' :
-                                            assignment.assignment_reason === 'birthing' ? '🍼 Ellés előkészítés' :
-                                              assignment.assignment_reason === 'health' ? '🏥 Egészségügyi ok' :
-                                                assignment.assignment_reason === 'capacity' ? '📊 Kapacitás optimalizálás' :
-                                                  assignment.assignment_reason === 'function_change' ? '🔄 Karám funkció váltás' :
-                                                    '❓ Egyéb'}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        } else {
-                          return (
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
-                              🏠 Nincs karám hozzárendelés
-                            </span>
-                          );
-                        }
-                      })()}
-                    </div>
-                  )}
-                </div>
+               {/* JELENLEGI KARÁM MEGJELENÍTÉS JAVÍTÁSA: */}
+<div className="mb-4">
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    📍 Jelenlegi karám
+  </label>
+  <div className="p-3 bg-green-50 rounded-md border border-green-200">
+    <span className="text-green-800 font-medium">
+      {animal.jelenlegi_karam || 'Karám meghatározás folyamatban...'}
+    </span>
+    <button 
+      onClick={() => {
+        fetchAnimal(animal.enar); // ← JAVÍTVA: enar paraméter
+        console.log('🔄 Állat adatok kézi frissítése');
+      }}
+      className="ml-3 text-xs text-green-600 hover:text-green-800"
+    >
+      🔄 Frissítés
+    </button>
+  </div>
+</div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -2688,9 +2609,24 @@ export default function AnimalDetailPage() {
         )}
 
         {/* Jelenlegi helyzet Tab */}
-        {activeTab === 'helyzet' && (
-          <CurrentStatusTab animal={animal} />
-        )}
+        <div className="p-6 bg-white rounded-lg">
+  <h3 className="text-lg font-semibold mb-4">🔄 Átmenetileg kikapcsolva</h3>
+  <p>Új komponens hamarosan!</p>
+</div>
+
+        {/* Karám Történelem Tab */}
+{activeTab === 'karam-tortenelem' && (
+  <div className="p-6 bg-white rounded-lg">
+    <TeljesKaramTortenelem 
+      animalId={animal.id}
+      mode="animal"
+      onDataChange={() => {
+        console.log('🔄 Karám történelem változott - frissítés');
+        // Itt lehetne frissíteni az állat adatokat, ha szükséges
+      }}
+    />
+  </div>
+)}
 
         {/* Család Tab */}
         {activeTab === 'csalad' && (
@@ -3160,11 +3096,12 @@ export default function AnimalDetailPage() {
               )}
             </div>
 
-            {/* Esemény Timeline - később */}
-            <div className="bg-gray-50 rounded-lg p-6 text-center">
-              <div className="text-gray-400 text-4xl mb-2">🕐</div>
-              <p className="text-gray-500">Esemény timeline hamarosan...</p>
-            </div>
+            {/* Esemény Timeline - MOST MŰKÖDIK! */}
+{/* Esemény Timeline - ÁTMENETILEG KIKAPCSOLVA */}
+<div className="p-6 bg-white rounded-lg">
+  <h3 className="text-lg font-semibold mb-4">📅 Esemény Timeline</h3>
+  <p>Átmenetileg kikapcsolva - hamarosan új verzió!</p>
+</div>
           </div>
         )}
       </div>

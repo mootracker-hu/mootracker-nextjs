@@ -669,6 +669,8 @@ const HizoikaAnimalTable: React.FC<AnimalTableProps> = ({
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">🏷️ ENAR</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">📅 Születési dátum</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">⚖️ Jelenlegi súly</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">📊 Utolsó mérés</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">🎯 18 hónapos ekkor</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">🎯 24 hónapos ekkor</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">📝 Feljegyzés</th>
@@ -707,11 +709,15 @@ const HizoikaAnimalTable: React.FC<AnimalTableProps> = ({
                                         </Link>
                                     )}
                                 </td>
+                                {/* ⚖️ JELENLEGI SÚLY - EXTRA SAFE */}
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {formatDate(animal.szuletesi_datum)}
+                                    <span className="text-orange-600 font-medium">-</span>
+                                    <div className="text-xs text-gray-500">Nincs mérés</div>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-orange-600">
-                                    {eighteenMonthTarget}
+                                {/* 📊 UTOLSÓ MÉRÉS - EXTRA SAFE */}
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span className="text-gray-400">-</span>
+                                    <div className="text-xs text-gray-400">Mérés szükséges</div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-red-600">
                                     {twentyFourMonthTarget}
