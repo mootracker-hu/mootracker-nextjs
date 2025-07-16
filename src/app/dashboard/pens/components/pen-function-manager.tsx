@@ -5,6 +5,299 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';  // ← ADD HOZZÁ EZT!
 import { PenFunctionType, PEN_FUNCTION_LABELS, NOTES_TEMPLATES, KorhazMetadata, AtmenetiMetadata, KarantenMetadata, SelejtMetadata } from '@/types/alert-task-types';
 
+// 🔹 HÁREM SZINKRONIZÁCIÓ - INLINE MEGOLDÁS
+// Töröld ki az import sort és illeszd be ezt:
+
+// 🔹 INTERFACES
+interface Bull {
+  id: string;
+  name: string;
+  enar: string;
+  kplsz?: string;
+  active: boolean;
+  source?: 'metadata' | 'physical' | 'both';
+}
+
+interface SyncResult {
+  success: boolean;
+  message: string;
+  data?: any;
+}
+
+// 🔹 KÖZPONTI SZINKRONIZÁCIÓ FUNKCIÓ
+const syncHaremData = async (penId: string): Promise<SyncResult> => {
+  try {
+    console.log('🔄 Hárem szinkronizáció kezdése:', penId);
+
+    // 1. Karám aktuális funkciójának lekérdezése
+    const { data: penFunction, error: functionError } = await supabase
+      .from('pen_functions')
+      .select('*')
+      .eq('pen_id', penId)
+      .is('end_date', null)
+      .order('start_date', { ascending: false })
+      .limit(1);
+
+    if (functionError) {
+      console.error('❌ Karám funkció lekérdezési hiba:', functionError);
+      return { success: false, message: 'Karám funkció lekérdezési hiba' };
+    }
+
+    const currentFunction = penFunction?.[0];
+    
+    if (!currentFunction || currentFunction.function_type !== 'hárem') {
+      console.log('ℹ️ Karám nem hárem funkciójú, szinkronizáció kihagyva');
+      return { success: true, message: 'Karám nem hárem funkciójú' };
+    }
+
+    // 2. Hárem metadata-ból tenyészbikák
+    const metadataBulls = currentFunction.metadata?.bulls || [];
+    console.log('📊 Metadata tenyészbikák:', metadataBulls);
+
+    // 3. Fizikailag karámban lévő tenyészbikák
+    const physicalBulls = await getPhysicalBulls(penId);
+    console.log('🐂 Fizikai tenyészbikák:', physicalBulls);
+
+    // 4. METADATA → FIZIKAI szinkronizáció
+    for (const metadataBull of metadataBulls) {
+      const isPhysicallyPresent = physicalBulls.some((pb: Bull) => pb.enar === metadataBull.enar);
+      
+      if (!isPhysicallyPresent) {
+        console.log('🔄 Metadata bika nincs fizikailag jelen:', metadataBull.name);
+        
+        // Tenyészbika ID megkeresése az animals táblában
+        const animalId = await findAnimalIdByEnar(metadataBull.enar);
+        
+        if (animalId) {
+          await moveAnimalToKaram(animalId, penId, 'Hárem metadata szinkronizáció');
+          console.log('✅ Metadata bika áthelyezve fizikailag:', metadataBull.name);
+        } else {
+          console.warn('⚠️ Metadata bika nem található az animals táblában:', metadataBull.enar);
+        }
+      }
+    }
+
+    // 5. FIZIKAI → METADATA szinkronizáció
+    for (const physicalBull of physicalBulls) {
+      const isInMetadata = metadataBulls.some((mb: Bull) => mb.enar === physicalBull.enar);
+      
+      if (!isInMetadata) {
+        console.log('🔄 Fizikai bika nincs metadata-ban:', physicalBull.enar);
+        
+        // Tenyészbika hozzáadása a metadata-hoz
+        await addBullToHaremMetadata(penId, physicalBull);
+        console.log('✅ Fizikai bika hozzáadva metadata-hoz:', physicalBull.enar);
+      }
+    }
+
+    return { 
+      success: true, 
+      message: 'Hárem szinkronizáció sikeres',
+      data: { metadataBulls, physicalBulls }
+    };
+
+  } catch (error) {
+    console.error('❌ Hárem szinkronizációs hiba:', error);
+    return { 
+      success: false, 
+      message: (error as Error).message || 'Ismeretlen hiba' 
+    };
+  }
+};
+
+// 🔹 FIZIKAI TENYÉSZBIKÁK LEKÉRDEZÉSE
+const getPhysicalBulls = async (penId: string): Promise<Bull[]> => {
+  try {
+    const { data: assignments, error } = await supabase
+      .from('animal_pen_assignments')
+      .select(`
+        animal_id,
+        animals!inner(
+          id,
+          enar,
+          kategoria
+        )
+      `)
+      .eq('pen_id', penId)
+      .is('removed_at', null);
+
+    if (error) {
+      console.error('❌ Fizikai tenyészbikák lekérdezési hiba:', error);
+      return [];
+    }
+
+    // Csak tenyészbikák szűrése
+    const bulls = assignments
+      ?.filter((assignment: any) => assignment.animals?.kategoria === 'tenyészbika')
+      .map((assignment: any) => ({
+        id: assignment.animals.id.toString(),
+        name: assignment.animals.enar.split(' ').pop() || 'Névtelen',
+        enar: assignment.animals.enar,
+        active: true
+      })) || [];
+
+    return bulls;
+  } catch (error) {
+    console.error('❌ Fizikai tenyészbikák lekérdezési exception:', error);
+    return [];
+  }
+};
+
+// 🔹 ÁLLAT ID KERESÉSE ENAR ALAPJÁN
+const findAnimalIdByEnar = async (enar: string): Promise<number | null> => {
+  try {
+    const { data: animal, error } = await supabase
+      .from('animals')
+      .select('id')
+      .eq('enar', enar)
+      .single();
+
+    if (error || !animal) {
+      console.error('❌ Állat nem található ENAR alapján:', enar, error);
+      return null;
+    }
+
+    return animal.id;
+  } catch (error) {
+    console.error('❌ Állat ID keresési exception:', error);
+    return null;
+  }
+};
+
+// 🔹 ÁLLAT FIZIKAI ÁTHELYEZÉSE KARÁMBA
+const moveAnimalToKaram = async (
+  animalId: number, 
+  penId: string, 
+  reason: string = 'Hárem szinkronizáció'
+): Promise<SyncResult> => {
+  try {
+    console.log('🔄 Állat áthelyezése:', animalId, '→', penId);
+
+    // 1. Régi hozzárendelések lezárása
+    const { error: removeError } = await supabase
+      .from('animal_pen_assignments')
+      .update({ removed_at: new Date().toISOString() })
+      .eq('animal_id', animalId)
+      .is('removed_at', null);
+
+    if (removeError) {
+      console.error('❌ Régi hozzárendelések lezárási hiba:', removeError);
+    }
+
+    // 2. Új hozzárendelés létrehozása
+    const { error: assignError } = await supabase
+      .from('animal_pen_assignments')
+      .insert({
+        animal_id: animalId,
+        pen_id: penId,
+        assigned_at: new Date().toISOString(),
+        assignment_reason: reason
+      });
+
+    if (assignError) {
+      console.error('❌ Új hozzárendelés létrehozási hiba:', assignError);
+      return { success: false, message: 'Fizikai áthelyezés sikertelen' };
+    }
+
+    // 3. Animals tábla frissítése
+    const { data: penData } = await supabase
+      .from('pens')
+      .select('pen_number')
+      .eq('id', penId)
+      .single();
+
+    if (penData) {
+      await supabase
+        .from('animals')
+        .update({ jelenlegi_karam: penData.pen_number })
+        .eq('id', animalId);
+    }
+
+    // 4. Esemény rögzítése
+    await supabase
+      .from('animal_events')
+      .insert({
+        animal_id: animalId,
+        event_type: 'pen_movement',
+        event_date: new Date().toISOString().split('T')[0],
+        event_time: new Date().toISOString().split('T')[1].substring(0, 8),
+        pen_id: penId,
+        reason: reason,
+        notes: 'Automatikus hárem szinkronizáció',
+        is_historical: false
+      });
+
+    console.log('✅ Állat sikeresen áthelyezve:', animalId, '→', penId);
+    return { success: true, message: 'Állat sikeresen áthelyezve' };
+
+  } catch (error) {
+    console.error('❌ Állat áthelyezési exception:', error);
+    return { success: false, message: (error as Error).message };
+  }
+};
+
+// 🔹 TENYÉSZBIKA HOZZÁADÁSA HÁREM METADATA-HOZ
+const addBullToHaremMetadata = async (
+  penId: string, 
+  bull: Bull
+): Promise<SyncResult> => {
+  try {
+    console.log('🔄 Tenyészbika hozzáadása metadata-hoz:', bull.name);
+
+    // 1. Aktuális karám funkció lekérdezése
+    const { data: penFunction, error: functionError } = await supabase
+      .from('pen_functions')
+      .select('*')
+      .eq('pen_id', penId)
+      .is('end_date', null)
+      .order('start_date', { ascending: false })
+      .limit(1);
+
+    if (functionError || !penFunction?.[0]) {
+      console.error('❌ Karám funkció lekérdezési hiba:', functionError);
+      return { success: false, message: 'Karám funkció nem található' };
+    }
+
+    const currentFunction = penFunction[0];
+    
+    // 2. Metadata frissítése
+    const currentMetadata = currentFunction.metadata || {};
+    const currentBulls = currentMetadata.bulls || [];
+    
+    // Ellenőrzés: már benne van-e?
+    const bullExists = currentBulls.some((b: Bull) => b.enar === bull.enar);
+    
+    if (!bullExists) {
+      const updatedBulls = [...currentBulls, bull];
+      
+      const { error: updateError } = await supabase
+        .from('pen_functions')
+        .update({
+          metadata: {
+            ...currentMetadata,
+            bulls: updatedBulls
+          }
+        })
+        .eq('id', currentFunction.id);
+
+      if (updateError) {
+        console.error('❌ Metadata frissítési hiba:', updateError);
+        return { success: false, message: 'Metadata frissítés sikertelen' };
+      }
+
+      console.log('✅ Tenyészbika hozzáadva metadata-hoz:', bull.name);
+    } else {
+      console.log('ℹ️ Tenyészbika már benne van a metadata-ban:', bull.name);
+    }
+
+    return { success: true, message: 'Metadata frissítve' };
+
+  } catch (error) {
+    console.error('❌ Metadata frissítési exception:', error);
+    return { success: false, message: (error as Error).message };
+  }
+};
+
 interface Pen {
   id: string;
   pen_number: string;
@@ -498,83 +791,83 @@ useEffect(() => {
   };
 
   // Funkció változtatás - TÖRTÉNETI TÁMOGATÁSSAL
-  const handleFunctionChange = async () => {
-    if (!newFunction) return;
+const handleFunctionChange = async () => {
+  if (!newFunction) return;
 
-    // Validáció
-    if (isHistoricalEntry && !endDate) {
-      alert('⚠️ Történeti periódushoz záró dátum szükséges!');
-      return;
-    }
+  // Validáció
+  if (isHistoricalEntry && !endDate) {
+    alert('⚠️ Történeti periódushoz záró dátum szükséges!');
+    return;
+  }
 
-    setLoading(true);
-    try {
-      console.log('🔄 Funkció váltás kezdése...', {
-        newFunction,
-        penId: pen.id,
-        isHistoricalEntry,
-        startDate,
-        endDate
-      });
+  setLoading(true);
+  try {
+    console.log('🔄 Funkció váltás kezdése...', {
+      newFunction,
+      penId: pen.id,
+      isHistoricalEntry,
+      startDate,
+      endDate
+    });
 
-      let finalMetadata = buildMetadata();
+    let finalMetadata = buildMetadata();
 
-      // ✅ HÁREM SPECIFIKUS SNAPSHOT KÉSZÍTÉS
-      if (newFunction === 'hárem' && (selectedBulls.length > 0 || parozasKezdete)) {
-        console.log('📸 Hárem snapshot készítése...');
+    // ✅ HÁREM SPECIFIKUS SNAPSHOT KÉSZÍTÉS
+    if (newFunction === 'hárem' && (selectedBulls.length > 0 || parozasKezdete)) {
+      console.log('📸 Hárem snapshot készítése...');
 
-        const haremSnapshot = await createHaremSnapshot(
-          pen.id,
-          selectedBulls,
-          parozasKezdete,
-          vvEsedekessege
-        );
+      const haremSnapshot = await createHaremSnapshot(
+        pen.id,
+        selectedBulls,
+        parozasKezdete,
+        vvEsedekessege
+      );
 
-        finalMetadata = {
-          ...finalMetadata,
-          ...haremSnapshot
-        };
-
-        console.log('✅ Hárem snapshot hozzáadva a metadata-hoz');
-      }
-
-      const finalNotes = notes + (customNotes ? `\n\n${customNotes}` : '');
-
-      // ✅ ÚJ LOGIKA: Dátumok kezelése
-      const insertData = {
-        pen_id: pen.id,
-        function_type: newFunction,
-        start_date: startDate + 'T00:00:00.000Z',
-        end_date: isHistoricalEntry
-          ? (endDate + 'T23:59:59.999Z')
-          : (endDate ? (endDate + 'T23:59:59.999Z') : null),
-        metadata: finalMetadata,
-        notes: finalNotes
+      finalMetadata = {
+        ...finalMetadata,
+        ...haremSnapshot
       };
 
-      console.log('📋 Beszúrandó adat:', insertData);
+      console.log('✅ Hárem snapshot hozzáadva a metadata-hoz');
+    }
 
-      // ✅ RÉGI FUNKCIÓ LEZÁRÁSA - csak ha NEM történeti
-      if (!isHistoricalEntry) {
-        console.log('🔒 Régi aktív funkció lezárása...');
+    const finalNotes = notes + (customNotes ? `\n\n${customNotes}` : '');
 
-        const { error: closeError } = await supabase
-          .from('pen_functions')
-          .update({ end_date: new Date().toISOString() })
-          .eq('pen_id', pen.id)
-          .is('end_date', null);
+    // ✅ ÚJ LOGIKA: Dátumok kezelése
+    const insertData = {
+      pen_id: pen.id,
+      function_type: newFunction,
+      start_date: startDate + 'T00:00:00.000Z',
+      end_date: isHistoricalEntry
+        ? (endDate + 'T23:59:59.999Z')
+        : (endDate ? (endDate + 'T23:59:59.999Z') : null),
+      metadata: finalMetadata,
+      notes: finalNotes
+    };
 
-        if (closeError) {
-          console.error('❌ Régi funkció lezárási hiba:', closeError);
-          throw closeError;
-        }
+    console.log('📋 Beszúrandó adat:', insertData);
 
-        console.log('✅ Régi funkció lezárva');
-      } else {
-        console.log('📚 Történeti mód - régi funkció nem érintett');
+    // ✅ RÉGI FUNKCIÓ LEZÁRÁSA - csak ha NEM történeti
+    if (!isHistoricalEntry) {
+      console.log('🔒 Régi aktív funkció lezárása...');
+
+      const { error: closeError } = await supabase
+        .from('pen_functions')
+        .update({ end_date: new Date().toISOString() })
+        .eq('pen_id', pen.id)
+        .is('end_date', null);
+
+      if (closeError) {
+        console.error('❌ Régi funkció lezárási hiba:', closeError);
+        throw closeError;
       }
 
-      // ✅ EDIT MÓD vs ÚJ FUNKCIÓ LOGIKA
+      console.log('✅ Régi funkció lezárva');
+    } else {
+      console.log('📚 Történeti mód - régi funkció nem érintett');
+    }
+
+    // ✅ EDIT MÓD vs ÚJ FUNKCIÓ LOGIKA
 if (editMode && editPeriod) {
   // EDIT MÓD: Meglévő periódus frissítése
   console.log('🔧 Edit mód: periódus frissítése...', editPeriod.id);
@@ -640,7 +933,6 @@ setTimeout(() => {
       setLoading(false);
     }
   };
-
   if (!isOpen) return null;
 
   const availableFunctions = functionTypes;

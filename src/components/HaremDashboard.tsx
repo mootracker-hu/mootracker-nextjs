@@ -58,29 +58,34 @@ const HaremDashboard: React.FC<HaremDashboardProps> = ({
 
   // Supabase client már importálva van
 
-  // Hárem státusz meghatározása - JAVÍTOTT LOGIKA
-  const determineHaremStatus = (animal: Animal): 'haremben' | 'vemhes' | 'borjas' => {
-    // PRIORITÁS 1: VV eredmény felülírja mindent!
-    if (animal.pregnancy_status === 'vemhes' || 
-        animal.pregnancy_status === 'pregnant' || 
-        animal.expected_birth_date) {
-      return 'vemhes';  // ✅ Pozitív VV = vemhes (felülírja a borjas státuszt!)
-    }
+ // Hárem státusz meghatározása - JAVÍTOTT LOGIKA
+const determineHaremStatus = (animal: Animal): 'haremben' | 'vemhes' | 'borjas' => {
+  // 🔥 KRITIKUS - TENYÉSZBIKA KIZÁRÁS
+  if (animal.kategoria === 'tenyészbika') {
+    return 'haremben'; // Tenyészbika soha nem lehet "vemhes"
+  }
+  
+  // PRIORITÁS 1: VV eredmény felülírja mindent!
+  if (animal.pregnancy_status === 'vemhes' || 
+      animal.pregnancy_status === 'pregnant' || 
+      animal.expected_birth_date) {
+    return 'vemhes';
+  }
 
-    // PRIORITÁS 2: Ha van borjú születési dátuma az utóbbi 6 hónapban → borjas
-    if (animal.last_birth_date) {
-      const birthDate = new Date(animal.last_birth_date);
-      const sixMonthsAgo = new Date();
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-      
-      if (birthDate >= sixMonthsAgo) {
-        return 'borjas';
-      }
+  // PRIORITÁS 2: Ha van borjú születési dátuma az utóbbi 6 hónapban → borjas
+  if (animal.last_birth_date) {
+    const birthDate = new Date(animal.last_birth_date);
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    
+    if (birthDate >= sixMonthsAgo) {
+      return 'borjas';
     }
+  }
 
-    // PRIORITÁS 3: Egyébként háremben (aktív tenyésztés)
-    return 'haremben';
-  };
+  // PRIORITÁS 3: Egyébként háremben (aktív tenyésztés)
+  return 'haremben';
+};
 
   // Napok számítása háremben
   const calculateDaysInHarem = (startDate: string): number => {
@@ -119,45 +124,82 @@ const HaremDashboard: React.FC<HaremDashboardProps> = ({
       const currentFunction = functionData?.[0] || null;
       setPenFunction(currentFunction);
 
-      // 2. Karámban lévő állatok lekérdezése
-      const { data: assignmentData, error: assignmentError } = await supabase
-        .from('animal_pen_assignments')
-        .select(`
-          animal_id,
-          assigned_at,
-          animals (
-            id,
-            enar,
-            szuletesi_datum,
-            ivar,
-            kategoria,
-            pregnancy_status,
-            expected_birth_date,
-            last_birth_date,
-            notes
-          )
-        `)
-        .eq('pen_id', penId)
-        .is('removed_at', null);
+      // 2. Karámban lévő állatok lekérdezése - HÁREM RELEVÁNS SZŰRÉSSEL
+const { data: assignmentData, error: assignmentError } = await supabase
+  .from('animal_pen_assignments')
+  .select(`
+    animal_id,
+    assigned_at,
+    animals (
+      id,
+      enar,
+      szuletesi_datum,
+      ivar,
+      kategoria,
+      pregnancy_status,
+      expected_birth_date,
+      last_birth_date,
+      notes
+    )
+  `)
+  .eq('pen_id', penId)
+  .is('removed_at', null);
 
-      if (assignmentError) throw assignmentError;
+// 🔥 ÚJ - HÁREM RELEVANCIA SZŰRÉS
+if (assignmentError) {
+  console.error('❌ Hárem állatok lekérdezési hiba:', assignmentError);
+  setError('Nem sikerült betölteni a hárem állatokat');
+  return;
+}
 
-      // 3. Állatok feldolgozása hárem státusszal
-      const processedAnimals: HaremAnimal[] = (assignmentData || []).map((assignment: any) => {
-        const animal = assignment.animals;
-        const haremStatus = determineHaremStatus(animal);
-        
-        const haremAnimal: HaremAnimal = {
-          ...animal,
-          haremStatus,
-          haremStartDate: assignment.assigned_at,
-          expectedBirthDate: animal.expected_birth_date,
-          daysInHarem: calculateDaysInHarem(assignment.assigned_at),
-          bulls: currentFunction?.metadata?.bulls?.map((b: any) => b.name) || []
-        };
+// Csak hárem-releváns állatok megtartása
+const haremRelevantAnimals = assignmentData?.filter((assignment: any) => {
+  const animal = assignment.animals;
+  if (!animal) return false;
+  
+  // 1. Tenyészbikák mindig relevánsak
+  if (animal.kategoria === 'tenyészbika') {
+    console.log(`✅ Tenyészbika: ${animal.enar}`);
+    return true;
+  }
+  
+  // 2. Nőivarok esetén életkor ellenőrzés (24+ hónap)
+  if (animal.ivar === 'nő') {
+    const birthDate = new Date(animal.szuletesi_datum);
+    const ageInMonths = Math.floor((new Date().getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
+    
+    if (ageInMonths >= 24) {
+      console.log(`✅ Nőivar 24+ hónap: ${animal.enar} (${ageInMonths} hónap)`);
+      return true;
+    } else {
+      console.log(`❌ Nőivar túl fiatal: ${animal.enar} (${ageInMonths} hónap)`);
+      return false;
+    }
+  }
+  
+  // 3. Minden más (hízóbika, stb.) kizárva
+  console.log(`❌ Nem hárem-releváns: ${animal.enar} (${animal.kategoria})`);
+  return false;
+}) || [];
 
-        return haremAnimal;
-      });
+console.log(`🐄💕 Hárem releváns állatok: ${haremRelevantAnimals.length}/${assignmentData?.length || 0}`);
+
+// 3. Állatok feldolgozása hárem státusszal - SZŰRT ÁLLATOKKAL!
+const processedAnimals: HaremAnimal[] = haremRelevantAnimals.map((assignment: any) => {
+  const animal = assignment.animals;
+  const haremStatus = determineHaremStatus(animal);
+  
+  const haremAnimal: HaremAnimal = {
+    ...animal,
+    haremStatus,
+    haremStartDate: assignment.assigned_at,
+    expectedBirthDate: animal.expected_birth_date,
+    daysInHarem: calculateDaysInHarem(assignment.assigned_at),
+    bulls: currentFunction?.metadata?.bulls?.map((b: any) => b.name) || []
+  };
+
+  return haremAnimal;
+});
 
       setAnimals(processedAnimals);
 

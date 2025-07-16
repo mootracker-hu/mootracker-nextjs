@@ -11,11 +11,14 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import VVForm from '@/components/vv-form';
-import CurrentStatusTab from './components/current-status-tab';
+// import CurrentStatusTab from './components/current-status-tab';
 import BirthForm from '@/components/birth-form';
 import { FatherOption, Birth, FatherLoadData } from '@/types/birth-types';
-import AnimalTimeline from '@/components/AnimalTimeline';
+//import AnimalTimeline from '@/components/AnimalTimeline';
 import TeljesKaramTortenelem from '@/components/TeljesKaramTortenelem';
+import PenHistoryTab from '@/components/PenHistoryTab';
+import AnimalPenHistory from '@/components/AnimalPenHistory';
+import HybridAnimalPenHistory from '@/components/HybridAnimalPenHistory';
 
 interface Animal {
   id: number;
@@ -1576,7 +1579,9 @@ export default function AnimalDetailPage() {
   const [showBloodTestModal, setShowBloodTestModal] = useState(false);
   const [showManualFatherModal, setShowManualFatherModal] = useState(false);
   const [editingFatherData, setEditingFatherData] = useState(false);
+  const [currentPen, setCurrentPen] = useState<string | null>(null);
   const [manualFatherForm, setManualFatherForm] = useState({
+  
     father_enar: '',
     father_name: '',
     father_kplsz: '',
@@ -1619,7 +1624,7 @@ export default function AnimalDetailPage() {
         const { error: closeError } = await supabase
           .from('animal_pen_assignments')
           .update({ removed_at: new Date().toISOString() })
-          .eq('animal_id', animal.id)
+          .eq('animal_id', animal?.id)
           .is('removed_at', null);
 
         if (closeError) {
@@ -1678,12 +1683,20 @@ export default function AnimalDetailPage() {
       // ⭐ JAVÍTOTT STATE FRISSÍTÉS
       setIsEditing(false);  // Először editing módot kikapcsoljuk
 
+      // Jelenlegi karám betöltése komponens betöltéskor
+useEffect(() => {
+  if (animal?.id) {
+    fetchCurrentPen();
+  }
+}, [animal?.id]);
+
       // Majd frissítjük az adatokat
-      setTimeout(async () => {
-        if (animal.enar) {
-          await fetchAnimal(animal.enar);  // Adatok újratöltése
-        }
-      }, 300);
+      // Azonnali adatok újratöltése
+if (animal.enar) {
+  await fetchAnimal(animal.enar);
+  await fetchCurrentPen(); // ← ÚJ: jelenlegi karám is frissül
+  console.log('✅ Állat adatok és jelenlegi karám automatikusan frissítve');
+}
 
     } catch (error) {
       console.error('❌ Mentési hiba:', error);
@@ -1692,6 +1705,44 @@ export default function AnimalDetailPage() {
       setSaving(false);
     }
   };
+
+  // Real-time jelenlegi karám lekérdezése
+const fetchCurrentPen = async () => {
+  if (!animal?.id) {
+    console.log('❌ Nincs állat ID');
+    return;
+  }
+
+  try {
+    console.log('🔍 Jelenlegi karám lekérdezése...');
+    
+    const { data, error } = await supabase
+      .from('animal_pen_assignments')
+      .select(`
+        assigned_at,
+        pens!inner(pen_number)
+      `)
+      .eq('animal_id', animal.id)
+      .is('removed_at', null)
+      .order('assigned_at', { ascending: false })
+      .limit(1)
+      .single();
+      
+    if (error) {
+      console.log('ℹ️ Nincs aktív karám hozzárendelés, fallback használata');
+      setCurrentPen(animal.jelenlegi_karam || null);
+      return;
+    }
+    
+    const penNumber = (data?.pens as any)?.pen_number;
+    console.log('✅ Jelenlegi karám:', penNumber);
+    setCurrentPen(penNumber || null);
+    
+  } catch (error) {
+    console.error('❌ Jelenlegi karám lekérdezési hiba:', error);
+    setCurrentPen(animal?.jelenlegi_karam || null);
+  }
+};
 
   // Manual URL parsing
   useEffect(() => {
@@ -2211,7 +2262,6 @@ export default function AnimalDetailPage() {
   const tabs: { id: string; name: string }[] = [
     { id: 'reszletek', name: '📋 Részletek' },
     { id: 'szuletesi', name: '📅 Születési adatok' },
-    { id: 'helyzet', name: '📍 Jelenlegi helyzet' },
     { id: 'karam-tortenelem', name: '📚 Karám Történelem' },
     { id: 'csalad', name: '🐄💕🐂 Család' },
     { id: 'szaporitas', name: '🔬 Szaporítás' },
@@ -2453,19 +2503,10 @@ export default function AnimalDetailPage() {
     📍 Jelenlegi karám
   </label>
   <div className="p-3 bg-green-50 rounded-md border border-green-200">
-    <span className="text-green-800 font-medium">
-      {animal.jelenlegi_karam || 'Karám meghatározás folyamatban...'}
-    </span>
-    <button 
-      onClick={() => {
-        fetchAnimal(animal.enar); // ← JAVÍTVA: enar paraméter
-        console.log('🔄 Állat adatok kézi frissítése');
-      }}
-      className="ml-3 text-xs text-green-600 hover:text-green-800"
-    >
-      🔄 Frissítés
-    </button>
-  </div>
+  <span className="text-green-800 font-medium">
+  {currentPen || 'Karám meghatározás folyamatban...'}
+  </span>
+</div>
 </div>
 
                 <div>
@@ -2608,22 +2649,12 @@ export default function AnimalDetailPage() {
           </div>
         )}
 
-        {/* Jelenlegi helyzet Tab */}
-        <div className="p-6 bg-white rounded-lg">
-  <h3 className="text-lg font-semibold mb-4">🔄 Átmenetileg kikapcsolva</h3>
-  <p>Új komponens hamarosan!</p>
-</div>
-
-        {/* Karám Történelem Tab */}
+ {/* Karám Történelem Tab - ÚJ HIBRID KÁRTYA RENDSZER */}
 {activeTab === 'karam-tortenelem' && (
   <div className="p-6 bg-white rounded-lg">
-    <TeljesKaramTortenelem 
-      animalId={animal.id}
-      mode="animal"
-      onDataChange={() => {
-        console.log('🔄 Karám történelem változott - frissítés');
-        // Itt lehetne frissíteni az állat adatokat, ha szükséges
-      }}
+    <HybridAnimalPenHistory 
+      animalEnar={animal.enar}
+      animalId={animal.id.toString()} // string konverzió
     />
   </div>
 )}

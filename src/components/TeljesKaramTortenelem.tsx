@@ -23,6 +23,8 @@ interface KombinaltEsemeny {
     pen_number?: string;
     pen_location?: string;
     animal_enar?: string;
+    animal_kategoria?: string;
+    animal_pregnancy_status?: string;
 }
 
 interface TenyeszBika {
@@ -149,7 +151,7 @@ const TeljesKaramTortenelem: React.FC<TeljesKaramTortenelemProps> = ({
             }
 
             const { data: events, error: eventsError } = await eventsQuery;
-            
+
             console.log('📊 Animal events lekérdezés eredménye (egyszerűsített):', {
                 penId,
                 animalId,
@@ -162,23 +164,27 @@ const TeljesKaramTortenelem: React.FC<TeljesKaramTortenelemProps> = ({
                 // KÜLÖN lekérdezések az állat és karám nevekhez
                 const animalIds = [...new Set(events.map(e => e.animal_id).filter(Boolean))];
                 const penIds = [...new Set(events.map(e => e.pen_id).filter(Boolean))];
-                
-                // Állat nevek betöltése
-                let animalNames: { [key: number]: string } = {};
+
+                // Állat nevek ÉS KATEGÓRIÁK betöltése
+                let animalNames: { [key: number]: any } = {};
                 if (animalIds.length > 0) {
                     const { data: animalsData } = await supabase
                         .from('animals')
-                        .select('id, enar')
+                        .select('id, enar, kategoria, pregnancy_status')  // ← BŐVÍTÉS!
                         .in('id', animalIds);
-                    
+
                     if (animalsData) {
-                        animalNames = animalsData.reduce((acc: { [key: number]: string }, animal: any) => {
-                            acc[animal.id] = animal.enar;
+                        animalNames = animalsData.reduce((acc: { [key: number]: any }, animal: any) => {
+                            acc[animal.id] = {
+                                enar: animal.enar,
+                                kategoria: animal.kategoria,
+                                pregnancy_status: animal.pregnancy_status
+                            };
                             return acc;
                         }, {});
                     }
                 }
-                
+
                 // Karám nevek betöltése
                 let penNames: { [key: string]: { pen_number: string, location: string } } = {};
                 if (penIds.length > 0) {
@@ -186,7 +192,7 @@ const TeljesKaramTortenelem: React.FC<TeljesKaramTortenelemProps> = ({
                         .from('pens')
                         .select('id, pen_number, location')
                         .in('id', penIds);
-                    
+
                     if (pensData) {
                         penNames = pensData.reduce((acc: { [key: string]: any }, pen: any) => {
                             acc[pen.id] = { pen_number: pen.pen_number, location: pen.location };
@@ -212,7 +218,9 @@ const TeljesKaramTortenelem: React.FC<TeljesKaramTortenelemProps> = ({
                         function_metadata: event.function_metadata,
                         pen_number: penNames[event.pen_id]?.pen_number || `Karám ID: ${event.pen_id}`,
                         pen_location: penNames[event.pen_id]?.location || '',
-                        animal_enar: animalNames[event.animal_id] || `ID: ${event.animal_id}`
+                        animal_enar: animalNames[event.animal_id]?.enar || `ID: ${event.animal_id}`,
+                        animal_kategoria: animalNames[event.animal_id]?.kategoria || 'unknown',
+                        animal_pregnancy_status: animalNames[event.animal_id]?.pregnancy_status || null
                     });
                 });
             }
@@ -238,7 +246,7 @@ const TeljesKaramTortenelem: React.FC<TeljesKaramTortenelemProps> = ({
             }
 
             const { data: movements, error: movementsError } = await movementsQuery;
-            
+
             console.log('📊 Animal movements lekérdezés eredménye:', {
                 penId,
                 animalId,
@@ -288,44 +296,63 @@ const TeljesKaramTortenelem: React.FC<TeljesKaramTortenelemProps> = ({
                 });
             }
 
-            // DUPLIKÁTUM SZŰRÉS - Ugyanaz az esemény ne jelenjen meg kétszer!
-const uniqueEvents = new Map();
-kombinalt.forEach(event => {
-    // Egyedi kulcs: állat + dátum + idő + forrás tábla + valós ID
-    const realId = event.id.replace('event_', '').replace('movement_', '');
-    // EGYSZERŰBB, DE HATÉKONYABB KULCS - forrás és ID nélkül!
-const uniqueKey = `${event.animal_id}_${event.datum}`;  // ← ULTRA-AGRESSZÍV
-    
-    // Ha már van ilyen esemény, csak akkor tartsuk meg, ha jobb forrásból jön
-    if (!uniqueEvents.has(uniqueKey)) {
-    uniqueEvents.set(uniqueKey, event);
-} else {
-    const existing = uniqueEvents.get(uniqueKey);
-    // animal_events MINDIG prioritást élvez movements-hez képest
-    if (event.forrás === 'animal_events') {
-        uniqueEvents.set(uniqueKey, event);
-        console.log('🔄 Duplikátum felülírva:', uniqueKey, 'animal_events prioritás');
-    } else {
-        console.log('🚫 Duplikátum eldobva:', uniqueKey, 'movements prioritás alacsonyabb');
-    }
-}
-});
+            // DUPLIKÁTUM SZŰRÉS - JAVÍTOTT VERZIÓ
+            const uniqueEvents = new Map();
+            kombinalt.forEach(event => {
+                // 🔥 PONTOSABB KULCS - állat + dátum + idő + esemény részletek
+                const uniqueKey = `${event.animal_id}_${event.datum}_${event.idopont}_${event.ok}`;
 
-// Egyedi események lista
-const finalEvents = Array.from(uniqueEvents.values());
+                if (!uniqueEvents.has(uniqueKey)) {
+                    uniqueEvents.set(uniqueKey, event);
+                } else {
+                    const existing = uniqueEvents.get(uniqueKey);
 
-// Időrendi rendezés - LEGFRISSEBB ELSŐ!
-finalEvents.sort((a, b) => {
-    const dateA = new Date(`${a.datum}T${a.idopont}`);
-    const dateB = new Date(`${b.datum}T${b.idopont}`);
-    return dateB.getTime() - dateA.getTime();
-});
+                    // 🔥 INTELLIGENS PRIORITÁS
+                    // 1. animal_events prioritást élvez movements-hez képest
+                    if (event.forrás === 'animal_events' && existing.forrás === 'animal_movements') {
+                        uniqueEvents.set(uniqueKey, event);
+                        console.log('🔄 Duplikátum felülírva (events > movements):', uniqueKey);
+                    }
+                    // 2. Újabb esemény prioritást élvez régebbivel szemben
+                    else if (event.forrás === existing.forrás) {
+                        const eventId = parseInt(event.id.replace('event_', '').replace('movement_', ''));
+                        const existingId = parseInt(existing.id.replace('event_', '').replace('movement_', ''));
+
+                        if (eventId > existingId) {
+                            uniqueEvents.set(uniqueKey, event);
+                            console.log('🔄 Duplikátum felülírva (újabb esemény):', uniqueKey);
+                        } else {
+                            console.log('🚫 Duplikátum eldobva (régebbi esemény):', uniqueKey);
+                        }
+                    }
+                    // 3. Movements eldobása ha events van
+                    else {
+                        console.log('🚫 Duplikátum eldobva (movements < events):', uniqueKey);
+                    }
+                }
+            });
+
+            const finalEvents = Array.from(uniqueEvents.values());
+
+            console.log('✅ DUPLIKÁTUM SZŰRÉS EREDMÉNYE:', {
+                totalEvents: kombinalt.length,
+                uniqueEvents: finalEvents.length,
+                duplicatesRemoved: kombinalt.length - finalEvents.length
+            });
+
+
+            // Időrendi rendezés - LEGFRISSEBB ELSŐ!
+            finalEvents.sort((a, b) => {
+                const dateA = new Date(`${a.datum}T${a.idopont}`);
+                const dateB = new Date(`${b.datum}T${b.idopont}`);
+                return dateB.getTime() - dateA.getTime();
+            });
 
             // 🔬 VV EREDMÉNYEK BETÖLTÉSE HÁREM ESEMÉNYEKHEZ
             await loadVVResults(kombinalt);
 
             setKombinaltEsemenyek(kombinalt);
-            
+
             console.log('✅ FINAL KOMBINÁLT ESEMÉNYEK:', {
                 totalEvents: kombinalt.length,
                 penId,
@@ -444,11 +471,11 @@ finalEvents.sort((a, b) => {
     const updateCurrentPen = async (events: KombinaltEsemeny[]) => {
         // KARÁM MÓDBAN: Nem frissítjük az állat jelenlegi karám mezőjét
         // mert az végtelen loop-ot okoz a szülő komponens újratöltésével
-        
+
         if (events.length > 0 && mode === 'animal' && animalId) {
             // CSAK ÁLLAT MÓDBAN frissítjük az állat jelenlegi karám mezőjét
             const latestEvent = events[0];
-            
+
             try {
                 const { error } = await supabase
                     .from('animals')
@@ -465,7 +492,7 @@ finalEvents.sort((a, b) => {
                 console.warn('⚠️ Állat jelenlegi karám frissítési exception:', error);
             }
         }
-        
+
         // KARÁM MÓDBAN: Nincs szülő frissítés - elkerüljük a loop-ot
         console.log('ℹ️ updateCurrentPen befejezve, mode:', mode, 'events:', events.length);
     };
@@ -598,7 +625,7 @@ finalEvents.sort((a, b) => {
                 alert('⚠️ Karám módban válassz ki legalább egy állatot, akire vonatkozik ez az esemény!');
                 return;
             }
-            
+
             if (mode === 'animal' && !animalId) {
                 alert('⚠️ Állat ID hiányzik!');
                 return;
@@ -719,25 +746,81 @@ finalEvents.sort((a, b) => {
                 }
             }
 
+            // A handleSave funkció végén, az események mentése UTÁN add hozzá:
+
+            // 🔥 ÚJ: FIZIKAI KARÁM HOZZÁRENDELÉS
+            if (!editingEvent && !formData.torteneti) {
+                // Csak új, nem történeti eseményeknél frissítjük a fizikai hozzárendelést
+
+                const animalsToUpdate = mode === 'pen' && formData.selectedAnimals.length > 0
+                    ? formData.selectedAnimals
+                    : animalId ? [animalId] : [];
+
+                if (animalsToUpdate.length > 0) {
+                    // 1. RÉGI HOZZÁRENDELÉSEK LEZÁRÁSA
+                    const { error: removeError } = await supabase
+                        .from('animal_pen_assignments')
+                        .update({ removed_at: new Date().toISOString() })
+                        .in('animal_id', animalsToUpdate)
+                        .is('removed_at', null);
+
+                    if (removeError) {
+                        console.warn('⚠️ Régi hozzárendelések lezárása hiba:', removeError);
+                    }
+
+                    // 2. ÚJ HOZZÁRENDELÉSEK LÉTREHOZÁSA
+                    const newAssignments = animalsToUpdate.map(animalId => ({
+                        animal_id: animalId,
+                        pen_id: formData.hovaPen,
+                        assigned_at: `${formData.datum}T${formData.idopont}:00`,
+                        assignment_reason: translateReason(formData.esemenyTipus)
+                    }));
+
+                    const { error: assignError } = await supabase
+                        .from('animal_pen_assignments')
+                        .insert(newAssignments);
+
+                    if (assignError) {
+                        console.warn('⚠️ Új hozzárendelések létrehozása hiba:', assignError);
+                    } else {
+                        console.log('✅ Fizikai karám hozzárendelések frissítve:', newAssignments.length, 'állat');
+                    }
+                }
+            }
+
             // ✅ FOKOZOTT FRISSÍTÉS - MINDEN ÚJRATÖLTÉSE
             alert(`✅ Esemény sikeresen ${editingEvent ? 'frissítve' : 'rögzítve'}!`);
-            
-            // Modal bezárása először
+
+            // Modal bezárása
             setShowModal(false);
             setEditingEvent(null);
-            
+
+            // 🔥 ÚJ - SZÜLŐ KOMPONENS AZONNALI FRISSÍTÉSE
+            if (onDataChange) {
+                console.log('🔄 Szülő komponens frissítése...');
+                onDataChange(); // ← Ez fogja frissíteni a karám állat listáját
+            }
+
+            // 🔥 EXTRA - OLDAL ÚJRATÖLTÉS HA KARÁM MÓDBAN VAGYUNK
+            if (mode === 'pen') {
+                console.log('🔄 Karám oldal teljes frissítése...');
+                setTimeout(() => {
+                    window.location.reload(); // ← Brutális, de biztosan működik
+                }, 1000);
+            }
+
             // TELJES adatok újratöltése kényszerített módon
             console.log('🔄 TELJES adatok újratöltése kényszerítve...');
-            
+
             // 1. Komponens state reset
             setKombinaltEsemenyek([]);
-            
+
             // 2. Kis késleltetés és teljes újratöltés
             setTimeout(async () => {
                 await loadAllData(); // Teljes újratöltés
                 console.log('✅ Teljes újratöltés befejezve');
             }, 200);
-            
+
             // 3. Szülő komponens értesítése
             if (onDataChange) {
                 setTimeout(() => {
@@ -752,7 +835,7 @@ finalEvents.sort((a, b) => {
     };
 
     const handleDelete = async (event: KombinaltEsemeny) => {
-        if (!confirm(`⚠️ Biztosan törölni akarod ezt az eseményt?\n\nDátum: ${formatHungarianDate(event.datum)}\nÁllat: ${event.animal_enar}\nFunkció: ${event.funkci}`)) {
+        if (!confirm(`⚠️ Biztosan törölni akarod ezt az eseményt?\n\nDátum: ${formatHungarianDate(event.datum)}\nÁllat: ${event.animal_enar}\nFunkció: ${event.funkci}\n\n⚠️ Ez törli az eseményt ÉS a fizikai karám hozzárendelést is!`)) {
             return;
         }
 
@@ -760,18 +843,144 @@ finalEvents.sort((a, b) => {
             const tableName = event.forrás === 'animal_events' ? 'animal_events' : 'animal_movements';
             const realId = event.id.replace('event_', '').replace('movement_', '');
 
-            const { error } = await supabase
+            console.log('🗑️ Törlés megkezdése:', {
+                tableName,
+                realId,
+                animal_id: event.animal_id,
+                pen_id: event.to_pen,
+                mode
+            });
+
+            // 1. ✅ ESEMÉNY TÖRLÉSE (eredeti)
+            const { error: eventError } = await supabase
                 .from(tableName)
                 .delete()
                 .eq('id', realId);
 
-            if (error) throw error;
+            if (eventError) throw eventError;
+            console.log('✅ Esemény sikeresen törölve az adatbázisból');
 
-            alert('✅ Esemény sikeresen törölve!');
-            loadAllData();
+            // 2. 🔥 KRITIKUS - FIZIKAI KARÁM HOZZÁRENDELÉS TÖRLÉSE
+            // Ez a legutóbbi hozzárendelést keresve törli!
+            const { error: assignmentError } = await supabase
+                .from('animal_pen_assignments')
+                .update({
+                    removed_at: new Date().toISOString(),
+                    notes: `Törölve esemény törlése miatt: ${formatHungarianDate(event.datum)}`
+                })
+                .eq('animal_id', event.animal_id)
+                .eq('pen_id', event.to_pen)
+                .is('removed_at', null)
+                .order('assigned_at', { ascending: false })
+                .limit(1);
+
+            if (assignmentError) {
+                console.warn('⚠️ Fizikai hozzárendelés törlése hiba:', assignmentError);
+            } else {
+                console.log('✅ Fizikai karám hozzárendelés is törölve');
+
+                // 🔥 ÚJ - ANIMALS TÁBLA FRISSÍTÉSE (TypeScript safe)
+                const { data: currentAssignment } = await supabase
+                    .from('animal_pen_assignments')
+                    .select(`
+            pen_id,
+            pens!inner(pen_number)
+        `)
+                    .eq('animal_id', event.animal_id)
+                    .is('removed_at', null)
+                    .order('assigned_at', { ascending: false })
+                    .limit(1);
+
+                let newKaram: string | null = null;
+
+                if (currentAssignment && currentAssignment.length > 0) {
+                    const assignment = currentAssignment[0] as any; // Explicit any cast
+                    newKaram = assignment.pens?.pen_number || null;
+                }
+
+                await supabase
+                    .from('animals')
+                    .update({ jelenlegi_karam: newKaram })
+                    .eq('id', event.animal_id);
+
+                console.log('✅ Animals tábla frissítve:', newKaram);
+            }
+
+            // 3. 🔥 KORÁBBI KARÁM VISSZAÁLLÍTÁSA - JAVÍTOTT LOGIKA
+            const { data: previousAssignments } = await supabase
+                .from('animal_pen_assignments')
+                .select('*')
+                .eq('animal_id', event.animal_id)
+                .not('removed_at', 'is', null)  // Törölt hozzárendelések
+                .order('removed_at', { ascending: false })  // Legutóbb törölt
+                .limit(1);
+
+            if (previousAssignments && previousAssignments.length > 0) {
+                const previousAssignment = previousAssignments[0];
+
+                // Új hozzárendelés létrehozása a korábbi karám alapján
+                const { error: restoreError } = await supabase
+                    .from('animal_pen_assignments')
+                    .insert({
+                        animal_id: event.animal_id,
+                        pen_id: previousAssignment.pen_id,
+                        assigned_at: new Date().toISOString(),
+                        assignment_reason: `Visszaállítva esemény törlése miatt`,
+                        notes: `Visszaállítva korábbi karámba: ${previousAssignment.pen_id}`
+                    });
+
+                if (restoreError) {
+                    console.warn('⚠️ Korábbi karám visszaállítása hiba:', restoreError);
+                } else {
+                    console.log('✅ Állat visszaállítva korábbi karámba');
+
+                    // 🔥 ÚJ - ANIMALS TÁBLA FRISSÍTÉSE IS!
+                    const { data: penData } = await supabase
+                        .from('pens')
+                        .select('pen_number')
+                        .eq('id', previousAssignment.pen_id)
+                        .single();
+
+                    if (penData) {
+                        await supabase
+                            .from('animals')
+                            .update({ jelenlegi_karam: penData.pen_number })
+                            .eq('id', event.animal_id);
+                        console.log('✅ Animals tábla is frissítve korábbi karámmal:', penData.pen_number);
+                    }
+                }
+            } else {
+                console.log('⚠️ Nincs korábbi karám - állat "szabadon" marad');
+            }
+
+            alert('✅ Esemény ÉS fizikai karám hozzárendelés sikeresen törölve!');
+
+            // 4. 🔥 FOKOZOTT FRISSÍTÉS - MINDEN LEHETSÉGES MÓRÓN!
+            console.log('🔄 Teljes frissítés indítása...');
+
+            // A. Helyi adatok frissítése
+            await loadAllData();
+
+            // B. Szülő komponens frissítése (karám oldal)
+            if (onDataChange) {
+                console.log('🔄 Szülő komponens frissítése...');
+                setTimeout(() => {
+                    onDataChange();
+                }, 100);
+            }
+
+            // C. BRUTÁLIS MEGOLDÁS - Ha karám módban vagyunk, oldal újratöltés
+            if (mode === 'pen') {
+                console.log('🔄 Karám oldal erőltetett frissítése...');
+                setTimeout(() => {
+                    console.log('🔄 Oldal újratöltés...');
+                    window.location.reload();
+                }, 1500);
+            }
+
         } catch (error) {
             console.error('❌ Törlési hiba:', error);
-            alert('❌ Hiba történt a törlés során!');
+            alert('❌ Hiba történt a törlés során: ' + (error as Error).message);
         }
     };
 
@@ -918,8 +1127,8 @@ finalEvents.sort((a, b) => {
                             setCurrentPage(1);
                         }}
                         className={`px-3 py-2 rounded-lg font-medium transition-colors ${eventFilter === 'all'
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-white text-gray-700 hover:bg-gray-100'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-white text-gray-700 hover:bg-gray-100'
                             }`}
                     >
                         🏠 Összes ({kombinaltEsemenyek.length})
@@ -930,8 +1139,8 @@ finalEvents.sort((a, b) => {
                             setCurrentPage(1);
                         }}
                         className={`px-3 py-2 rounded-lg font-medium transition-colors ${eventFilter === 'harem'
-                                ? 'bg-pink-500 text-white'
-                                : 'bg-white text-gray-700 hover:bg-gray-100'
+                            ? 'bg-pink-500 text-white'
+                            : 'bg-white text-gray-700 hover:bg-gray-100'
                             }`}
                     >
                         💕 Hárem ({kombinaltEsemenyek.filter(e => e.funkci === 'hárem').length})
@@ -942,8 +1151,8 @@ finalEvents.sort((a, b) => {
                             setCurrentPage(1);
                         }}
                         className={`px-3 py-2 rounded-lg font-medium transition-colors ${eventFilter === 'movement'
-                                ? 'bg-green-500 text-white'
-                                : 'bg-white text-gray-700 hover:bg-gray-100'
+                            ? 'bg-green-500 text-white'
+                            : 'bg-white text-gray-700 hover:bg-gray-100'
                             }`}
                     >
                         🔄 Mozgatások ({kombinaltEsemenyek.filter(e => e.tipus === 'movement').length})
@@ -1022,7 +1231,11 @@ finalEvents.sort((a, b) => {
                                         {/* 🤍 KARÁM IDŐSZAK INFO - FŐSOR HELYÉN */}
                                         <div className="flex items-center space-x-3 mb-2">
                                             {(() => {
-                                                const nextEvent = kombinaltEsemenyek[index - 1];
+                                                const nextEvent = mode === 'animal'
+                                                    ? kombinaltEsemenyek[index - 1]  // Állat mód: következő esemény a listában (EREDETI)
+                                                    : kombinaltEsemenyek.find((e, i) =>  // Karám mód: ugyanannak az állatnak következő eseménye
+                                                        i < index && e.animal_id === esemeny.animal_id
+                                                    );
                                                 if (nextEvent) {
                                                     const karamVege = new Date(nextEvent.datum);
                                                     karamVege.setDate(karamVege.getDate() - 1);
@@ -1034,29 +1247,29 @@ finalEvents.sort((a, b) => {
                                                             📅 {formatHungarianDate(esemeny.datum)} - {formatHungarianDate(karamVege.toISOString().split('T')[0])} ({diffDays} nap)
                                                         </span>
                                                     );
-                                               } else {
-    // JAVÍTOTT LOGIKA: Csak akkor "Folyamatban", ha tényleg ez az állat jelenlegi karámja!
-    const karamKezdete = new Date(esemeny.datum);
-    const ma = new Date();
-    const diffTime = ma.getTime() - karamKezdete.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    // KARÁM MÓDBAN: Nem biztos hogy "Folyamatban" - lehet már máshol van az állat
-    if (mode === 'pen') {
-        return (
-            <span className="font-medium text-lg">
-                📅 {formatHungarianDate(esemeny.datum)} - <span className="text-blue-600">Utolsó esemény</span> ({diffDays} napja)
-            </span>
-        );
-    } else {
-        // ÁLLAT MÓDBAN: Folyamatban, mert ez az állat jelenlegi karámja
-        return (
-            <span className="font-medium text-lg">
-                📅 {formatHungarianDate(esemeny.datum)} - <span className="text-green-600">Folyamatban</span> ({diffDays} nap)
-            </span>
-        );
-    }
-}
+                                                } else {
+                                                    // JAVÍTOTT LOGIKA: Csak akkor "Folyamatban", ha tényleg ez az állat jelenlegi karámja!
+                                                    const karamKezdete = new Date(esemeny.datum);
+                                                    const ma = new Date();
+                                                    const diffTime = ma.getTime() - karamKezdete.getTime();
+                                                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                                                    // KARÁM MÓDBAN: Nem biztos hogy "Folyamatban" - lehet már máshol van az állat
+                                                    if (mode === 'pen') {
+                                                        return (
+                                                            <span className="font-medium text-lg">
+                                                                📅 {formatHungarianDate(esemeny.datum)} - <span className="text-blue-600">Utolsó esemény</span> ({diffDays} napja)
+                                                            </span>
+                                                        );
+                                                    } else {
+                                                        // ÁLLAT MÓDBAN: Folyamatban, mert ez az állat jelenlegi karámja
+                                                        return (
+                                                            <span className="font-medium text-lg">
+                                                                📅 {formatHungarianDate(esemeny.datum)} - <span className="text-green-600">Folyamatban</span> ({diffDays} nap)
+                                                            </span>
+                                                        );
+                                                    }
+                                                }
                                             })()}
                                             <span className="text-sm text-gray-500">
                                                 ({napokEltelte(esemeny.datum)})
@@ -1065,7 +1278,7 @@ finalEvents.sort((a, b) => {
                                                 }`}>
                                                 {esemeny.forrás}
                                             </span>
-                                            {index === 0 && (
+                                            {index === 0 && mode !== 'pen' && (
                                                 <span className="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-800">
                                                     ⭐ Jelenlegi
                                                 </span>
@@ -1108,8 +1321,20 @@ finalEvents.sort((a, b) => {
                                                                     const haremKezdete = new Date(esemeny.function_metadata.pairing_start_date || esemeny.datum);
 
                                                                     // Állat aktuális státusz - ezt később dynamic-ra cseréljük
-                                                                    const currentAnimalStatus = 'vemhes'; // PLACEHOLDER - később dynamic lesz
+                                                                    // 🔥 TENYÉSZBIKA KIZÁRÁS
+                                                                    const isThisAnimalABull = esemeny.function_metadata?.bulls?.some((bull: any) =>
+                                                                        bull.enar === esemeny.animal_enar
+                                                                    );
 
+                                                                    const currentAnimalStatus: string = (() => {
+                                                                        if (isThisAnimalABull) return 'tenyészbika';
+
+                                                                        // Valódi állat státusz az adatbázisból
+                                                                        if (esemeny.animal_pregnancy_status === 'vemhes') return 'vemhes';
+                                                                        if (esemeny.animal_pregnancy_status === 'empty') return 'üres';
+
+                                                                        return 'unknown';
+                                                                    })();
                                                                     if (!vvResult) {
                                                                         // Nincs VV eredmény EHHEZ a háremhez
                                                                         const ma = new Date();
@@ -1122,7 +1347,12 @@ finalEvents.sort((a, b) => {
                                                                                 <p><strong>📅 Háremben töltött idő:</strong> {diffDays} nap (folyamatban)</p>
 
                                                                                 {/* KOMPLEX ÁLLAT STÁTUSZ */}
-                                                                                {currentAnimalStatus === 'vemhes' ? (
+                                                                                {currentAnimalStatus === 'tenyészbika' ? (
+                                                                                    <>
+                                                                                        <p><strong>🐂 Tenyészbika:</strong> <span className="text-blue-600">Aktív a háremben</span></p>
+                                                                                        <p><strong>📋 Funkció:</strong> <span className="text-purple-600">Tenyésztő szerep</span></p>
+                                                                                    </>
+                                                                                ) : currentAnimalStatus === 'vemhes' ? (
                                                                                     <>
                                                                                         <p><strong>🐄 Állat egyedi státusz:</strong> <span className="text-green-600">✅ Vemhes (korábbi VV alapján)</span></p>
                                                                                         <p><strong>🔬 VV szükséges:</strong> <span className="text-gray-600">NINCS (már vemhes)</span></p>
@@ -1472,8 +1702,8 @@ finalEvents.sort((a, b) => {
                             <button
                                 onClick={handleSave}
                                 disabled={
-                                    !formData.datum || 
-                                    !formData.funkci || 
+                                    !formData.datum ||
+                                    !formData.funkci ||
                                     !formData.hovaPen ||
                                     (mode === 'pen' && !editingEvent && formData.selectedAnimals.length === 0)
                                 }

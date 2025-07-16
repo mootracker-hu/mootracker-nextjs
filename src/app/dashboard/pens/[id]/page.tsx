@@ -17,6 +17,7 @@ import * as XLSX from 'xlsx';
 // A többi import után, körülbelül a 12. sor környékén:
 import TeljesKaramTortenelem from '@/components/TeljesKaramTortenelem';
 import HaremDashboard from '@/components/HaremDashboard';
+import PenHistoryTab from '@/components/PenHistoryTab';
 
 // TypeScript interfaces - egyértelműen definiálva
 interface Animal {
@@ -1219,18 +1220,16 @@ const calculateAgeInMonths = (birthDate: string): number => {
     />
 )}
     
-    {/* Timeline Tab - ÚJ TELJES KARÁM TÖRTÉNELEM */}
+    {/* Timeline Tab - ÚJ KARÁMTÖRTÉNET KÁRTYA RENDSZER */}
 {activeTab === 'timeline' && (
-    <TeljesKaramTortenelem 
+    <PenHistoryTab 
         penId={pen.id}
         penNumber={pen.pen_number}
-        penLocation={pen.location}
         onDataChange={() => {
-            console.log('🔄 Karám történelem adatok változtak');
+            console.log('🔄 Karámtörténet adatok változtak');
             fetchPenDetails();
             fetchAnimalsInPen();
         }}
-        mode="pen"
     />
 )}
 </div>
