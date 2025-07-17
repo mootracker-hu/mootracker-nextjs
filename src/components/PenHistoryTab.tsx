@@ -5,6 +5,12 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import PenHistoryCard from './PenHistoryCard';
 import AddHistoricalPeriod from './AddHistoricalPeriod';
+import { 
+  broadcastManualPeriodAdded, 
+  broadcastPenHistoryUpdate,
+  broadcastAnimalHistoryUpdate,
+  usePenHistorySync 
+} from '@/lib/penHistorySync';
 
 interface Animal {
   id: number;
@@ -73,6 +79,9 @@ export default function PenHistoryTab({
   useEffect(() => {
     loadPeriods();
   }, [penId]);
+
+  // ✅ ÚJ: Real-time szinkronizáció (a loadPeriods függvény után)
+  const { lastSync } = usePenHistorySync(penId, undefined, loadPeriods);
 
   // Szűrt periódusok
   const filteredPeriods = periods.filter(period => {

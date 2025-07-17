@@ -1117,7 +1117,7 @@ const calculateAgeInMonths = (birthDate: string): number => {
     onClick={() => setActiveTab('dashboard')}
     className={`px-4 py-2 font-medium ${activeTab === 'dashboard' ? 'border-b-2 border-green-500 text-green-600' : 'text-gray-500'}`}
   >
-    📊 Hárem Dashboard
+    📊 {pen.current_function?.function_type === 'hízóbika' ? 'Hízóbika' : 'Karám'} Dashboard
   </button>
   <button
     onClick={() => setActiveTab('timeline')}
@@ -1212,6 +1212,7 @@ const calculateAgeInMonths = (birthDate: string): number => {
     <HaremDashboard 
         penId={pen.id}
         penNumber={pen.pen_number}
+        penFunction={pen.current_function?.function_type}  // ← ÚJ
         onDataChange={() => {
             console.log('🔄 Hárem dashboard adatok változtak');
             fetchPenDetails();

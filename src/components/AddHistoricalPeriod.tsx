@@ -1,8 +1,10 @@
 // src/components/AddHistoricalPeriod.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import AnimalSelector from './AnimalSelector';
+import { broadcastManualPeriodAdded, broadcastPenHistoryUpdate, broadcastAnimalHistoryUpdate } from '@/lib/penHistorySync';
 
 interface AddHistoricalPeriodProps {
   penId: string;
@@ -11,22 +13,25 @@ interface AddHistoricalPeriodProps {
   onCancel: () => void;
 }
 
-export default function AddHistoricalPeriod({ 
-  penId, 
-  penNumber, 
-  onSave, 
-  onCancel 
+export default function AddHistoricalPeriod({
+  penId,
+  penNumber,
+  onSave,
+  onCancel
 }: AddHistoricalPeriodProps) {
   const [formData, setFormData] = useState({
-    start_date: '',
-    end_date: '',
-    function_type: 'hárem',
-    animal_enars: '', // textarea - soronként ENAR számok
-    bull_names: '',  // hárem esetén bikák nevei
-    notes: ''
-  });
+  start_date: '',
+  end_date: '',
+  function_type: 'hárem',
+  notes: ''
+});
 
-  const [saving, setSaving] = useState(false);
+  // ÚJ: Állatok és tenyészbikák state-jei
+const [selectedAnimals, setSelectedAnimals] = useState<number[]>([]);
+const [selectedAnimalsData, setSelectedAnimalsData] = useState<any[]>([]);
+const [selectedBulls, setSelectedBulls] = useState<number[]>([]);
+const [availableBulls, setAvailableBulls] = useState<any[]>([]);
+const [saving, setSaving] = useState(false);
 
   // Funkció opciók
   const functionOptions = [
@@ -44,6 +49,51 @@ export default function AddHistoricalPeriod({
     { value: 'selejt', label: '📦 Selejt' }
   ];
 
+
+  // ÚJ: Kiválasztott állatok adatainak lekérdezése
+useEffect(() => {
+  if (selectedAnimals.length > 0) {
+    loadSelectedAnimalsData();
+  } else {
+    setSelectedAnimalsData([]);
+  }
+}, [selectedAnimals]);
+
+const loadSelectedAnimalsData = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('animals')
+      .select('id, enar, kategoria, ivar, szuletesi_datum')
+      .in('id', selectedAnimals);
+
+    if (error) throw error;
+    setSelectedAnimalsData(data || []);
+  } catch (error) {
+    console.error('❌ Kiválasztott állatok adatainak lekérdezése sikertelen:', error);
+  }
+};
+
+// ÚJ: Tenyészbikák betöltése
+useEffect(() => {
+  loadAvailableBulls();
+}, []);
+
+const loadAvailableBulls = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('animals')
+      .select('id, enar, name, kategoria')
+      .eq('kategoria', 'tenyészbika')
+      .eq('statusz', 'aktív')
+      .order('enar');
+
+    if (error) throw error;
+    setAvailableBulls(data || []);
+  } catch (error) {
+    console.error('❌ Tenyészbikák betöltése sikertelen:', error);
+  }
+};
+
   const handleSave = async () => {
     // Validáció
     if (!formData.start_date || !formData.function_type) {
@@ -51,71 +101,58 @@ export default function AddHistoricalPeriod({
       return;
     }
 
-    // ENAR-ok feldolgozása
-    const animal_enars = formData.animal_enars
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0);
-
-    if (animal_enars.length === 0) {
-      alert('⚠️ Legalább egy állat ENAR-t meg kell adni!');
+    if (selectedAnimals.length === 0) {
+      alert('⚠️ Legalább egy állatot ki kell választani!');
       return;
     }
 
     setSaving(true);
 
     try {
-      // 1. Állatok ellenőrzése és lekérdezése
-      console.log('🔍 Állatok keresése:', animal_enars);
-      
-      const { data: animals, error: animalsError } = await supabase
-        .from('animals')
-        .select('id, enar, kategoria, ivar')
-        .in('enar', animal_enars);
-
-      if (animalsError) {
-        throw new Error(`Állatok lekérdezési hiba: ${animalsError.message}`);
-      }
-
-      // Ellenőrizzük, hogy minden ENAR megtalálható-e
-      const foundEnars = animals?.map(a => a.enar) || [];
-      const missingEnars = animal_enars.filter(enar => !foundEnars.includes(enar));
-      
-      if (missingEnars.length > 0) {
-        const continueAnyway = confirm(
-          `⚠️ A következő ENAR számok nem találhatók az adatbázisban:\n\n${missingEnars.join('\n')}\n\nFolytatod a mentést a megtalált állatokkal?`
-        );
-        
-        if (!continueAnyway) {
-          setSaving(false);
-          return;
-        }
-      }
+      console.log('💾 Mentés indítása:', {
+        selectedAnimals: selectedAnimals.length,
+        animalsData: selectedAnimalsData.length,
+        functionType: formData.function_type
+      });
 
       // 2. Metadata összeállítása
       const metadata: any = {
-        animal_count: animals?.length || 0,
+        animal_count: selectedAnimalsData.length,
         manual_entry: true,
-        entry_date: new Date().toISOString()
+        entry_date: new Date().toISOString(),
+        selected_animal_ids: selectedAnimals // Hivatkozás az állat ID-kre
       };
 
       // Hárem specifikus metadata
-      if (formData.function_type === 'hárem' && formData.bull_names) {
-        const bullNames = formData.bull_names
-          .split(',')
-          .map(name => name.trim())
-          .filter(name => name.length > 0);
+if (formData.function_type === 'hárem' && selectedBulls.length > 0) {
+  const selectedBullsData = availableBulls.filter(bull => 
+    selectedBulls.includes(bull.id)
+  );
+  
+  metadata.bulls = selectedBullsData.map(bull => ({
+    id: bull.id,
+    enar: bull.enar,
+    name: bull.name || 'Névtelen',
+    kplsz: bull.kplsz || ''
+  }));
+  metadata.bull_count = selectedBullsData.length;
+  
+  // Nőivarok és bikák szétválasztása
+  const bulls = selectedAnimalsData.filter(a => a.kategoria === 'tenyészbika') || [];
+  const females = selectedAnimalsData.filter(a => a.kategoria !== 'tenyészbika') || [];
+  
+  metadata.bull_count_actual = bulls.length;
+  metadata.female_count = females.length;
+  metadata.selected_bulls = selectedBullsData; // Teljes tenyészbika adatok
+}
 
-        metadata.bulls = bullNames.map(name => ({ name, enar: '', kplsz: '' }));
-        metadata.bull_count = bullNames.length;
-        
-        // Nőivarok és bikák szétválasztása
-        const bulls = animals?.filter(a => a.kategoria === 'tenyészbika') || [];
-        const females = animals?.filter(a => a.kategoria !== 'tenyészbika') || [];
-        
-        metadata.bull_count_actual = bulls.length;
-        metadata.female_count = females.length;
-      }
+      // Kategória összesítő a metadata-ba
+      // ÚJ:
+      const categoryStats: Record<string, number> = {};
+      selectedAnimalsData.forEach(animal => {
+        categoryStats[animal.kategoria] = (categoryStats[animal.kategoria] || 0) + 1;
+      });
+      metadata.category_breakdown = categoryStats;
 
       // 3. Periódus mentése
       const { error: insertError } = await supabase
@@ -125,7 +162,7 @@ export default function AddHistoricalPeriod({
           function_type: formData.function_type,
           start_date: formData.start_date,
           end_date: formData.end_date || null,
-          animals_snapshot: animals || [],
+          animals_snapshot: selectedAnimalsData, // Teljes állat adatok
           metadata: metadata,
           notes: formData.notes || null,
           historical: true // Manual rögzítés
@@ -136,8 +173,72 @@ export default function AddHistoricalPeriod({
       }
 
       console.log('✅ Történeti periódus sikeresen mentve');
-      alert(`✅ Történeti periódus sikeresen rögzítve!\n\nPeriódus: ${formData.function_type}\nÁllatok: ${animals?.length || 0} db\nIdőszak: ${formData.start_date} - ${formData.end_date || 'folyamatban'}`);
+
+      // ✅ ÚJ: Fizikai állat szinkronizáció (csak folyamatban lévő periódusokhoz)
+if (!formData.end_date) {
+  try {
+    console.log('🔄 Folyamatban lévő periódus - állatok fizikai szinkronizálása...');
+    
+    for (const animal of selectedAnimalsData) {
+      // Régi hozzárendelések lezárása
+      await supabase
+        .from('animal_pen_assignments')
+        .update({ removed_at: new Date().toISOString() })
+        .eq('animal_id', animal.id)
+        .is('removed_at', null);
       
+      // Új hozzárendelés
+      await supabase
+        .from('animal_pen_assignments')
+        .insert({
+          animal_id: animal.id,
+          pen_id: penId,
+          assigned_at: new Date().toISOString(),
+          assignment_reason: 'Folyamatban lévő periódus szinkronizáció'
+        });
+      
+      // Animals tábla frissítése
+      await supabase
+        .from('animals')
+        .update({ jelenlegi_karam: penNumber })
+        .eq('id', animal.id);
+    }
+    
+    console.log('✅ Állatok fizikailag szinkronizálva:', selectedAnimalsData.length);
+  } catch (syncError) {
+    console.error('❌ Fizikai szinkronizáció hiba:', syncError);
+  }
+} else {
+  console.log('📚 Lezárt periódus - csak történeti kártya, nincs fizikai mozgatás');
+}
+
+      // ✅ ÚJ: Broadcast értesítések
+      broadcastPenHistoryUpdate(penId, 'period_added', { 
+        functionType: formData.function_type,
+        animalCount: selectedAnimalsData.length 
+      });
+
+      // Érintett állatok broadcast-ja
+      const animalIds = selectedAnimalsData.map(animal => animal.id.toString());
+      if (animalIds.length > 0) {
+        broadcastAnimalHistoryUpdate(animalIds, 'period_added', { 
+          penId,
+          functionType: formData.function_type 
+        });
+      }
+
+      // Sikeres mentés üzenet
+      const categoryBreakdown = Object.entries(categoryStats)
+        .map(([kategoria, count]) => `${kategoria}: ${count}`)
+        .join(', ');
+
+      alert(`✅ Történeti periódus sikeresen rögzítve!
+
+Periódus: ${formData.function_type}
+Állatok: ${selectedAnimalsData.length} db
+Kategóriák: ${categoryBreakdown}
+Időszak: ${formData.start_date} - ${formData.end_date || 'folyamatban'}`);
+
       onSave();
 
     } catch (error) {
@@ -149,7 +250,7 @@ export default function AddHistoricalPeriod({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg border p-6 max-w-2xl mx-auto">
+    <div className="bg-white rounded-lg shadow-lg border p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
           <span className="text-2xl mr-3">📝</span>
@@ -172,7 +273,7 @@ export default function AddHistoricalPeriod({
             <input
               type="date"
               value={formData.start_date}
-              onChange={(e) => setFormData({...formData, start_date: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
               required
             />
@@ -184,7 +285,7 @@ export default function AddHistoricalPeriod({
             <input
               type="date"
               value={formData.end_date}
-              onChange={(e) => setFormData({...formData, end_date: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
               placeholder="Üres = folyamatban"
             />
@@ -201,7 +302,7 @@ export default function AddHistoricalPeriod({
           </label>
           <select
             value={formData.function_type}
-            onChange={(e) => setFormData({...formData, function_type: e.target.value})}
+            onChange={(e) => setFormData({ ...formData, function_type: e.target.value })}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white"
             required
           >
@@ -213,42 +314,110 @@ export default function AddHistoricalPeriod({
           </select>
         </div>
 
-        {/* Állatok listája */}
+        {/* ÚJ: AnimalSelector integráció */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            🐄 Állatok ENAR számai *
-          </label>
-          <textarea
-            value={formData.animal_enars}
-            onChange={(e) => setFormData({...formData, animal_enars: e.target.value})}
-            placeholder="ENAR számok (soronként egy):&#10;HU 32772 0999 0&#10;HU 32772 1001 2&#10;HU 35163 0088 0&#10;stb..."
-            rows={8}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors font-mono text-sm"
-            required
+          <AnimalSelector
+            penId={penId}
+            selected={selectedAnimals}
+            onChange={setSelectedAnimals}
+            multiSelect={true}
+            currentOnly={false} // Minden állat elérhető, nem csak karámbeliek
+            label="🐄 Állatok kiválasztása *"
+            placeholder="Keresés ENAR, kategória alapján..."
+            maxHeight="max-h-80"
           />
-          <p className="text-xs text-gray-500 mt-1">
-            💡 Minden sorba egy ENAR számot írj (pl. HU 32772 0999 0)
-          </p>
         </div>
 
+        {/* Kiválasztott állatok összesítő */}
+        {selectedAnimalsData.length > 0 && (
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h4 className="font-medium text-blue-900 mb-2">
+              📊 Kiválasztott állatok összesítő ({selectedAnimalsData.length} db)
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="font-medium text-blue-800">Kategóriák:</p>
+                <ul className="text-blue-700">
+                  // ÚJ:
+                  {(() => {
+                    const categoryStats: Record<string, number> = {};
+                    selectedAnimalsData.forEach(animal => {
+                      categoryStats[animal.kategoria] = (categoryStats[animal.kategoria] || 0) + 1;
+                    });
+
+                    return Object.entries(categoryStats).map(([kategoria, count]) => (
+                      <li key={kategoria}>• {kategoria}: {count} db</li>
+                    ));
+                  })()}
+                </ul>
+              </div>
+              <div>
+                <p className="font-medium text-blue-800">Ivarok:</p>
+                <ul className="text-blue-700">
+                  // ÚJ:
+                  {(() => {
+                    const ivarStats: Record<string, number> = {};
+                    selectedAnimalsData.forEach(animal => {
+                      ivarStats[animal.ivar] = (ivarStats[animal.ivar] || 0) + 1;
+                    });
+
+                    return Object.entries(ivarStats).map(([ivar, count]) => (
+                      <li key={ivar}>• {ivar}: {count} db</li>
+                    ));
+                  })()}
+
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Hárem specifikus mező */}
-        {formData.function_type === 'hárem' && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              🐂 Tenyészbikák nevei
+{formData.function_type === 'hárem' && (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      🐂 Tenyészbikák kiválasztása
+    </label>
+    
+    {availableBulls.length > 0 ? (
+      <div className="border border-gray-300 rounded-lg p-3 max-h-48 overflow-y-auto">
+        <div className="space-y-2">
+          {availableBulls.map(bull => (
+            <label key={bull.id} className="flex items-center">
+              <input
+                type="checkbox"
+                checked={selectedBulls.includes(bull.id)}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setSelectedBulls([...selectedBulls, bull.id]);
+                  } else {
+                    setSelectedBulls(selectedBulls.filter(id => id !== bull.id));
+                  }
+                }}
+                className="mr-3 rounded border-gray-300 text-green-600 focus:ring-green-500"
+              />
+              <span className="text-sm">
+                🐂 {bull.enar} - {bull.name || 'Névtelen'}
+              </span>
             </label>
-            <input
-              type="text"
-              value={formData.bull_names}
-              onChange={(e) => setFormData({...formData, bull_names: e.target.value})}
-              placeholder="Tenyészbikák nevei (vesszővel elválasztva): Béla, Balotelli, Bonucci"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              💡 Vesszővel válaszd el a neveket
+          ))}
+        </div>
+        
+        {selectedBulls.length > 0 && (
+          <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded">
+            <p className="text-green-800 text-sm">
+              {selectedBulls.length} tenyészbika kiválasztva
             </p>
           </div>
         )}
+      </div>
+    ) : (
+      <div className="p-3 text-gray-500 text-sm border border-gray-200 rounded-lg">
+        Nincsenek elérhető tenyészbikák az adatbázisban
+      </div>
+    )}
+  </div>
+)}
 
         {/* Megjegyzés */}
         <div>
@@ -257,7 +426,7 @@ export default function AddHistoricalPeriod({
           </label>
           <textarea
             value={formData.notes}
-            onChange={(e) => setFormData({...formData, notes: e.target.value})}
+            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
             placeholder="További megjegyzések a periódusról..."
             rows={3}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
@@ -277,7 +446,7 @@ export default function AddHistoricalPeriod({
         </button>
         <button
           onClick={handleSave}
-          disabled={saving || !formData.start_date || !formData.function_type}
+          disabled={saving || !formData.start_date || !formData.function_type || selectedAnimals.length === 0}
           className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg transition-colors disabled:opacity-50 inline-flex items-center"
         >
           {saving ? (

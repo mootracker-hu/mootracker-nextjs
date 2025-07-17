@@ -4,6 +4,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';  // ← ADD HOZZÁ EZT!
 import { PenFunctionType, PEN_FUNCTION_LABELS, NOTES_TEMPLATES, KorhazMetadata, AtmenetiMetadata, KarantenMetadata, SelejtMetadata } from '@/types/alert-task-types';
+import { createAutomaticPeriodSnapshot, broadcastPenHistoryUpdate } from '@/lib/penHistorySync';
+import { debugHaremStatus } from '@/lib/utils/haremSync';
 
 // 🔹 HÁREM SZINKRONIZÁCIÓ - INLINE MEGOLDÁS
 // Töröld ki az import sort és illeszd be ezt:
@@ -823,6 +825,28 @@ const handleFunctionChange = async () => {
         vvEsedekessege
       );
 
+      // ✅ HÁREM TENYÉSZBIKA SZINKRONIZÁCIÓ
+if (newFunction === 'hárem') {
+  try {
+    console.log('🔄 Hárem szinkronizáció indítása...');
+    
+    // Debug információk
+    await debugHaremStatus(pen.id);
+    
+    // Szinkronizáció futtatása (lokális funkció)
+    const syncResult = await syncHaremData(pen.id);
+    
+    if (syncResult.success) {
+      console.log('✅ Hárem szinkronizáció sikeres:', syncResult.message);
+    } else {
+      console.warn('⚠️ Hárem szinkronizáció probléma:', syncResult.message);
+    }
+    
+  } catch (syncError) {
+    console.error('❌ Hárem szinkronizáció hiba:', syncError);
+  }
+}
+
       finalMetadata = {
         ...finalMetadata,
         ...haremSnapshot
@@ -916,6 +940,50 @@ const successMessage = editMode
   : isHistoricalEntry
     ? `✅ Történeti ${newFunction} periódus rögzítve!\n📅 ${startDate} - ${endDate}`
     : `✅ Karám funkció váltás sikeres!\n🔄 Új funkció: ${newFunction}`;
+
+// ✅ ÚJ: Automatikus snapshot generálás
+    if (!isHistoricalEntry && !editMode) {
+      try {
+        console.log('📸 Automatikus snapshot generálás...');
+        await createAutomaticPeriodSnapshot(pen.id, 'function_changed', newFunction);
+        
+        // Broadcast értesítés
+        broadcastPenHistoryUpdate(pen.id, 'function_changed', { 
+          newFunction: newFunction,
+          automatic: true,
+          timestamp: Date.now()
+        });
+        
+        console.log('✅ Automatikus snapshot elkészítve');
+      } catch (snapshotError) {
+        console.error('❌ Automatikus snapshot hiba:', snapshotError);
+        // Nem blokkoljuk a mentést, csak logoljuk
+      }
+    } else {
+      console.log('📚 Történeti/Edit mód - snapshot kihagyva');
+    }
+
+    // ✅ ÚJ: Automatikus snapshot generálás
+if (!isHistoricalEntry && !editMode) {
+  try {
+    console.log('📸 Automatikus snapshot generálás...');
+    await createAutomaticPeriodSnapshot(pen.id, 'function_changed', newFunction);
+    
+    // Broadcast értesítés
+    broadcastPenHistoryUpdate(pen.id, 'function_changed', { 
+      newFunction: newFunction,
+      automatic: true,
+      timestamp: Date.now()
+    });
+    
+    console.log('✅ Automatikus snapshot elkészítve');
+  } catch (snapshotError) {
+    console.error('❌ Automatikus snapshot hiba:', snapshotError);
+    // Nem blokkoljuk a mentést, csak logoljuk
+  }
+} else {
+  console.log('📚 Történeti/Edit mód - snapshot kihagyva');
+}
 
 alert(successMessage);
 

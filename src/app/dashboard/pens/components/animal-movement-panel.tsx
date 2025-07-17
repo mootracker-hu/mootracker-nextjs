@@ -4,6 +4,7 @@
 import React from 'react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { createAutomaticPeriodSnapshot } from '@/lib/penHistorySync';
 
 interface Animal {
   id: number;
@@ -223,6 +224,25 @@ export default function AnimalMovementPanel({
       }
 
       await onMove(targetPenId, movementReason, notes, isHistorical, moveDate, functionType, metadata);
+
+      // ✅ ÚJ: Automatikus snapshot állat mozgatás után
+if (!isHistorical) {
+  try {
+    console.log('📸 Automatikus snapshot generálás állat mozgatás után...');
+    await createAutomaticPeriodSnapshot(targetPenId, 'animals_moved', 'állat_mozgatás');
+    
+    // Ha más karámból érkeztek állatok, ott is snapshot
+    if (currentPenId !== targetPenId) {
+      await createAutomaticPeriodSnapshot(currentPenId, 'animals_moved', 'állat_mozgatás');
+    }
+    
+    console.log('✅ Állat mozgatás snapshot elkészítve');
+  } catch (snapshotError) {
+    console.error('❌ Állat mozgatás snapshot hiba:', snapshotError);
+  }
+} else {
+  console.log('📚 Történeti mozgatás - snapshot kihagyva');
+}
       
       // Reset form
       setTargetPenId('');
