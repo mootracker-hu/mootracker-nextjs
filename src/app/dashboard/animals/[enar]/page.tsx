@@ -1706,41 +1706,53 @@ if (animal.enar) {
     }
   };
 
-  // Real-time jelenlegi karám lekérdezése
+  // Real-time jelenlegi karám lekérdezése karám történetből
 const fetchCurrentPen = async () => {
-  if (!animal?.id) {
-    console.log('❌ Nincs állat ID');
+  if (!animal?.enar || !animal?.id) {
+    console.log('❌ Nincs állat ENAR vagy ID');
     return;
   }
-
+  
   try {
-    console.log('🔍 Jelenlegi karám lekérdezése...');
+    console.log('🔍 Jelenlegi karám meghatározása CSAK új rendszerből:', animal.enar);
     
-    const { data, error } = await supabase
-      .from('animal_pen_assignments')
+    const animalIdString = animal.id.toString();
+    
+    // CSAK az új pen_history_periods rendszert használjuk
+    const { data: allPeriods, error: periodsError } = await supabase
+      .from('pen_history_periods')
       .select(`
-        assigned_at,
+        *,
         pens!inner(pen_number)
       `)
-      .eq('animal_id', animal.id)
-      .is('removed_at', null)
-      .order('assigned_at', { ascending: false })
-      .limit(1)
-      .single();
-      
-    if (error) {
-      console.log('ℹ️ Nincs aktív karám hozzárendelés, fallback használata');
-      setCurrentPen(animal.jelenlegi_karam || null);
-      return;
+      .order('start_date', { ascending: false });
+
+    if (!periodsError && allPeriods && allPeriods.length > 0) {
+      const animalLatestPeriod = allPeriods.find(period => {
+        const animals = period.animals_snapshot as any[] || [];
+        return animals.some(animalInPeriod =>
+          animalInPeriod.enar === animal.enar ||
+          animalInPeriod.id === animalIdString ||
+          (typeof animalInPeriod === 'string' && animalInPeriod === animal.enar)
+        );
+      });
+
+      if (animalLatestPeriod) {
+        const penNumber = animalLatestPeriod.pens?.pen_number;
+        const isOngoing = !animalLatestPeriod.end_date;
+        
+        console.log(`✅ Legutóbbi karám történetből: ${penNumber} (${isOngoing ? 'folyamatban' : 'lezárt'})`);
+setCurrentPen(`Karám ${penNumber}`);
+return;
+      }
     }
-    
-    const penNumber = (data?.pens as any)?.pen_number;
-    console.log('✅ Jelenlegi karám:', penNumber);
-    setCurrentPen(penNumber || null);
-    
+
+    console.log('❌ Nem található karám történet');
+    setCurrentPen('Nincs karám történet');
+
   } catch (error) {
-    console.error('❌ Jelenlegi karám lekérdezési hiba:', error);
-    setCurrentPen(animal?.jelenlegi_karam || null);
+    console.error('❌ Hiba a jelenlegi karám meghatározásában:', error);
+    setCurrentPen('Hiba történt');
   }
 };
 
@@ -2497,16 +2509,42 @@ const fetchCurrentPen = async () => {
                   )}
                 </div>
 
-               {/* JELENLEGI KARÁM MEGJELENÍTÉS JAVÍTÁSA: */}
+               {/* JELENLEGI KARÁM MEGJELENÍTÉS JAVÍTÁSA - TÖRTÉNETBŐL: */}
 <div className="mb-4">
-  <label className="block text-sm font-medium text-gray-700 mb-2">
-    📍 Jelenlegi karám
-  </label>
-  <div className="p-3 bg-green-50 rounded-md border border-green-200">
-  <span className="text-green-800 font-medium">
-  {currentPen || 'Karám meghatározás folyamatban...'}
-  </span>
-</div>
+  <div className="flex items-center justify-between mb-2">
+    <label className="block text-sm font-medium text-gray-700">
+      📍 Jelenlegi karám
+    </label>
+    <button
+      onClick={fetchCurrentPen}
+      className="text-xs text-blue-600 hover:text-blue-800 transition-colors"
+      title="Karám frissítése"
+    >
+      🔄 Frissítés
+    </button>
+  </div>
+  <div className={`p-3 rounded-md border ${
+    !currentPen || currentPen.includes('Hiba') || currentPen.includes('Nincs') 
+      ? 'bg-red-50 border-red-200' 
+      : currentPen.includes('folyamatban') 
+        ? 'bg-gray-50 border-gray-200'
+        : 'bg-green-50 border-green-200'
+  }`}>
+    <span className={`font-medium ${
+      !currentPen || currentPen.includes('Hiba') || currentPen.includes('Nincs')
+        ? 'text-red-800'
+        : currentPen.includes('folyamatban')
+          ? 'text-gray-800'
+          : 'text-green-800'
+    }`}>
+      {currentPen || 'Karám meghatározás folyamatban...'}
+    </span>
+    {currentPen && !currentPen.includes('Hiba') && !currentPen.includes('Nincs') && (
+      <div className="text-xs text-gray-500 mt-1">
+        ℹ️ Karám történet alapján
+      </div>
+    )}
+  </div>
 </div>
 
                 <div>

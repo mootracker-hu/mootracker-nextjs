@@ -25,9 +25,9 @@ interface PenFunction {
 }
 
 interface HaremDashboardProps {
-  penId: string;  // ✅ JAVÍTVA: string, mert Supabase UUID
+  penId: string;
   penNumber: string;
-  penFunction?: string;  // ← ÚJ
+  penFunction?: string;
   onDataChange?: () => void;
 }
 
@@ -49,7 +49,7 @@ interface HaremAnimal extends Animal {
 const HaremDashboard: React.FC<HaremDashboardProps> = ({
   penId,
   penNumber,
-  penFunction,  // ← ÚJ: add hozzá
+  penFunction,
   onDataChange
 }) => {
   const [animals, setAnimals] = useState<HaremAnimal[]>([]);
@@ -58,52 +58,30 @@ const HaremDashboard: React.FC<HaremDashboardProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ÚJ: Dinamikus dashboard címek
-  const getDashboardTitle = (functionType?: string) => {
-    switch (functionType) {
-      case 'hárem': return '💕 Hárem';
-      case 'vemhes': return '🐄💖 Vemhes';
-      case 'tehén': return '🐄🍼 Tehén';
-      case 'bölcsi': return '🐮 Bölcsi';
-      case 'óvi': return '🐄 Óvi';
-      case 'hízóbika': return '🐂 Hízóbika';
-      case 'ellető': return '🐄🍼 Ellető';
-      case 'kórház': return '🏥 Kórház';
-      case 'átmeneti': return '🔄 Átmeneti';
-      case 'karantén': return '🔒 Karantén';
-      case 'selejt': return '📦 Selejt';
-      default: return '📊 Karám';
-    }
-  };
-
-  // Supabase client már importálva van
-
-  // Hárem státusz meghatározása - JAVÍTOTT LOGIKA
+  // Hárem státusz meghatározása
   const determineHaremStatus = (animal: Animal): 'haremben' | 'vemhes' | 'borjas' => {
-    // 🔥 KRITIKUS - TENYÉSZBIKA KIZÁRÁS
+    // Tenyészbika kizárás
     if (animal.kategoria === 'tenyészbika') {
-      return 'haremben'; // Tenyészbika soha nem lehet "vemhes"
+      return 'haremben';
     }
 
-    // PRIORITÁS 1: VV eredmény felülírja mindent!
+    // VV eredmény prioritás
     if (animal.pregnancy_status === 'vemhes' ||
-      animal.pregnancy_status === 'pregnant' ||
-      animal.expected_birth_date) {
+        animal.pregnancy_status === 'pregnant' ||
+        animal.expected_birth_date) {
       return 'vemhes';
     }
 
-    // PRIORITÁS 2: Ha van borjú születési dátuma az utóbbi 6 hónapban → borjas
+    // Borjas státusz (6 hónapon belüli ellés)
     if (animal.last_birth_date) {
       const birthDate = new Date(animal.last_birth_date);
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-
       if (birthDate >= sixMonthsAgo) {
         return 'borjas';
       }
     }
 
-    // PRIORITÁS 3: Egyébként háremben (aktív tenyésztés)
     return 'haremben';
   };
 
@@ -124,6 +102,23 @@ const HaremDashboard: React.FC<HaremDashboardProps> = ({
     return '-';
   };
 
+  // Hárem releváns állatok szűrése
+  const getHaremRelevantAnimals = (animals: any[]) => {
+    return animals?.filter((assignment: any) => {
+      const animal = assignment.animals;
+      if (!animal) return false;
+      
+      // Hárem: tenyészbikák + 24+ hónapos nőivarok
+      if (animal.kategoria === 'tenyészbika') return true;
+      if (animal.ivar === 'nő') {
+        const birthDate = new Date(animal.szuletesi_datum);
+        const ageInMonths = Math.floor((new Date().getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
+        return ageInMonths >= 24;
+      }
+      return false;
+    }) || [];
+  };
+
   // Adatok betöltése
   const loadHaremData = async () => {
     try {
@@ -140,85 +135,40 @@ const HaremDashboard: React.FC<HaremDashboardProps> = ({
         .limit(1);
 
       if (functionError) throw functionError;
-
       const currentFunction = functionData?.[0] || null;
       setCurrentPenFunction(currentFunction);
 
-      // 2. Karámban lévő állatok lekérdezése - HÁREM RELEVÁNS SZŰRÉSSEL
+      // 2. Karámban lévő állatok lekérdezése
       const { data: assignmentData, error: assignmentError } = await supabase
         .from('animal_pen_assignments')
         .select(`
-    animal_id,
-    assigned_at,
-    animals (
-      id,
-      enar,
-      szuletesi_datum,
-      ivar,
-      kategoria,
-      pregnancy_status,
-      expected_birth_date,
-      last_birth_date,
-      notes
-    )
-  `)
+          animal_id,
+          assigned_at,
+          animals (
+            id,
+            enar,
+            szuletesi_datum,
+            ivar,
+            kategoria,
+            pregnancy_status,
+            expected_birth_date,
+            last_birth_date,
+            notes
+          )
+        `)
         .eq('pen_id', penId)
         .is('removed_at', null);
 
-      // Karámtípus-specifikus állat szűrés
-const getRelevantAnimals = (animals: any[], functionType?: string | null) => {
-  return animals?.filter((assignment: any) => {
-    const animal = assignment.animals;
-    if (!animal) return false;
-    
-    // Ha nincs functionType, minden állatot megtart
-    if (!functionType) return true;
-    
-    switch(functionType) {
-      case 'hárem':
-        // Hárem: tenyészbikák + 24+ hónapos nőivarok
-        if (animal.kategoria === 'tenyészbika') return true;
-        if (animal.ivar === 'nő') {
-          const birthDate = new Date(animal.szuletesi_datum);
-          const ageInMonths = Math.floor((new Date().getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
-          return ageInMonths >= 24;
-        }
-        return false;
-        
-      case 'vemhes':
-        // Vemhes: csak vemhes státuszú nőivarok
-        return animal.ivar === 'nő' && (animal.pregnancy_status === 'vemhes' || animal.expected_birth_date);
-        
-      case 'bölcsi':
-        // Bölcsi: 0-12 hónapos borjak
-        const birthDate = new Date(animal.szuletesi_datum);
-        const ageInMonths = Math.floor((new Date().getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
-        return ageInMonths <= 12;
-        
-      case 'óvi':
-        // Óvi: 12-24 hónapos üszők
-        const birthDateOvi = new Date(animal.szuletesi_datum);
-        const ageInMonthsOvi = Math.floor((new Date().getTime() - birthDateOvi.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
-        return ageInMonthsOvi >= 12 && ageInMonthsOvi < 24;
-        
-      case 'hízóbika':
-        // Hízóbika: hímivarok (kivéve tenyészbikák)
-        return animal.ivar === 'hím' && animal.kategoria !== 'tenyészbika';
-        
-      default:
-        // Minden más karámtípus: minden állat
-        return true;
-    }
-  }) || [];
-};
+      if (assignmentError) throw assignmentError;
 
-const relevantAnimals = getRelevantAnimals(assignmentData || [], penFunction || 'default');
+      // 3. Hárem releváns állatok szűrése
+      const relevantAnimals = getHaremRelevantAnimals(assignmentData || []);
 
-      // 3. Állatok feldolgozása hárem státusszal - SZŰRT ÁLLATOKKAL!
+      // 4. Állatok feldolgozása hárem státusszal
       const processedAnimals: HaremAnimal[] = relevantAnimals.map((assignment: any) => {
         const animal = assignment.animals;
         const haremStatus = determineHaremStatus(animal);
-
+        
         const haremAnimal: HaremAnimal = {
           ...animal,
           haremStatus,
@@ -227,19 +177,20 @@ const relevantAnimals = getRelevantAnimals(assignmentData || [], penFunction || 
           daysInHarem: calculateDaysInHarem(assignment.assigned_at),
           bulls: currentFunction?.metadata?.bulls?.map((b: any) => b.name) || []
         };
-
+        
         return haremAnimal;
       });
 
       setAnimals(processedAnimals);
 
-      // 4. Statisztikák számítása
+      // 5. Statisztikák számítása
       const newStats: HaremStats = {
         haremben: processedAnimals.filter(a => a.haremStatus === 'haremben').length,
         vemhes: processedAnimals.filter(a => a.haremStatus === 'vemhes').length,
         borjas: processedAnimals.filter(a => a.haremStatus === 'borjas').length,
         total: processedAnimals.length
       };
+      
       setStats(newStats);
 
     } catch (error: any) {
@@ -250,7 +201,6 @@ const relevantAnimals = getRelevantAnimals(assignmentData || [], penFunction || 
     }
   };
 
-  // Komponens mount-kor adatok betöltése
   useEffect(() => {
     loadHaremData();
   }, [penId]);
@@ -289,7 +239,8 @@ const relevantAnimals = getRelevantAnimals(assignmentData || [], penFunction || 
         <div className="bg-white rounded-lg p-6 shadow-sm">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-200 rounded mb-4"></div>
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-4 gap-4 mb-6">
+              <div className="h-16 bg-gray-200 rounded"></div>
               <div className="h-16 bg-gray-200 rounded"></div>
               <div className="h-16 bg-gray-200 rounded"></div>
               <div className="h-16 bg-gray-200 rounded"></div>
@@ -327,8 +278,8 @@ const relevantAnimals = getRelevantAnimals(assignmentData || [], penFunction || 
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-bold text-gray-900 flex items-center">
-            <span className="text-2xl mr-3">📊</span>
-            {getDashboardTitle(penFunction)} Dashboard - Karám {penNumber}
+            <span className="text-2xl mr-3">💕</span>
+            Hárem Dashboard - Karám {penNumber}
           </h3>
           <button
             onClick={loadHaremData}
@@ -339,25 +290,25 @@ const relevantAnimals = getRelevantAnimals(assignmentData || [], penFunction || 
           </button>
         </div>
 
-        {/* Statisztikák */}
-<div className="grid grid-cols-4 gap-4 mb-6">
-  <div className="bg-pink-50 p-4 rounded-lg text-center">
-    <div className="text-2xl font-bold text-pink-600">{stats.haremben}</div>
-    <div className="text-sm text-pink-600">🐄💕 Háremben</div>
-  </div>
-  <div className="bg-rose-50 p-4 rounded-lg text-center">
-    <div className="text-2xl font-bold text-rose-600">{stats.vemhes}</div>
-    <div className="text-sm text-rose-600">🐄💖 Vemhes</div>
-  </div>
-  <div className="bg-green-50 p-4 rounded-lg text-center">
-    <div className="text-2xl font-bold text-green-600">{stats.borjas}</div>
-    <div className="text-sm text-green-600">🐄🍼 Borjas</div>
-  </div>
-  <div className="bg-blue-50 p-4 rounded-lg text-center">
-    <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
-    <div className="text-sm text-blue-600">📊 Összesen</div>
-  </div>
-</div>
+        {/* Hárem Statisztikák */}
+        <div className="grid grid-cols-4 gap-4 mb-6">
+          <div className="bg-pink-50 p-4 rounded-lg text-center">
+            <div className="text-2xl font-bold text-pink-600">{stats.haremben}</div>
+            <div className="text-sm text-pink-600">🐄💕 Háremben</div>
+          </div>
+          <div className="bg-rose-50 p-4 rounded-lg text-center">
+            <div className="text-2xl font-bold text-rose-600">{stats.vemhes}</div>
+            <div className="text-sm text-rose-600">🐄💖 Vemhes</div>
+          </div>
+          <div className="bg-green-50 p-4 rounded-lg text-center">
+            <div className="text-2xl font-bold text-green-600">{stats.borjas}</div>
+            <div className="text-sm text-green-600">🐄🍼 Borjas</div>
+          </div>
+          <div className="bg-blue-50 p-4 rounded-lg text-center">
+            <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
+            <div className="text-sm text-blue-600">📊 Összesen</div>
+          </div>
+        </div>
 
         {/* Tenyészbika információk */}
         {currentPenFunction?.metadata?.bulls && (
@@ -384,167 +335,129 @@ const relevantAnimals = getRelevantAnimals(assignmentData || [], penFunction || 
           </div>
         )}
 
-        {/* Excel-szerű táblázat */}
+        {/* Fogamzási Ráta */}
+        {stats.total > 0 && (
+          <div className="bg-gradient-to-r from-pink-50 to-rose-50 rounded-lg p-4 mb-6">
+            <h4 className="text-lg font-semibold text-pink-900 mb-2 flex items-center">
+              <span className="text-xl mr-2">📊</span>
+              Hárem Teljesítmény
+            </h4>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-pink-600">
+                  {Math.round((stats.vemhes / Math.max(stats.total - animals.filter(a => a.kategoria === 'tenyészbika').length, 1)) * 100)}%
+                </div>
+                <div className="text-sm text-pink-600">Fogamzási ráta</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">
+                  {Math.round((stats.borjas / Math.max(stats.total - animals.filter(a => a.kategoria === 'tenyészbika').length, 1)) * 100)}%
+                </div>
+                <div className="text-sm text-green-600">Ellési ráta</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">
+                  {animals.filter(a => a.daysInHarem).reduce((avg, a) => avg + (a.daysInHarem || 0), 0) / Math.max(animals.filter(a => a.daysInHarem).length, 1) | 0}
+                </div>
+                <div className="text-sm text-blue-600">Átlag napok</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Hárem Táblázat */}
         {animals.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
-  <tr>
-    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-      🏷️ ENAR
-    </th>
-    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-      📊 Állapot
-    </th>
-    {/* Dinamikus oszlopok karámtípus szerint */}
-    {penFunction === 'hárem' && (
-      <>
-        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          🗓️ Várható ellés
-        </th>
-        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          📅 Napok háremben
-        </th>
-        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          🐂 Tenyészbikák
-        </th>
-      </>
-    )}
-    {penFunction === 'hízóbika' && (
-      <>
-        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          ⚖️ Súly
-        </th>
-        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          📅 Napok karámban
-        </th>
-      </>
-    )}
-    {penFunction === 'ellető' && (
-      <>
-        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          🍼 Ellés dátuma
-        </th>
-        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-          👶 Borjú státusz
-        </th>
-      </>
-    )}
-    {(penFunction !== 'hárem' && penFunction !== 'hízóbika' && penFunction !== 'ellető') && (
-      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-        📅 Napok karámban
-      </th>
-    )}
-    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-      📝 Megjegyzés
-    </th>
-  </tr>
-</thead>
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    🏷️ ENAR
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    📊 Hárem Állapot
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    🗓️ Várható ellés
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    📅 Napok háremben
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    🐂 Tenyészbikák
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    📝 Megjegyzés
+                  </th>
+                </tr>
+              </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-  {animals.map((animal) => (
-    <tr key={animal.id} className="hover:bg-gray-50">
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="text-sm font-medium text-gray-900">{animal.enar}</div>
-        <div className="text-xs text-gray-500">{animal.kategoria}</div>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(animal.haremStatus)}`}>
-          <span className="mr-1">{getStatusIcon(animal.haremStatus)}</span>
-          {animal.haremStatus === 'haremben' && 'Háremben'}
-          {animal.haremStatus === 'vemhes' && 'Vemhes'}
-          {animal.haremStatus === 'borjas' && 'Borjas'}
-        </span>
-      </td>
-      
-      {/* Dinamikus cellák karámtípus szerint */}
-      {penFunction === 'hárem' && (
-        <>
-          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-            {animal.haremStatus === 'vemhes' ? formatExpectedBirth(animal) : '-'}
-          </td>
-          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-            {animal.daysInHarem || 0} nap
-          </td>
-          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-            {getBullsDisplay(animal)}
-          </td>
-        </>
-      )}
-      
-      {penFunction === 'hízóbika' && (
-        <>
-          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-  {(animal as any).suly || '-'} kg
-</td>
-          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-            {animal.daysInHarem || 0} nap
-          </td>
-        </>
-      )}
-      
-      {penFunction === 'ellető' && (
-        <>
-          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-            {animal.last_birth_date ? new Date(animal.last_birth_date).toLocaleDateString('hu-HU') : '-'}
-          </td>
-          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-            Egészséges
-          </td>
-        </>
-      )}
-      
-      {(penFunction !== 'hárem' && penFunction !== 'hízóbika' && penFunction !== 'ellető') && (
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-          {animal.daysInHarem || 0} nap
-        </td>
-      )}
-      
-      <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
-        {animal.notes || '-'}
-      </td>
-    </tr>
-  ))}
-</tbody>
+                {animals.map((animal) => (
+                  <tr key={animal.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{animal.enar}</div>
+                      <div className="text-xs text-gray-500">{animal.kategoria}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(animal.haremStatus)}`}>
+                        <span className="mr-1">{getStatusIcon(animal.haremStatus)}</span>
+                        {animal.haremStatus === 'haremben' && 'Háremben'}
+                        {animal.haremStatus === 'vemhes' && 'Vemhes'}
+                        {animal.haremStatus === 'borjas' && 'Borjas'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {animal.haremStatus === 'vemhes' ? formatExpectedBirth(animal) : '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {animal.daysInHarem || 0} nap
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {getBullsDisplay(animal)}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+                      {animal.notes || '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
             </table>
           </div>
         ) : (
           <div className="bg-gray-50 rounded-lg p-8 text-center">
-            <div className="text-4xl mb-4">🐄</div>
-            <h4 className="text-lg font-medium text-gray-900 mb-2">Nincs állat a karámban</h4>
+            <div className="text-4xl mb-4">🐄💕</div>
+            <h4 className="text-lg font-medium text-gray-900 mb-2">Nincs állat a háremben</h4>
             <p className="text-gray-600">
-              Még nincsenek állatok hozzárendelve ehhez a karámhoz, vagy nem hárem funkciójú.
+              Még nincsenek állatok hozzárendelve ehhez a háremhez.
             </p>
           </div>
         )}
 
-        {/* Akciógombok */}
+        {/* Hárem Specifikus Akciógombok */}
         <div className="flex gap-4 mt-6 pt-6 border-t border-gray-200">
           <button
-            onClick={() => {
-              // TODO: Bulk RCC rögzítés modal
-              alert('🚧 Bulk RCC rögzítés - Hamarosan!');
-            }}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            onClick={() => alert('🚧 VV Eredmény rögzítés - Hamarosan!')}
+            className="bg-pink-600 text-white px-4 py-2 rounded-lg hover:bg-pink-700 transition-colors"
           >
-            💉 Bulk RCC
+            🔬 Bulk VV
           </button>
           <button
-            onClick={() => {
-              // TODO: Bulk ellés rögzítés modal
-              alert('🚧 Bulk ellés rögzítés - Hamarosan!');
-            }}
+            onClick={() => alert('🚧 Ellés áthelyezés - Hamarosan!')}
             className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
           >
-            🍼 Bulk Ellés
+            🍼 Ellés Áthelyezés
           </button>
           <button
-            onClick={() => {
-              // TODO: Excel export funkció
-              alert('🚧 Excel export - Hamarosan!');
-            }}
-            className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+            onClick={() => alert('🚧 Tenyészbika rotáció - Hamarosan!')}
+            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
           >
-            📊 Excel Export
+            🐂 Bika Rotáció
+          </button>
+          <button
+            onClick={() => alert('🚧 Hárem jelentés - Hamarosan!')}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            📊 Hárem Jelentés
           </button>
         </div>
       </div>

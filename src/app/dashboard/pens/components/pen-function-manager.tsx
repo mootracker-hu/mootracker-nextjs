@@ -642,7 +642,7 @@ useEffect(() => {
     { value: 'bölcsi' as PenFunctionType, label: '🐮 Bölcsi', description: '0-12 hónapos borjak nevelése', color: 'bg-green-100 text-green-800 border-green-200' },
     { value: 'óvi' as PenFunctionType, label: '🐄 Óvi', description: '12-24 hónapos üszők nevelése', color: 'bg-blue-100 text-blue-800 border-blue-200' },
     { value: 'hárem' as PenFunctionType, label: '💕 Hárem', description: 'Tenyésztésben lévő üszők/tehenek', color: 'bg-pink-100 text-pink-800 border-pink-200' },
-    { value: 'vemhes' as PenFunctionType, label: '🤰 Vemhes', description: 'Vemhes állatok ellésre várva', color: 'bg-purple-100 text-purple-800 border-purple-200' },
+    { value: 'vemhes' as PenFunctionType, label: '🐄💕 Vemhes', description: 'Vemhes állatok ellésre várva', color: 'bg-purple-100 text-purple-800 border-purple-200' },
     { value: 'hízóbika' as PenFunctionType, label: '🐂 Hízóbika', description: 'Hústermelés céljából tartott bikák', color: 'bg-red-100 text-red-800 border-red-200' },
     { value: 'ellető' as PenFunctionType, label: '🍼 Ellető', description: 'Ellés körül lévő tehenek', color: 'bg-orange-100 text-orange-800 border-orange-200' },
     { value: 'tehén' as PenFunctionType, label: '🐄🍼 Tehén', description: 'Borjával együtt tartott tehenek', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },

@@ -170,7 +170,21 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
                     if (movementsError) {
                         console.error('Error loading movements:', movementsError);
                     } else if (movements && movements.length > 0) {
-                        // Pen információk külön lekérdezése ha szükséges
+                        // ✅ JAVÍTÁS: Pen számok batch lekérdezése UUID helyett
+                        const movementPenIds = [...new Set([
+                            ...movements.map(m => m.to_pen_id),
+                            ...movements.map(m => m.from_pen_id)
+                        ].filter(Boolean))];
+
+                        const { data: movementPenNumbers } = await supabase
+                            .from('pens')
+                            .select('id, pen_number')
+                            .in('id', movementPenIds);
+
+                        const movementPenLookup = Object.fromEntries(
+                            movementPenNumbers?.map(p => [p.id, p.pen_number]) || []
+                        );
+
                         movements.forEach(movement => {
                             const isConflicting = items.some(item =>
                                 item.type === 'new_period' &&
@@ -178,14 +192,19 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
                             );
 
                             if (!isConflicting) {
+                                // ✅ JAVÍTÁS: Karám számok UUID helyett
+                                const toPenNumber = movementPenLookup[movement.to_pen_id] || 'N/A';
+                                const fromPenNumber = movementPenLookup[movement.from_pen_id] || 'N/A';
+                                
                                 items.push({
                                     id: `movement-${movement.id}`,
                                     type: 'legacy_movement',
                                     date: movement.moved_at,
-                                    penNumber: `${movement.to_pen_id}`, // Egyszerű megjelenítés
+                                    penNumber: toPenNumber,
                                     penId: movement.to_pen_id,
-                                    title: `Mozgatás`,
-                                    description: movement.movement_reason || 'Állatmozgatás',
+                                    title: `🔄 Mozgatás: ${fromPenNumber} → ${toPenNumber}`,
+                                    // ✅ JAVÍTÁS: Magyar fordítás
+                                    description: translateMovementReason(movement.movement_reason) || 'Állatmozgatás',
                                     icon: '🔄',
                                     color: 'bg-blue-100 border-blue-300 text-blue-800'
                                 });
@@ -234,7 +253,8 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
                         const vvLookup = Object.fromEntries(
                             allVVResults.map(r => [r.eventId, r.vvResults])
                         );
-                        // Events-hez pen számok lekérdezése (current + previous)
+                        
+                        // ✅ JAVÍTÁS: Events-hez pen számok lekérdezése (current + previous)
                         const eventPenIds = [...new Set([
                             ...events.map(e => e.pen_id),
                             ...events.map(e => e.previous_pen_id)
@@ -256,6 +276,7 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
                             );
 
                             if (!isConflicting) {
+                                // ✅ JAVÍTÁS: Karám számok UUID helyett
                                 const penNumber = event.pen_id ? eventPenLookup[event.pen_id] || 'N/A' : 'N/A';
                                 const previousPenNumber = event.previous_pen_id ? eventPenLookup[event.previous_pen_id] || 'N/A' : null;
 
@@ -291,7 +312,7 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
                                 // Mozgatás típusú események külön kezelése
                                 if (event.event_type === 'pen_movement' || event.event_type === 'pen_assignment') {
                                     const title = event.event_type === 'pen_movement'
-                                        ? `🔄 Mozgatás: ${previousPenNumber || 'N/A'} → ${penNumber}`
+                                        ? `🔄 Mozgatás: Karám ${previousPenNumber || 'N/A'} → Karám ${penNumber}`
                                         : `📍 Bekerülés: Karám ${penNumber}`;
 
                                     items.push({
@@ -301,7 +322,8 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
                                         penNumber: penNumber,
                                         penId: event.pen_id,
                                         title: title,
-                                        description: event.reason || event.notes || 'Állatmozgatás',
+                                        // ✅ JAVÍTÁS: Magyar fordítás
+                                        description: translateEventReason(event.reason) || translateEventReason(event.notes) || 'Állatmozgatás',
                                         icon: '🔄',
                                         color: 'bg-blue-100 border-blue-300 text-blue-800'
                                     });
@@ -314,7 +336,8 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
                                         penNumber: penNumber,
                                         penId: event.pen_id,
                                         title: `📋 ${translateEventType(event.event_type)}`,
-                                        description: `${event.notes || event.reason || 'Esemény'}${extraEventInfo}`,
+                                        // ✅ JAVÍTÁS: Magyar fordítás
+                                        description: `${translateEventReason(event.notes) || translateEventReason(event.reason) || 'Esemény'}${extraEventInfo}`,
                                         icon: getEventIcon(event.event_type),
                                         color: 'bg-purple-100 border-purple-300 text-purple-800'
                                     });
@@ -347,46 +370,7 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
         loadHybridTimeline();
     }, [animalEnar, animalIdString, viewMode]);
 
-    const getFunctionColor = (functionType: string): string => {
-        const colors: { [key: string]: string } = {
-            'hárem': 'bg-green-100 border-green-300 text-green-800',
-            'bölcsi': 'bg-orange-100 border-orange-300 text-orange-800',
-            'óvi': 'bg-purple-100 border-purple-300 text-purple-800',
-            'vemhes': 'bg-pink-100 border-pink-300 text-pink-800',
-            'kórház': 'bg-red-100 border-red-300 text-red-800',
-            'hízóbika': 'bg-yellow-100 border-yellow-300 text-yellow-800',
-            'száraz': 'bg-gray-100 border-gray-300 text-gray-800'
-        };
-        return colors[functionType] || 'bg-blue-100 border-blue-300 text-blue-800';
-    };
-
-    const getFunctionIcon = (functionType: string): string => {
-        const icons: { [key: string]: string } = {
-            'hárem': '💕',
-            'bölcsi': '🐮',
-            'óvi': '🐄',
-            'vemhes': '🐄💖',
-            'kórház': '🏥',
-            'hízóbika': '🥩',
-            'száraz': '☀️'
-        };
-        return icons[functionType] || '📍';
-    };
-
-    const getEventIcon = (eventType: string): string => {
-        const icons: { [key: string]: string } = {
-            'birth': '🐄',
-            'health': '❤️',
-            'breeding': '💕',
-            'movement': '🔄',
-            'treatment': '💊',
-            'function_change': '📋',
-            'pen_movement': '🏠',
-            'pen_assignment': '📍'
-        };
-        return icons[eventType] || '📋';
-    };
-
+    // ✅ JAVÍTÁS: Csak a szükséges fordítási függvények hozzáadása
     const translateEventType = (eventType: string): string => {
         const translations: { [key: string]: string } = {
             'function_change': 'Funkció váltás',
@@ -403,17 +387,72 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
         return translations[eventType] || eventType;
     };
 
-    const getPenNumber = async (penId: string): Promise<string> => {
-        try {
-            const { data } = await supabase
-                .from('pens')
-                .select('pen_number')
-                .eq('id', penId)
-                .single();
-            return data?.pen_number || 'N/A';
-        } catch {
-            return 'N/A';
-        }
+    const translateEventReason = (reason: string | null): string => {
+        if (!reason) return '';
+        
+        const reasonTranslations: { [key: string]: string } = {
+            'breeding': 'Tenyésztési célból',
+            'other': 'Egyéb okból',
+            'health': 'Egészségügyi okból',
+            'feeding': 'Takarmányozási okból',
+            'treatment': 'Kezelés miatt',
+            'quarantine': 'Karantén miatt',
+            'separation': 'Elkülönítés miatt',
+            'grouping': 'Csoportosítás miatt'
+        };
+        
+        return reasonTranslations[reason.toLowerCase()] || reason;
+    };
+
+    const translateMovementReason = (reason: string | null): string => {
+        if (!reason) return '';
+        
+        const movementReasons: { [key: string]: string } = {
+            'breeding': 'Tenyésztési célból',
+            'other': 'Egyéb okból',
+            'health': 'Egészségügyi okból',
+            'feeding': 'Takarmányozási okból',
+            'treatment': 'Kezelés miatt',
+            'quarantine': 'Karantén miatt'
+        };
+        
+        return movementReasons[reason.toLowerCase()] || reason;
+    };
+
+    const getFunctionColor = (functionType: string): string => {
+        const colors: { [key: string]: string } = {
+            'hárem': 'bg-green-100 border-green-300 text-green-800',
+            'bölcsi': 'bg-orange-100 border-orange-300 text-orange-800',
+            'óvi': 'bg-purple-100 border-purple-300 text-purple-800',
+            'vemhes': 'bg-pink-100 border-pink-300 text-pink-800',
+            'kórház': 'bg-red-100 border-red-300 text-red-800'
+        };
+        return colors[functionType] || 'bg-blue-100 border-blue-300 text-blue-800';
+    };
+
+    const getFunctionIcon = (functionType: string): string => {
+        const icons: { [key: string]: string } = {
+            'hárem': '💕',
+            'bölcsi': '🐮',
+            'óvi': '🐄',
+            'vemhes': '🐄💖',
+            'kórház': '🏥'
+        };
+        return icons[functionType] || '📍';
+    };
+
+    const getEventIcon = (eventType: string): string => {
+        const icons: { [key: string]: string } = {
+            'birth': '🐄',
+            'health': '❤️',
+            'breeding': '💕',
+            'movement': '🔄',
+            'treatment': '💊',
+            'function_change': '📋',
+            'pen_movement': '🏠',
+            'pen_assignment': '📍'
+        };
+        return icons[eventType] || '📋';
     };
 
     const isDateInRange = (date: string, startDate: string, endDate?: string): boolean => {

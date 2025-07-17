@@ -17,6 +17,7 @@ import * as XLSX from 'xlsx';
 // A többi import után, körülbelül a 12. sor környékén:
 import TeljesKaramTortenelem from '@/components/TeljesKaramTortenelem';
 import HaremDashboard from '@/components/HaremDashboard';
+import PenEventsTab from '@/components/PenEventsTab';
 import PenHistoryTab from '@/components/PenHistoryTab';
 
 // TypeScript interfaces - egyértelműen definiálva
@@ -76,7 +77,9 @@ export default function PenDetailsPage() {
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingPeriod, setEditingPeriod] = useState<any>(null);
     const [allPens, setAllPens] = useState<any[]>([]);
-    const [activeTab, setActiveTab] = useState<'animals' | 'dashboard' | 'timeline'>('animals');
+    // Ha van dashboard default, akkor events-re változtatni:
+    // A useState típus javítása:
+    const [activeTab, setActiveTab] = useState<'animals' | 'events' | 'harem' | 'timeline'>('animals');
 
 
 
@@ -126,36 +129,36 @@ export default function PenDetailsPage() {
     }, [pen?.id]);
 
     // Összes karám betöltése
-useEffect(() => {
-  const fetchAllPens = async () => {
-    try {
-      const { data: pens, error } = await supabase
-        .from('pens')
-        .select('id, pen_number, pen_type, capacity, location')
-        .order('pen_number');
+    useEffect(() => {
+        const fetchAllPens = async () => {
+            try {
+                const { data: pens, error } = await supabase
+                    .from('pens')
+                    .select('id, pen_number, pen_type, capacity, location')
+                    .order('pen_number');
 
-      if (error) {
-        console.error('❌ Karamok betöltési hiba:', error);
-      } else {
-        const formattedPens = pens?.map(pen => ({
-          id: pen.id,
-          pen_number: pen.pen_number,
-          pen_type: pen.pen_type || 'outdoor',
-          capacity: pen.capacity || 30,
-          location: pen.location || 'Ismeretlen',
-          animal_count: 0
-        })) || [];
+                if (error) {
+                    console.error('❌ Karamok betöltési hiba:', error);
+                } else {
+                    const formattedPens = pens?.map(pen => ({
+                        id: pen.id,
+                        pen_number: pen.pen_number,
+                        pen_type: pen.pen_type || 'outdoor',
+                        capacity: pen.capacity || 30,
+                        location: pen.location || 'Ismeretlen',
+                        animal_count: 0
+                    })) || [];
 
-        setAllPens(formattedPens);
-        console.log('✅ Összes karám betöltve:', formattedPens.length);
-      }
-    } catch (error) {
-      console.error('❌ Karamok fetch hiba:', error);
-    }
-  };
+                    setAllPens(formattedPens);
+                    console.log('✅ Összes karám betöltve:', formattedPens.length);
+                }
+            } catch (error) {
+                console.error('❌ Karamok fetch hiba:', error);
+            }
+        };
 
-  fetchAllPens();
-}, []);
+        fetchAllPens();
+    }, []);
 
     // Animals count update
     useEffect(() => {
@@ -629,185 +632,359 @@ useEffect(() => {
     };
 
     // Excel Export funkció - INTELLIGENS HÁREM DÁTUM LOGIKA
-const exportToExcel = async () => {
-    try {
-        console.log('📊 Excel export kezdése...', {
-            penNumber: pen?.pen_number,
-            functionType: pen?.current_function?.function_type,
-            animalCount: filteredAnimals.length
-        });
+    const exportToExcel = async () => {
+        try {
+            console.log('📊 Excel export kezdése...', {
+                penNumber: pen?.pen_number,
+                functionType: pen?.current_function?.function_type,
+                animalCount: filteredAnimals.length
+            });
 
-        // ⭐ ÚJ: Supabase import intelligens hárem dátum lekérdezéshez
-        const { createClient } = await import('@supabase/supabase-js');
-        const supabase = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        );
-
-        // Funkció-specifikus oszlopok meghatározása
-        const functionType = pen?.current_function?.function_type || 'üres';
-        let data: any[] = [];
-
-        if (functionType === 'hárem') {
-            // ⭐ INTELLIGENS HÁREM EXPORT - ÁLLAT-SPECIFIKUS DÁTUMOK
-            console.log('🐄💕 Hárem export - intelligens dátum lekérdezés...');
-            
-            // Minden állathoz lekérdezzük a mozgatási történetet
-            const animalsWithHaremData = await Promise.all(
-                filteredAnimals.map(async (animal) => {
-                    try {
-                        // ⭐ ÁLLAT-SPECIFIKUS HÁREM KEZDET KERESÉSE
-                        const { data: movements, error } = await supabase
-                            .from('animal_movements')
-                            .select('moved_at, function_type, movement_reason')
-                            .eq('animal_id', animal.id)
-                            .eq('function_type', 'hárem')
-                            .order('moved_at', { ascending: true }); // Legkorábbi hárem mozgatás
-
-                        let animalHaremStart = null;
-                        
-                        if (!error && movements && movements.length > 0) {
-                            // Legkorábbi hárem mozgatás dátuma
-                            animalHaremStart = movements[0].moved_at;
-                            console.log(`🔍 ${animal.enar} hárem kezdete mozgatásból:`, animalHaremStart);
-                        } else {
-                            // Fallback: karám funkció kezdete vagy assignment dátum
-                            const assignment = animal.assigned_at;
-                            const penFunctionStart = pen?.current_function?.metadata?.parozas_kezdete;
-                            
-                            animalHaremStart = assignment || penFunctionStart;
-                            console.log(`🔄 ${animal.enar} hárem kezdete fallback:`, animalHaremStart);
-                        }
-
-                        // VV esedékesség számítása (hárem kezdet + 75 nap)
-                        let vvEsedekesseg = '-';
-                        if (animalHaremStart) {
-                            const haremDate = new Date(animalHaremStart);
-                            const vvDate = new Date(haremDate);
-                            vvDate.setDate(vvDate.getDate() + 75); // 75 nap hárem után VV
-                            vvEsedekesseg = vvDate.toLocaleDateString('hu-HU');
-                        }
-
-                        return {
-                            ...animal,
-                            calculatedHaremStart: animalHaremStart,
-                            calculatedVVDate: vvEsedekesseg
-                        };
-
-                    } catch (error) {
-                        console.error(`❌ Hiba ${animal.enar} adatainál:`, error);
-                        return {
-                            ...animal,
-                            calculatedHaremStart: null,
-                            calculatedVVDate: '-'
-                        };
-                    }
-                })
+            // ⭐ ÚJ: Supabase import intelligens hárem dátum lekérdezéshez
+            const { createClient } = await import('@supabase/supabase-js');
+            const supabase = createClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
             );
 
-            // Excel adatok generálása állat-specifikus dátumokkal
-            data = animalsWithHaremData.map(animal => ({
-                'ENAR': animal.enar,
-                'NÉV': (() => {
-                    // Tenyészbika név logika (változatlan)
-                    if (animal.kategoria === 'tenyészbika') {
-                        const bulls = pen?.current_function?.metadata?.bulls;
-                        if (bulls && Array.isArray(bulls)) {
-                            const bull = bulls.find((b: any) => b.enar === animal.enar);
-                            return bull?.name || '-';
-                        }
-                        if (pen?.current_function?.metadata?.tenyeszbika_enar === animal.enar) {
-                            return pen?.current_function?.metadata?.tenyeszbika_name || '-';
-                        }
-                    }
-                    return '-';
-                })(),
-                // ⭐ INTELLIGENS HÁREM KEZDETE - ÁLLAT-SPECIFIKUS!
-                'HÁREM KEZDETE': animal.calculatedHaremStart ? 
-                    new Date(animal.calculatedHaremStart).toLocaleDateString('hu-HU') : '-',
-                // ⭐ INTELLIGENS VV TERVEZETT - ÁLLAT-SPECIFIKUS SZÁMÍTÁS!
-                'VV TERVEZETT': (() => {
-                    const ageMonths = calculateAgeInMonths(animal.szuletesi_datum);
-                    if (ageMonths < 24) return 'Még fiatal';
-                    return animal.calculatedVVDate;
-                })(),
-                'VV EREDMÉNY': '-', // TODO: VV eredmények táblából
-                'VÁRHATÓ ELLÉS': '-', // TODO: VV eredmények alapján számolva
-                'FELJEGYZÉS': animal.assignment_reason || '-'
-            }));
+            // Funkció-specifikus oszlopok meghatározása
+            const functionType = pen?.current_function?.function_type || 'üres';
+            let data: any[] = [];
 
-            console.log('✅ Intelligens hárem export adatok generálva:', data.length, 'állat');
+            if (functionType === 'hárem') {
+                // ⭐ INTELLIGENS HÁREM EXPORT - ÁLLAT-SPECIFIKUS DÁTUMOK
+                console.log('🐄💕 Hárem export - intelligens dátum lekérdezés...');
 
-        } else if (functionType === 'bölcsi') {
-            // BÖLCSI EXPORT (változatlan)
-            data = filteredAnimals.map(animal => ({
-                'ENAR': animal.enar,
-                'SZÜLETÉSI DÁTUM': new Date(animal.szuletesi_datum).toLocaleDateString('hu-HU'),
-                '12 HÓNAPOS EKKOR': calculateTargetDate(animal.szuletesi_datum, 12),
-                'FELJEGYZÉS': animal.assignment_reason || '-'
-            }));
-        } else if (functionType === 'óvi') {
-            // ÓVI EXPORT (változatlan)
-            data = filteredAnimals.map(animal => ({
-                'ENAR': animal.enar,
-                'SZÜLETÉSI DÁTUM': new Date(animal.szuletesi_datum).toLocaleDateString('hu-HU'),
-                '18 HÓNAPOS EKKOR': calculateTargetDate(animal.szuletesi_datum, 18),
-                '24 HÓNAPOS EKKOR': calculateTargetDate(animal.szuletesi_datum, 24),
-                'FELJEGYZÉS': animal.assignment_reason || '-'
-            }));
-        } else {
-            // ÁLTALÁNOS EXPORT (változatlan)
-            data = filteredAnimals.map(animal => ({
-                'ENAR': animal.enar,
-                'KATEGÓRIA': animal.kategoria.replace('_', ' '),
-                'SZÜLETÉSI DÁTUM': new Date(animal.szuletesi_datum).toLocaleDateString('hu-HU'),
-                'ÉLETKOR': calculateAge(animal.szuletesi_datum),
-                'SZÁRMAZÁS': animal.birth_location === 'nálunk' ? 'Nálunk' :
-                    animal.birth_location === 'vásárolt' ? 'Vásárolt' : 'Ismeretlen',
-                'FELJEGYZÉS': animal.assignment_reason || '-'
-            }));
+                // Minden állathoz lekérdezzük a mozgatási történetet
+                const animalsWithHaremData = await Promise.all(
+                    filteredAnimals.map(async (animal) => {
+                        try {
+                            // ⭐ ÁLLAT-SPECIFIKUS HÁREM KEZDET KERESÉSE
+                            const { data: movements, error } = await supabase
+                                .from('animal_movements')
+                                .select('moved_at, function_type, movement_reason')
+                                .eq('animal_id', animal.id)
+                                .eq('function_type', 'hárem')
+                                .order('moved_at', { ascending: true }); // Legkorábbi hárem mozgatás
+
+                            let animalHaremStart = null;
+
+                            if (!error && movements && movements.length > 0) {
+                                // Legkorábbi hárem mozgatás dátuma
+                                animalHaremStart = movements[0].moved_at;
+                                console.log(`🔍 ${animal.enar} hárem kezdete mozgatásból:`, animalHaremStart);
+                            } else {
+                                // Fallback: karám funkció kezdete vagy assignment dátum
+                                const assignment = animal.assigned_at;
+                                const penFunctionStart = pen?.current_function?.metadata?.parozas_kezdete;
+
+                                animalHaremStart = assignment || penFunctionStart;
+                                console.log(`🔄 ${animal.enar} hárem kezdete fallback:`, animalHaremStart);
+                            }
+
+                            // VV esedékesség számítása (hárem kezdet + 75 nap)
+                            let vvEsedekesseg = '-';
+                            if (animalHaremStart) {
+                                const haremDate = new Date(animalHaremStart);
+                                const vvDate = new Date(haremDate);
+                                vvDate.setDate(vvDate.getDate() + 75); // 75 nap hárem után VV
+                                vvEsedekesseg = vvDate.toLocaleDateString('hu-HU');
+                            }
+
+                            return {
+                                ...animal,
+                                calculatedHaremStart: animalHaremStart,
+                                calculatedVVDate: vvEsedekesseg
+                            };
+
+                        } catch (error) {
+                            console.error(`❌ Hiba ${animal.enar} adatainál:`, error);
+                            return {
+                                ...animal,
+                                calculatedHaremStart: null,
+                                calculatedVVDate: '-'
+                            };
+                        }
+                    })
+                );
+
+                // Excel adatok generálása állat-specifikus dátumokkal
+                data = animalsWithHaremData.map(animal => ({
+                    'ENAR': animal.enar,
+                    'NÉV': (() => {
+                        // Tenyészbika név logika (változatlan)
+                        if (animal.kategoria === 'tenyészbika') {
+                            const bulls = pen?.current_function?.metadata?.bulls;
+                            if (bulls && Array.isArray(bulls)) {
+                                const bull = bulls.find((b: any) => b.enar === animal.enar);
+                                return bull?.name || '-';
+                            }
+                            if (pen?.current_function?.metadata?.tenyeszbika_enar === animal.enar) {
+                                return pen?.current_function?.metadata?.tenyeszbika_name || '-';
+                            }
+                        }
+                        return '-';
+                    })(),
+                    // ⭐ INTELLIGENS HÁREM KEZDETE - ÁLLAT-SPECIFIKUS!
+                    'HÁREM KEZDETE': animal.calculatedHaremStart ?
+                        new Date(animal.calculatedHaremStart).toLocaleDateString('hu-HU') : '-',
+                    // ⭐ INTELLIGENS VV TERVEZETT - ÁLLAT-SPECIFIKUS SZÁMÍTÁS!
+                    'VV TERVEZETT': (() => {
+                        const ageMonths = calculateAgeInMonths(animal.szuletesi_datum);
+                        if (ageMonths < 24) return 'Még fiatal';
+                        return animal.calculatedVVDate;
+                    })(),
+                    'VV EREDMÉNY': '-', // TODO: VV eredmények táblából
+                    'VÁRHATÓ ELLÉS': '-', // TODO: VV eredmények alapján számolva
+                    'FELJEGYZÉS': animal.assignment_reason || '-'
+                }));
+
+                console.log('✅ Intelligens hárem export adatok generálva:', data.length, 'állat');
+
+            } else if (functionType === 'bölcsi') {
+                // BÖLCSI EXPORT (változatlan)
+                data = filteredAnimals.map(animal => ({
+                    'ENAR': animal.enar,
+                    'SZÜLETÉSI DÁTUM': new Date(animal.szuletesi_datum).toLocaleDateString('hu-HU'),
+                    '12 HÓNAPOS EKKOR': calculateTargetDate(animal.szuletesi_datum, 12),
+                    'FELJEGYZÉS': animal.assignment_reason || '-'
+                }));
+            } else if (functionType === 'óvi') {
+                // ÓVI EXPORT (változatlan)
+                data = filteredAnimals.map(animal => ({
+                    'ENAR': animal.enar,
+                    'SZÜLETÉSI DÁTUM': new Date(animal.szuletesi_datum).toLocaleDateString('hu-HU'),
+                    '18 HÓNAPOS EKKOR': calculateTargetDate(animal.szuletesi_datum, 18),
+                    '24 HÓNAPOS EKKOR': calculateTargetDate(animal.szuletesi_datum, 24),
+                    'FELJEGYZÉS': animal.assignment_reason || '-'
+                }));
+            } else {
+                // ÁLTALÁNOS EXPORT (változatlan)
+                data = filteredAnimals.map(animal => ({
+                    'ENAR': animal.enar,
+                    'KATEGÓRIA': animal.kategoria.replace('_', ' '),
+                    'SZÜLETÉSI DÁTUM': new Date(animal.szuletesi_datum).toLocaleDateString('hu-HU'),
+                    'ÉLETKOR': calculateAge(animal.szuletesi_datum),
+                    'SZÁRMAZÁS': animal.birth_location === 'nálunk' ? 'Nálunk' :
+                        animal.birth_location === 'vásárolt' ? 'Vásárolt' : 'Ismeretlen',
+                    'FELJEGYZÉS': animal.assignment_reason || '-'
+                }));
+            }
+
+            // Excel fájl létrehozása (változatlan)
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+
+            // Fájlnév generálása
+            const today = new Date().toISOString().split('T')[0];
+            const sheetName = `Karám_${pen?.pen_number}_${functionType}`;
+            const fileName = `${sheetName}_${today}.xlsx`;
+
+            XLSX.utils.book_append_sheet(wb, ws, sheetName);
+            XLSX.writeFile(wb, fileName);
+
+            console.log('✅ Excel export sikeres:', fileName);
+
+            // ⭐ SIKERES ÜZENET INTELLIGENS INFORMÁCIÓKKAL
+            const successMessage = functionType === 'hárem'
+                ? `✅ Intelligens Hárem Excel export sikeres!\n\nFájl: ${fileName}\nÁllatok: ${data.length}\n\n🎯 Funkció: Állat-specifikus hárem kezdetek használva\n📅 VV dátumok: Egyedi számítások alapján`
+                : `✅ Excel export sikeres!\n\nFájl: ${fileName}\nÁllatok: ${data.length}`;
+
+            alert(successMessage);
+
+        } catch (error) {
+            console.error('❌ Excel export hiba:', error);
+            alert('❌ Hiba történt az export során: ' + (error instanceof Error ? error.message : 'Ismeretlen hiba'));
+        }
+    };
+
+    const exportPenHistory = async () => {
+    try {
+        console.log('📊 Karámtörténet export kezdése...', {
+            penId: pen?.id,
+            penNumber: pen?.pen_number
+        });
+
+        // 1. Történeti periódusok lekérdezése
+        const { data: periodsData, error: periodsError } = await supabase
+            .from('pen_history_periods')
+            .select('*')
+            .eq('pen_id', pen?.id)
+            .order('start_date', { ascending: false });
+
+        if (periodsError) {
+            console.error('❌ Periódusok lekérdezési hiba:', periodsError);
         }
 
-        // Excel fájl létrehozása (változatlan)
-        const ws = XLSX.utils.json_to_sheet(data);
+        // 2. Állat események lekérdezése
+        const { data: eventsData, error: eventsError } = await supabase
+            .from('animal_events')
+            .select(`
+                event_date,
+                event_type,
+                reason,
+                notes,
+                created_at,
+                animals (
+                    enar,
+                    kategoria,
+                    ivar
+                )
+            `)
+            .order('event_date', { ascending: false })
+            .limit(1000);
+
+        if (eventsError) {
+            console.error('❌ Események lekérdezési hiba:', eventsError);
+        }
+
+        // 3. Mozgatási adatok lekérdezése
+        const { data: movementsData, error: movementsError } = await supabase
+            .from('animal_pen_assignments')
+            .select(`
+                assigned_at,
+                removed_at,
+                assignment_reason,
+                animals (
+                    enar,
+                    kategoria,
+                    ivar
+                ),
+                pens (
+                    pen_number
+                )
+            `)
+            .eq('pen_id', pen?.id)
+            .order('assigned_at', { ascending: false })
+            .limit(1000);
+
+        if (movementsError) {
+            console.error('❌ Mozgatások lekérdezési hiba:', movementsError);
+        }
+
+        // EXCEL ADATOK FORMÁZÁSA
+
+        // 1. Történeti periódusok worksheet
+        const periodsExportData = periodsData?.map((period: any) => {
+            const startDate = new Date(period.start_date).toLocaleDateString('hu-HU');
+            const endDate = period.end_date ? new Date(period.end_date).toLocaleDateString('hu-HU') : 'Folyamatban';
+            const duration = period.end_date 
+                ? Math.ceil((new Date(period.end_date).getTime() - new Date(period.start_date).getTime()) / (1000 * 60 * 60 * 24))
+                : Math.ceil((new Date().getTime() - new Date(period.start_date).getTime()) / (1000 * 60 * 60 * 24));
+
+            return {
+                'Kezdet': startDate,
+                'Vég': endDate,
+                'Időtartam (nap)': duration,
+                'Funkció': period.function_type,
+                'Állatok száma': period.animals_snapshot?.length || 0,
+                'Tenyészbikák': period.metadata?.bulls?.map((b: any) => b.name).join(', ') || '-',
+                'Rögzítés': period.historical ? 'Kézi' : 'Automatikus',
+                'Megjegyzések': period.notes || '-'
+            };
+        }) || [];
+
+        // 2. Események worksheet
+        const eventsExportData = eventsData?.map((event: any) => {
+            return {
+                'Dátum': new Date(event.event_date).toLocaleDateString('hu-HU'),
+                'Esemény': event.event_type === 'function_change' ? 'Funkció váltás' :
+                          event.event_type === 'pen_movement' ? 'Mozgatás' :
+                          event.event_type === 'pen_assignment' ? 'Bekerülés' :
+                          event.event_type === 'health_event' ? 'Egészségügyi esemény' :
+                          event.event_type,
+                'ENAR': event.animals?.enar || '-',
+                'Kategória': event.animals?.kategoria || '-',
+                'Indoklás': event.reason || '-',
+                'Részletek': event.notes || '-'
+            };
+        }) || [];
+
+        // 3. Mozgatások worksheet
+        const movementsExportData = movementsData?.map((movement: any) => {
+            const assignedDate = new Date(movement.assigned_at).toLocaleDateString('hu-HU');
+            const removedDate = movement.removed_at ? new Date(movement.removed_at).toLocaleDateString('hu-HU') : 'Jelenleg itt';
+            const daysInPen = movement.removed_at 
+                ? Math.ceil((new Date(movement.removed_at).getTime() - new Date(movement.assigned_at).getTime()) / (1000 * 60 * 60 * 24))
+                : Math.ceil((new Date().getTime() - new Date(movement.assigned_at).getTime()) / (1000 * 60 * 60 * 24));
+
+            return {
+                'ENAR': movement.animals?.enar || '-',
+                'Kategória': movement.animals?.kategoria || '-',
+                'Bekerülés': assignedDate,
+                'Távozás': removedDate,
+                'Napok karámban': daysInPen,
+                'Indoklás': movement.assignment_reason || '-'
+            };
+        }) || [];
+
+        // EXCEL FÁJL LÉTREHOZÁSA
         const wb = XLSX.utils.book_new();
 
-        // Fájlnév generálása
-        const today = new Date().toISOString().split('T')[0];
-        const sheetName = `Karám_${pen?.pen_number}_${functionType}`;
-        const fileName = `${sheetName}_${today}.xlsx`;
+        // Worksheets hozzáadása
+        if (periodsExportData.length > 0) {
+            const periodsWS = XLSX.utils.json_to_sheet(periodsExportData);
+            XLSX.utils.book_append_sheet(wb, periodsWS, 'Történeti Periódusok');
+        }
 
-        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+        if (eventsExportData.length > 0) {
+            const eventsWS = XLSX.utils.json_to_sheet(eventsExportData);
+            XLSX.utils.book_append_sheet(wb, eventsWS, 'Események');
+        }
+
+        if (movementsExportData.length > 0) {
+            const movementsWS = XLSX.utils.json_to_sheet(movementsExportData);
+            XLSX.utils.book_append_sheet(wb, movementsWS, 'Mozgatások');
+        }
+
+        // Összefoglaló worksheet
+        const summaryData = [
+            { 'Adat típus': 'Történeti periódusok', 'Rekordok száma': periodsExportData.length },
+            { 'Adat típus': 'Események', 'Rekordok száma': eventsExportData.length },
+            { 'Adat típus': 'Mozgatások', 'Rekordok száma': movementsExportData.length },
+            { 'Adat típus': 'Export dátuma', 'Rekordok száma': new Date().toLocaleDateString('hu-HU') },
+            { 'Adat típus': 'Karám', 'Rekordok száma': `Karám ${pen?.pen_number}` }
+        ];
+        const summaryWS = XLSX.utils.json_to_sheet(summaryData);
+        XLSX.utils.book_append_sheet(wb, summaryWS, 'Összefoglaló');
+
+        // Fájl mentése
+        const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
+        const fileName = `Karam_${pen?.pen_number}_tortenet_${timestamp}.xlsx`;
+        
         XLSX.writeFile(wb, fileName);
 
-        console.log('✅ Excel export sikeres:', fileName);
-        
-        // ⭐ SIKERES ÜZENET INTELLIGENS INFORMÁCIÓKKAL
-        const successMessage = functionType === 'hárem' 
-            ? `✅ Intelligens Hárem Excel export sikeres!\n\nFájl: ${fileName}\nÁllatok: ${data.length}\n\n🎯 Funkció: Állat-specifikus hárem kezdetek használva\n📅 VV dátumok: Egyedi számítások alapján`
-            : `✅ Excel export sikeres!\n\nFájl: ${fileName}\nÁllatok: ${data.length}`;
-            
-        alert(successMessage);
+        console.log('✅ Karámtörténet export sikeres:', fileName);
+
+        // Sikeres üzenet
+        alert(`✅ Karámtörténet export sikeres!
+
+📊 Adatok:
+• Történeti periódusok: ${periodsExportData.length} db
+• Események: ${eventsExportData.length} db  
+• Mozgatások: ${movementsExportData.length} db
+
+📁 Fájl: ${fileName}`);
 
     } catch (error) {
-        console.error('❌ Excel export hiba:', error);
-        alert('❌ Hiba történt az export során: ' + (error instanceof Error ? error.message : 'Ismeretlen hiba'));
+        console.error('❌ Karámtörténet export hiba:', error);
+        alert('❌ Hiba történt a karámtörténet export során: ' + (error instanceof Error ? error.message : 'Ismeretlen hiba'));
     }
 };
 
-// Segédfunkciók (változatlanok)
-const calculateTargetDate = (birthDate: string, targetMonths: number): string => {
-    const birth = new Date(birthDate);
-    const target = new Date(birth);
-    target.setMonth(target.getMonth() + targetMonths);
-    return target.toLocaleDateString('hu-HU');
-};
+    // Segédfunkciók (változatlanok)
+    const calculateTargetDate = (birthDate: string, targetMonths: number): string => {
+        const birth = new Date(birthDate);
+        const target = new Date(birth);
+        target.setMonth(target.getMonth() + targetMonths);
+        return target.toLocaleDateString('hu-HU');
+    };
 
-const calculateAgeInMonths = (birthDate: string): number => {
-    const birth = new Date(birthDate);
-    const now = new Date();
-    return Math.floor((now.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
-};
+    const calculateAgeInMonths = (birthDate: string): number => {
+        const birth = new Date(birthDate);
+        const now = new Date();
+        return Math.floor((now.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
+    };
 
     // Animal selection handlers
     const toggleAnimalSelection = (animalId: number) => {
@@ -992,7 +1169,7 @@ const calculateAgeInMonths = (birthDate: string): number => {
                     </div>
 
                     {/* Hárem extra információk */}
-                    {pen.current_function?.function_type === 'hárem' && pen.current_function.metadata && (
+                    {(pen.current_function?.function_type === 'hárem' || pen.current_function?.function_type === 'vemhes') && (
                         <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-6">
                             <h4 className="font-medium text-green-800 mb-3 flex items-center">
                                 <span className="text-xl mr-2">🐄💕</span>
@@ -1091,8 +1268,8 @@ const calculateAgeInMonths = (birthDate: string): number => {
                     {/* Univerzális Karám Történet Gomb */}
                     <div className="mt-6">
                         <button
-  style={{display: 'none'}}
-  onClick={() => {
+                            style={{ display: 'none' }}
+                            onClick={() => {
                                 setShowPenHistory(true);
                                 fetchFullPenHistory();
                             }}
@@ -1105,7 +1282,7 @@ const calculateAgeInMonths = (birthDate: string): number => {
                 </div>
             </div>
 
-{/* Tab Navigation - JAVÍTOTT */}
+            {/* ÚJ Tab Navigation - HÁREM TAB-BAL */}
 <div className="flex border-b mb-6">
   <button
     onClick={() => setActiveTab('animals')}
@@ -1113,12 +1290,24 @@ const calculateAgeInMonths = (birthDate: string): number => {
   >
     🐄 Állatok ({filteredAnimals.length})
   </button>
+  
   <button
-    onClick={() => setActiveTab('dashboard')}
-    className={`px-4 py-2 font-medium ${activeTab === 'dashboard' ? 'border-b-2 border-green-500 text-green-600' : 'text-gray-500'}`}
+    onClick={() => setActiveTab('events')}
+    className={`px-4 py-2 font-medium ${activeTab === 'events' ? 'border-b-2 border-green-500 text-green-600' : 'text-gray-500'}`}
   >
-    📊 {pen.current_function?.function_type === 'hízóbika' ? 'Hízóbika' : 'Karám'} Dashboard
+    🎯 Karám Események
   </button>
+  
+  {/* CONDITIONAL HÁREM TAB - csak hárem karámoknál */}
+  {(pen.current_function?.function_type === 'hárem' || pen.current_function?.function_type === 'vemhes') && (
+    <button
+      onClick={() => setActiveTab('harem')}
+      className={`px-4 py-2 font-medium ${activeTab === 'harem' ? 'border-b-2 border-pink-500 text-pink-600' : 'text-gray-500'}`}
+    >
+      {pen.current_function?.function_type === 'hárem' ? '💕 Hárem Dashboard' : '🐄💕 Vemhes Dashboard'}
+    </button>
+  )}
+  
   <button
     onClick={() => setActiveTab('timeline')}
     className={`px-4 py-2 font-medium ${activeTab === 'timeline' ? 'border-b-2 border-green-500 text-green-600' : 'text-gray-500'}`}
@@ -1127,255 +1316,268 @@ const calculateAgeInMonths = (birthDate: string): number => {
   </button>
 </div>
 
-{/* Tab Content */}
-<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-    
-    {/* Állatok Tab */}
-    {activeTab === 'animals' && (
-        <>
-            {/* Vezérlők */}
-            <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
-                <div className="flex items-center space-x-4 mb-4 sm:mb-0">
-                    <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-                        <span className="text-2xl mr-2">🐄</span>
-                        Állatok ({filteredAnimals.length})
-                    </h2>
-                    {selectedAnimals.length > 0 && (
-                        <div className="flex items-center space-x-2">
-                            <span className="text-sm text-gray-600">
-                                {selectedAnimals.length} kiválasztva
-                            </span>
-                            <button
-                                onClick={clearSelection}
-                                className="text-xs text-blue-600 hover:text-blue-800"
-                            >
-                                Törlés
-                            </button>
+            {/* Tab Content */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+                {/* Állatok Tab */}
+                {activeTab === 'animals' && (
+                    <>
+                        {/* Vezérlők */}
+                        <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
+                            <div className="flex items-center space-x-4 mb-4 sm:mb-0">
+                                <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                                    <span className="text-2xl mr-2">🐄</span>
+                                    Állatok ({filteredAnimals.length})
+                                </h2>
+                                {selectedAnimals.length > 0 && (
+                                    <div className="flex items-center space-x-2">
+                                        <span className="text-sm text-gray-600">
+                                            {selectedAnimals.length} kiválasztva
+                                        </span>
+                                        <button
+                                            onClick={clearSelection}
+                                            className="text-xs text-blue-600 hover:text-blue-800"
+                                        >
+                                            Törlés
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex items-center space-x-4">
+                                {/* Keresés */}
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        placeholder="🔎 ENAR vagy kategória keresése..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                                    />
+                                </div>
+                                {/* Kiválasztás vezérlők */}
+                                <button
+                                    onClick={selectAllAnimals}
+                                    className="text-sm text-blue-600 hover:text-blue-800"
+                                >
+                                    Mind kiválaszt
+                                </button>
+                                <button
+                                    onClick={exportToExcel}
+                                    className="bg-white hover:bg-gray-50 text-gray-700 font-medium px-4 py-2 rounded-lg border border-gray-300 transition-colors inline-flex items-center"
+                                >
+                                    <span className="mr-2">📥</span>
+                                    Export
+                                </button>
+                                <button
+                                    onClick={exportPenHistory}
+                                    className="bg-white hover:bg-gray-50 text-gray-700 font-medium px-4 py-2 rounded-lg border border-gray-300 transition-colors inline-flex items-center"
+                                >
+                                    <span className="mr-2">📥</span>
+                                    Történet Export
+                                </button>
+                            </div>
                         </div>
-                    )}
-                </div>
-                <div className="flex items-center space-x-4">
-                    {/* Keresés */}
-                    <div className="relative">
-                        <input
-                            type="text"
-                            placeholder="🔎 ENAR vagy kategória keresése..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+
+                        {/* Karám-specifikus állatok táblázat */}
+                        <PenSpecificAnimalTable
+                            penFunction={pen.current_function?.function_type || 'üres'}
+                            animals={filteredAnimals.map(animal => ({
+                                ...animal,
+                                id: animal.id.toString()
+                            }))}
+                            selectedAnimals={selectedAnimals.map(id => id.toString())}
+                            onToggleAnimal={(id) => toggleAnimalSelection(parseInt(id))}
+                            onSelectAll={selectAllAnimals}
+                            onClearSelection={clearSelection}
                         />
-                    </div>
-                    {/* Kiválasztás vezérlők */}
-                    <button
-                        onClick={selectAllAnimals}
-                        className="text-sm text-blue-600 hover:text-blue-800"
-                    >
-                        Mind kiválaszt
-                    </button>
-                    <button
-                        onClick={exportToExcel}
-                        className="bg-white hover:bg-gray-50 text-gray-700 font-medium px-4 py-2 rounded-lg border border-gray-300 transition-colors inline-flex items-center"
-                    >
-                        <span className="mr-2">📥</span>
-                        Export
-                    </button>
-                </div>
-            </div>
 
-            {/* Karám-specifikus állatok táblázat */}
-            <PenSpecificAnimalTable
-                penFunction={pen.current_function?.function_type || 'üres'}
-                animals={filteredAnimals.map(animal => ({
-                    ...animal,
-                    id: animal.id.toString()
-                }))}
-                selectedAnimals={selectedAnimals.map(id => id.toString())}
-                onToggleAnimal={(id) => toggleAnimalSelection(parseInt(id))}
-                onSelectAll={selectAllAnimals}
-                onClearSelection={clearSelection}
-            />
-
-            {filteredAnimals.length === 0 && (
-                <div className="text-center py-12">
-                    <span className="text-6xl mb-4 block">🐄</span>
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">Nincsenek állatok</h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                        {searchTerm ? 'Nincs találat a keresési feltételre.' : 'Ez a karám jelenleg üres.'}
-                    </p>
-                </div>
-            )}
-        </>
-    )}
+                        {filteredAnimals.length === 0 && (
+                            <div className="text-center py-12">
+                                <span className="text-6xl mb-4 block">🐄</span>
+                                <h3 className="mt-2 text-sm font-medium text-gray-900">Nincsenek állatok</h3>
+                                <p className="mt-1 text-sm text-gray-500">
+                                    {searchTerm ? 'Nincs találat a keresési feltételre.' : 'Ez a karám jelenleg üres.'}
+                                </p>
+                            </div>
+                        )}
+                    </>
+                )}
 
  // ✅ ÚJ - dinamikus komponens:
-{activeTab === 'dashboard' && (
-    <HaremDashboard 
-        penId={pen.id}
-        penNumber={pen.pen_number}
-        penFunction={pen.current_function?.function_type}  // ← ÚJ
-        onDataChange={() => {
-            console.log('🔄 Hárem dashboard adatok változtak');
-            fetchPenDetails();
-            fetchAnimalsInPen();
-        }}
-    />
-)}
-    
-    {/* Timeline Tab - ÚJ KARÁMTÖRTÉNET KÁRTYA RENDSZER */}
-{activeTab === 'timeline' && (
-    <PenHistoryTab 
-        penId={pen.id}
-        penNumber={pen.pen_number}
-        onDataChange={() => {
-            console.log('🔄 Karámtörténet adatok változtak');
-            fetchPenDetails();
-            fetchAnimalsInPen();
-        }}
-    />
-)}
-</div>
-
-{/* Movement Panel Modal */}
-<AnimalMovementPanel
-    isOpen={showMovementPanel}
-    onClose={() => setShowMovementPanel(false)}
-    selectedAnimals={selectedAnimals}
+         {activeTab === 'events' && (
+  <PenEventsTab 
+    penId={pen.id}
+    penNumber={pen.pen_number}
+    penFunction={pen.current_function?.function_type}
     animals={filteredAnimals}
-    availablePens={allPens}
-    currentPenId={penId}
+    // onDataChange prop elhagyva
+  />
+)}
 
-                
+{/* ÚJ HÁREM TAB CONTENT */}
+{activeTab === 'harem' && (pen.current_function?.function_type === 'hárem' || pen.current_function?.function_type === 'vemhes') && (
+  <HaremDashboard 
+    penId={pen.id}
+    penNumber={pen.pen_number}
+    penFunction={pen.current_function.function_type}
+  />
+)}
+
+                {/* Timeline Tab - ÚJ KARÁMTÖRTÉNET KÁRTYA RENDSZER */}
+                {activeTab === 'timeline' && (
+                    <PenHistoryTab
+                        penId={pen.id}
+                        penNumber={pen.pen_number}
+                        onDataChange={() => {
+                            console.log('🔄 Karámtörténet adatok változtak');
+                            fetchPenDetails();
+                            fetchAnimalsInPen();
+                        }}
+                    />
+                )}
+            </div>
+
+            {/* Movement Panel Modal */}
+            <AnimalMovementPanel
+                isOpen={showMovementPanel}
+                onClose={() => setShowMovementPanel(false)}
+                selectedAnimals={selectedAnimals}
+                animals={filteredAnimals}
+                availablePens={allPens}
+                currentPenId={penId}
+
+
                 // ⭐ CSAK AZ onMove FUNKCIÓ FRISSÍTÉSE - METADATA TÁMOGATÁSSAL
-// Keresd meg ezt a részt a fájlban (787. sor környékén) és cseréld le:
+                // Keresd meg ezt a részt a fájlban (787. sor környékén) és cseréld le:
 
-onMove={async (targetPenId, reason, notes, isHistorical, moveDate, functionType, metadata) => {
-    try {
-        console.log('🔄 Állatok mozgatása hárem metadata támogatással:', {
-            from: penId,
-            to: targetPenId,
-            animals: selectedAnimals,
-            reason,
-            notes,
-            isHistorical,
-            moveDate,
-            functionType,
-            metadata // ⭐ ÚJ PARAMETER
-        });
+                onMove={async (targetPenId, reason, notes, isHistorical, moveDate, functionType, metadata) => {
+                    try {
+                        console.log('🔄 Állatok mozgatása hárem metadata támogatással:', {
+                            from: penId,
+                            to: targetPenId,
+                            animals: selectedAnimals,
+                            reason,
+                            notes,
+                            isHistorical,
+                            moveDate,
+                            functionType,
+                            metadata // ⭐ ÚJ PARAMETER
+                        });
 
-        // Dátum kezelés
-        const actualMoveDate = isHistorical && moveDate ? moveDate : new Date().toISOString();
+                        // Dátum kezelés
+                        const actualMoveDate = isHistorical && moveDate ? moveDate : new Date().toISOString();
 
-        // 1. ✅ RÉGI HOZZÁRENDELÉSEK LEZÁRÁSA (csak ha nem történeti)
-        if (!isHistorical) {
-            const { error: removeError } = await supabase
-                .from('animal_pen_assignments')
-                .update({ removed_at: actualMoveDate })
-                .in('animal_id', selectedAnimals)
-                .is('removed_at', null);
+                        // 1. ✅ RÉGI HOZZÁRENDELÉSEK LEZÁRÁSA (csak ha nem történeti)
+                        if (!isHistorical) {
+                            const { error: removeError } = await supabase
+                                .from('animal_pen_assignments')
+                                .update({ removed_at: actualMoveDate })
+                                .in('animal_id', selectedAnimals)
+                                .is('removed_at', null);
 
-            if (removeError) {
-                throw new Error(`Régi hozzárendelések lezárása sikertelen: ${removeError.message}`);
-            }
-        }
+                            if (removeError) {
+                                throw new Error(`Régi hozzárendelések lezárása sikertelen: ${removeError.message}`);
+                            }
+                        }
 
-        // 2. ✅ ÚJ HOZZÁRENDELÉSEK LÉTREHOZÁSA (csak ha nem történeti)
-        if (!isHistorical) {
-            const newAssignments = selectedAnimals.map(animalId => ({
-                animal_id: animalId,
-                pen_id: targetPenId,
-                assigned_at: actualMoveDate,
-                assignment_reason: reason,
-                notes: notes || null
-            }));
+                        // 2. ✅ ÚJ HOZZÁRENDELÉSEK LÉTREHOZÁSA (csak ha nem történeti)
+                        if (!isHistorical) {
+                            const newAssignments = selectedAnimals.map(animalId => ({
+                                animal_id: animalId,
+                                pen_id: targetPenId,
+                                assigned_at: actualMoveDate,
+                                assignment_reason: reason,
+                                notes: notes || null
+                            }));
 
-            const { error: assignError } = await supabase
-                .from('animal_pen_assignments')
-                .insert(newAssignments);
+                            const { error: assignError } = await supabase
+                                .from('animal_pen_assignments')
+                                .insert(newAssignments);
 
-            if (assignError) {
-                throw new Error(`Új hozzárendelések létrehozása sikertelen: ${assignError.message}`);
-            }
-        }
+                            if (assignError) {
+                                throw new Error(`Új hozzárendelések létrehozása sikertelen: ${assignError.message}`);
+                            }
+                        }
 
-        // 3. ✅ MOZGATÁSI TÖRTÉNET RÖGZÍTÉSE - ⭐ METADATA TÁMOGATÁSSAL!
-        const movements = selectedAnimals.map(animalId => ({
-            animal_id: animalId,
-            from_pen_id: penId,
-            to_pen_id: targetPenId,
-            moved_at: actualMoveDate,
-            movement_reason: reason,
-            function_type: functionType || null, // ⭐ FUNKCIÓ TÍPUS
-            metadata: metadata || null, // ⭐ ÚJ: HÁREM METADATA!
-            notes: notes || null,
-            moved_by: 'manual'
-        }));
+                        // 3. ✅ MOZGATÁSI TÖRTÉNET RÖGZÍTÉSE - ⭐ METADATA TÁMOGATÁSSAL!
+                        const movements = selectedAnimals.map(animalId => ({
+                            animal_id: animalId,
+                            from_pen_id: penId,
+                            to_pen_id: targetPenId,
+                            moved_at: actualMoveDate,
+                            movement_reason: reason,
+                            function_type: functionType || null, // ⭐ FUNKCIÓ TÍPUS
+                            metadata: metadata || null, // ⭐ ÚJ: HÁREM METADATA!
+                            notes: notes || null,
+                            moved_by: 'manual'
+                        }));
 
-       // 3. ✅ EGYSÉGES ESEMÉNY RÖGZÍTÉS - animal_events táblába!
-const events = selectedAnimals.map(animalId => ({
-    animal_id: animalId,
-    event_type: 'pen_movement',
-    event_date: actualMoveDate.split('T')[0],
-    event_time: actualMoveDate.split('T')[1]?.substring(0, 8) || '12:00:00',
-    pen_id: targetPenId,
-    previous_pen_id: penId,
-    pen_function: functionType || null,
-    function_metadata: metadata || null,
-    reason: reason,
-    notes: notes || null,
-    is_historical: isHistorical || false
-}));
+                        // 3. ✅ EGYSÉGES ESEMÉNY RÖGZÍTÉS - animal_events táblába!
+                        const events = selectedAnimals.map(animalId => ({
+                            animal_id: animalId,
+                            event_type: 'pen_movement',
+                            event_date: actualMoveDate.split('T')[0],
+                            event_time: actualMoveDate.split('T')[1]?.substring(0, 8) || '12:00:00',
+                            pen_id: targetPenId,
+                            previous_pen_id: penId,
+                            pen_function: functionType || null,
+                            function_metadata: metadata || null,
+                            reason: reason,
+                            notes: notes || null,
+                            is_historical: isHistorical || false
+                        }));
 
-const { error: eventError } = await supabase
-    .from('animal_events')
-    .insert(events);
+                        const { error: eventError } = await supabase
+                            .from('animal_events')
+                            .insert(events);
 
-if (eventError) {
-    console.warn('⚠️ Esemény mentése sikertelen:', eventError.message);
-} else {
-    console.log('✅ Események mentve animal_events táblába:', events);
-}
+                        if (eventError) {
+                            console.warn('⚠️ Esemény mentése sikertelen:', eventError.message);
+                        } else {
+                            console.log('✅ Események mentve animal_events táblába:', events);
+                        }
 
-        // 4. ✅ UI FRISSÍTÉS - SIKERÜZENET HÁREM INFORMÁCIÓKKAL
-        console.log(`✅ ${selectedAnimals.length} állat sikeresen mozgatva ${targetPenId} karamra`);
+                        // 4. ✅ UI FRISSÍTÉS - SIKERÜZENET HÁREM INFORMÁCIÓKKAL
+                        console.log(`✅ ${selectedAnimals.length} állat sikeresen mozgatva ${targetPenId} karamra`);
 
-        // ⭐ HÁREM SPECIFIKUS SIKERÜZENET
-        let successMessage = `✅ ${selectedAnimals.length} állat sikeresen mozgatva!\n\nCélkarám: ${targetPenId}\nOk: ${reason}`;
-        
-        if (functionType === 'hárem' && metadata) {
-            successMessage += `\n\n🐄💕 HÁREM ADATOK:`;
-            if (metadata.tenyeszbika_name) {
-                successMessage += `\n🐂 Tenyészbika: ${metadata.tenyeszbika_name}`;
-            }
-            if (metadata.pairing_start_date) {
-                successMessage += `\n💕 Párzási kezdet: ${new Date(metadata.pairing_start_date).toLocaleDateString('hu-HU')}`;
-            }
-            if (metadata.expected_vv_date) {
-                successMessage += `\n🔍 VV tervezett: ${new Date(metadata.expected_vv_date).toLocaleDateString('hu-HU')}`;
-            }
-        }
+                        // ⭐ HÁREM SPECIFIKUS SIKERÜZENET
+                        let successMessage = `✅ ${selectedAnimals.length} állat sikeresen mozgatva!\n\nCélkarám: ${targetPenId}\nOk: ${reason}`;
 
-        if (isHistorical) {
-            successMessage += `\n\n📚 Történeti mozgatás - állatok jelenlegi karámja nem változott`;
-        }
+                        if (functionType === 'hárem' && metadata) {
+                            successMessage += `\n\n🐄💕 HÁREM ADATOK:`;
+                            if (metadata.tenyeszbika_name) {
+                                successMessage += `\n🐂 Tenyészbika: ${metadata.tenyeszbika_name}`;
+                            }
+                            if (metadata.pairing_start_date) {
+                                successMessage += `\n💕 Párzási kezdet: ${new Date(metadata.pairing_start_date).toLocaleDateString('hu-HU')}`;
+                            }
+                            if (metadata.expected_vv_date) {
+                                successMessage += `\n🔍 VV tervezett: ${new Date(metadata.expected_vv_date).toLocaleDateString('hu-HU')}`;
+                            }
+                        }
 
-        alert(successMessage);
+                        if (isHistorical) {
+                            successMessage += `\n\n📚 Történeti mozgatás - állatok jelenlegi karámja nem változott`;
+                        }
 
-        setShowMovementPanel(false);
-        setSelectedAnimals([]);
+                        alert(successMessage);
 
-        // Csak nem történeti mozgatás esetén frissítjük az oldalt
-        if (!isHistorical) {
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-        }
+                        setShowMovementPanel(false);
+                        setSelectedAnimals([]);
 
-    } catch (error) {
-        console.error('❌ Mozgatási hiba:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Ismeretlen hiba';
-        alert(`❌ Mozgatási hiba: ${errorMessage}`);
-    }
-}}
+                        // Csak nem történeti mozgatás esetén frissítjük az oldalt
+                        if (!isHistorical) {
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1000);
+                        }
+
+                    } catch (error) {
+                        console.error('❌ Mozgatási hiba:', error);
+                        const errorMessage = error instanceof Error ? error.message : 'Ismeretlen hiba';
+                        alert(`❌ Mozgatási hiba: ${errorMessage}`);
+                    }
+                }}
             />
 
             <PenFunctionManager
@@ -1446,8 +1648,8 @@ if (eventError) {
                                 )}
 
                                 <button
-                                     style={{display: 'none'}}
-  onClick={() => setShowHaremHistory(true)}
+                                    style={{ display: 'none' }}
+                                    onClick={() => setShowHaremHistory(true)}
                                 >
                                     <span className="text-xl">❌</span>
                                 </button>
