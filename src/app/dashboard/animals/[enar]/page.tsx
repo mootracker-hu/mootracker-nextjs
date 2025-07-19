@@ -315,3 +315,4 @@ export default function AnimalDetailPage() {
     </div>
   );
 }
+// Automatikus élesítés tesztje
