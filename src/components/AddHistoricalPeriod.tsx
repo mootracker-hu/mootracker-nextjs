@@ -63,7 +63,7 @@ const loadSelectedAnimalsData = async () => {
   try {
     const { data, error } = await supabase
       .from('animals')
-      .select('id, enar, kategoria, ivar, szuletesi_datum')
+      .select('id, enar, kategoria, ivar, szuletesi_datum, statusz')
       .in('id', selectedAnimals);
 
     if (error) throw error;
@@ -73,7 +73,7 @@ const loadSelectedAnimalsData = async () => {
   }
 };
 
-// ÚJ: Tenyészbikák betöltése
+// ÚJ: Tenyészbikák betöltése (eladott tenyészbikák is)
 useEffect(() => {
   loadAvailableBulls();
 }, []);
@@ -82,9 +82,9 @@ const loadAvailableBulls = async () => {
   try {
     const { data, error } = await supabase
       .from('animals')
-      .select('id, enar, name, kategoria')
+      .select('id, enar, name, kategoria, statusz')
       .eq('kategoria', 'tenyészbika')
-      .eq('statusz', 'aktív')
+      .in('statusz', ['aktív', 'eladott', 'elhullott']) // ← ELHULLOTT TENYÉSZBIKÁK IS!
       .order('enar');
 
     if (error) throw error;
@@ -133,7 +133,8 @@ if (formData.function_type === 'hárem' && selectedBulls.length > 0) {
     id: bull.id,
     enar: bull.enar,
     name: bull.name || 'Névtelen',
-    kplsz: bull.kplsz || ''
+    kplsz: bull.kplsz || '',
+    sold_status: bull.statusz === 'eladott' ? { sold_date: bull.sold_date, sold_to: bull.sold_to } : null
   }));
   metadata.bull_count = selectedBullsData.length;
   
@@ -153,6 +154,23 @@ if (formData.function_type === 'hárem' && selectedBulls.length > 0) {
         categoryStats[animal.kategoria] = (categoryStats[animal.kategoria] || 0) + 1;
       });
       metadata.category_breakdown = categoryStats;
+
+      // Eladott és elhullott állatok számlálása
+      const soldAnimals = selectedAnimalsData.filter(a => a.statusz === 'eladott');
+      const deceasedAnimals = selectedAnimalsData.filter(a => a.statusz === 'elhullott');
+      const inactiveAnimals = [...soldAnimals, ...deceasedAnimals];
+      
+      if (inactiveAnimals.length > 0) {
+        metadata.inactive_animals_count = inactiveAnimals.length;
+        metadata.sold_animals_count = soldAnimals.length;
+        metadata.deceased_animals_count = deceasedAnimals.length;
+        metadata.contains_inactive_animals = true;
+        metadata.inactive_animals = inactiveAnimals.map(a => ({
+          id: a.id,
+          enar: a.enar,
+          statusz: a.statusz
+        }));
+      }
 
       // 3. Periódus mentése
       const { error: insertError } = await supabase
@@ -174,12 +192,15 @@ if (formData.function_type === 'hárem' && selectedBulls.length > 0) {
 
       console.log('✅ Történeti periódus sikeresen mentve');
 
-      // ✅ ÚJ: Fizikai állat szinkronizáció (csak folyamatban lévő periódusokhoz)
+      // ✅ ÚJ: Fizikai állat szinkronizáció (csak folyamatban lévő periódusokhoz és csak aktív állatokhoz)
 if (!formData.end_date) {
   try {
     console.log('🔄 Folyamatban lévő periódus - állatok fizikai szinkronizálása...');
     
-    for (const animal of selectedAnimalsData) {
+    // Csak az aktív állatok fizikai mozgatása
+    const activeAnimals = selectedAnimalsData.filter(a => a.statusz === 'aktív');
+    
+    for (const animal of activeAnimals) {
       // Régi hozzárendelések lezárása
       await supabase
         .from('animal_pen_assignments')
@@ -204,7 +225,10 @@ if (!formData.end_date) {
         .eq('id', animal.id);
     }
     
-    console.log('✅ Állatok fizikailag szinkronizálva:', selectedAnimalsData.length);
+    console.log('✅ Aktív állatok fizikailag szinkronizálva:', activeAnimals.length);
+    if (soldAnimals.length > 0) {
+      console.log('ℹ️ Eladott állatok kihagyva a fizikai szinkronizációból:', soldAnimals.length);
+    }
   } catch (syncError) {
     console.error('❌ Fizikai szinkronizáció hiba:', syncError);
   }
@@ -218,10 +242,10 @@ if (!formData.end_date) {
         animalCount: selectedAnimalsData.length 
       });
 
-      // Érintett állatok broadcast-ja
-      const animalIds = selectedAnimalsData.map(animal => animal.id.toString());
-      if (animalIds.length > 0) {
-        broadcastAnimalHistoryUpdate(animalIds, 'period_added', { 
+      // Érintett állatok broadcast-ja (csak aktív állatok)
+      const activeAnimalIds = selectedAnimalsData.filter(a => a.statusz === 'aktív').map(animal => animal.id.toString());
+      if (activeAnimalIds.length > 0) {
+        broadcastAnimalHistoryUpdate(activeAnimalIds, 'period_added', { 
           penId,
           functionType: formData.function_type 
         });
@@ -232,12 +256,14 @@ if (!formData.end_date) {
         .map(([kategoria, count]) => `${kategoria}: ${count}`)
         .join(', ');
 
+      const soldInfo = inactiveAnimals.length > 0 ? `\n\n📋 Nem aktív állatok: ${inactiveAnimals.length} db (${soldAnimals.length} eladott, ${deceasedAnimals.length} elhullott) - csak történeti rögzítés` : '';
+
       alert(`✅ Történeti periódus sikeresen rögzítve!
 
 Periódus: ${formData.function_type}
-Állatok: ${selectedAnimalsData.length} db
+Állatok: ${selectedAnimalsData.length} db (${selectedAnimalsData.filter(a => a.statusz === 'aktív').length} aktív + ${inactiveAnimals.length} nem aktív)
 Kategóriák: ${categoryBreakdown}
-Időszak: ${formData.start_date} - ${formData.end_date || 'folyamatban'}`);
+Időszak: ${formData.start_date} - ${formData.end_date || 'folyamatban'}${soldInfo}`);
 
       onSave();
 
@@ -314,7 +340,7 @@ Időszak: ${formData.start_date} - ${formData.end_date || 'folyamatban'}`);
           </select>
         </div>
 
-        {/* ÚJ: AnimalSelector integráció */}
+        {/* ÚJ: AnimalSelector integráció ELADOTT ÁLLATOKKAL */}
         <div>
           <AnimalSelector
             penId={penId}
@@ -322,10 +348,15 @@ Időszak: ${formData.start_date} - ${formData.end_date || 'folyamatban'}`);
             onChange={setSelectedAnimals}
             multiSelect={true}
             currentOnly={false} // Minden állat elérhető, nem csak karámbeliek
-            label="🐄 Állatok kiválasztása *"
-            placeholder="Keresés ENAR, kategória alapján..."
+            includeSoldAnimals={true} // ← ITT A KULCS! ELADOTT ÁLLATOK IS!
+            label="🐄 Állatok kiválasztása * (aktív, eladott és elhullott állatok)"
+            placeholder="Keresés ENAR, kategória alapján... (eladott és elhullott állatok is megjelennek)"
             maxHeight="max-h-80"
           />
+          <p className="text-xs text-gray-600 mt-2">
+            💡 <strong>Eladott és elhullott állatok is kiválaszthatók</strong> történeti karámtörténet rögzítéséhez. 
+            Ezek az állatok csak a történeti kártyában szerepelnek, fizikai mozgatás nem történik.
+          </p>
         </div>
 
         {/* Kiválasztott állatok összesítő */}
@@ -334,11 +365,38 @@ Időszak: ${formData.start_date} - ${formData.end_date || 'folyamatban'}`);
             <h4 className="font-medium text-blue-900 mb-2">
               📊 Kiválasztott állatok összesítő ({selectedAnimalsData.length} db)
             </h4>
+            
+            {/* Státusz szerinti bontás */}
+            {(() => {
+              const activeCount = selectedAnimalsData.filter(a => a.statusz === 'aktív').length;
+              const soldCount = selectedAnimalsData.filter(a => a.statusz === 'eladott').length;
+              const deceasedCount = selectedAnimalsData.filter(a => a.statusz === 'elhullott').length;
+              
+              return (
+                <div className="mb-3 p-2 bg-white rounded border">
+                  <p className="text-sm font-medium text-gray-700 mb-1">Státusz megoszlás:</p>
+                  <div className="flex gap-4 text-sm">
+                    <span className="text-green-700">✅ Aktív: {activeCount} db</span>
+                    {soldCount > 0 && (
+                      <span className="text-red-700">📦 Eladott: {soldCount} db</span>
+                    )}
+                    {deceasedCount > 0 && (
+                      <span className="text-gray-700">💀 Elhullott: {deceasedCount} db</span>
+                    )}
+                  </div>
+                  {(soldCount > 0 || deceasedCount > 0) && (
+                    <p className="text-xs text-red-600 mt-1">
+                      ℹ️ A nem aktív állatok csak történeti rögzítésre kerülnek, fizikai mozgatás nem történik.
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="font-medium text-blue-800">Kategóriák:</p>
                 <ul className="text-blue-700">
-                  // ÚJ:
                   {(() => {
                     const categoryStats: Record<string, number> = {};
                     selectedAnimalsData.forEach(animal => {
@@ -354,7 +412,6 @@ Időszak: ${formData.start_date} - ${formData.end_date || 'folyamatban'}`);
               <div>
                 <p className="font-medium text-blue-800">Ivarok:</p>
                 <ul className="text-blue-700">
-                  // ÚJ:
                   {(() => {
                     const ivarStats: Record<string, number> = {};
                     selectedAnimalsData.forEach(animal => {
@@ -365,25 +422,24 @@ Időszak: ${formData.start_date} - ${formData.end_date || 'folyamatban'}`);
                       <li key={ivar}>• {ivar}: {count} db</li>
                     ));
                   })()}
-
                 </ul>
               </div>
             </div>
           </div>
         )}
 
-        {/* Hárem specifikus mező */}
+        {/* Hárem specifikus mező - ELADOTT TENYÉSZBIKÁK IS */}
 {formData.function_type === 'hárem' && (
   <div>
     <label className="block text-sm font-medium text-gray-700 mb-2">
-      🐂 Tenyészbikák kiválasztása
+      🐂 Tenyészbikák kiválasztása (aktív és eladott)
     </label>
     
     {availableBulls.length > 0 ? (
       <div className="border border-gray-300 rounded-lg p-3 max-h-48 overflow-y-auto">
         <div className="space-y-2">
           {availableBulls.map(bull => (
-            <label key={bull.id} className="flex items-center">
+            <label key={bull.id} className={`flex items-center ${bull.statusz === 'eladott' ? 'bg-red-50 p-2 rounded border border-red-200' : ''}`}>
               <input
                 type="checkbox"
                 checked={selectedBulls.includes(bull.id)}
@@ -396,8 +452,13 @@ Időszak: ${formData.start_date} - ${formData.end_date || 'folyamatban'}`);
                 }}
                 className="mr-3 rounded border-gray-300 text-green-600 focus:ring-green-500"
               />
-              <span className="text-sm">
+              <span className="text-sm flex-1">
                 🐂 {bull.enar} - {bull.name || 'Névtelen'}
+                {bull.statusz === 'eladott' && (
+                  <span className="ml-2 text-xs text-red-600">
+                    [ELADOTT]
+                  </span>
+                )}
               </span>
             </label>
           ))}
@@ -407,6 +468,13 @@ Időszak: ${formData.start_date} - ${formData.end_date || 'folyamatban'}`);
           <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded">
             <p className="text-green-800 text-sm">
               {selectedBulls.length} tenyészbika kiválasztva
+              {(() => {
+                const selectedBullsData = availableBulls.filter(bull => selectedBulls.includes(bull.id));
+                const activeBulls = selectedBullsData.filter(b => b.statusz === 'aktív').length;
+                const soldBulls = selectedBullsData.filter(b => b.statusz === 'eladott').length;
+                
+                return soldBulls > 0 ? ` (${activeBulls} aktív, ${soldBulls} eladott)` : '';
+              })()}
             </p>
           </div>
         )}
@@ -416,6 +484,9 @@ Időszak: ${formData.start_date} - ${formData.end_date || 'folyamatban'}`);
         Nincsenek elérhető tenyészbikák az adatbázisban
       </div>
     )}
+    <p className="text-xs text-gray-600 mt-2">
+      💡 Eladott tenyészbikák is kiválaszthatók történeti hárem periódus rögzítéséhez.
+    </p>
   </div>
 )}
 

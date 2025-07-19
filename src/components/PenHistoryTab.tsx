@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import PenHistoryCard from './PenHistoryCard';
 import AddHistoricalPeriod from './AddHistoricalPeriod';
+import EditHistoricalPeriod from './EditHistoricalPeriod'; // ÚJ IMPORT
 import { 
   broadcastManualPeriodAdded, 
   broadcastPenHistoryUpdate,
@@ -17,6 +18,7 @@ interface Animal {
   enar: string;
   kategoria: string;
   ivar: string;
+  statusz: string; // ← Ezt add hozzá
 }
 
 interface PenHistoryPeriod {
@@ -46,7 +48,9 @@ export default function PenHistoryTab({
   const [periods, setPeriods] = useState<PenHistoryPeriod[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false); // ÚJ STATE
   const [selectedPeriod, setSelectedPeriod] = useState<PenHistoryPeriod | null>(null);
+  const [editingPeriod, setEditingPeriod] = useState<PenHistoryPeriod | null>(null); // ÚJ STATE
   const [filter, setFilter] = useState<'all' | 'harem' | 'other'>('all');
 
   // Periódusok betöltése
@@ -90,6 +94,13 @@ export default function PenHistoryTab({
     if (filter === 'other') return period.function_type !== 'hárem';
     return true;
   });
+
+  // ÚJ: Szerkesztés indítása
+  const startEdit = (period: PenHistoryPeriod) => {
+    setEditingPeriod(period);
+    setShowEditForm(true);
+    setSelectedPeriod(null); // Modal bezárása
+  };
 
   // Periódus törlése
   const deletePeriod = async (periodId: string) => {
@@ -201,7 +212,7 @@ export default function PenHistoryTab({
         </button>
       </div>
 
-      {/* Manual form */}
+      {/* Manual add form */}
       {showAddForm && (
         <div className="mb-6">
           <AddHistoricalPeriod 
@@ -213,6 +224,26 @@ export default function PenHistoryTab({
               if (onDataChange) onDataChange(); // Parent értesítése
             }}
             onCancel={() => setShowAddForm(false)}
+          />
+        </div>
+      )}
+
+      {/* ÚJ: Manual edit form */}
+      {showEditForm && editingPeriod && (
+        <div className="mb-6">
+          <EditHistoricalPeriod 
+            period={editingPeriod}
+            penNumber={penNumber}
+            onSave={() => {
+              setShowEditForm(false);
+              setEditingPeriod(null);
+              loadPeriods(); // Lista frissítése
+              if (onDataChange) onDataChange(); // Parent értesítése
+            }}
+            onCancel={() => {
+              setShowEditForm(false);
+              setEditingPeriod(null);
+            }}
           />
         </div>
       )}
@@ -246,7 +277,7 @@ export default function PenHistoryTab({
         </div>
       )}
 
-      {/* Részletek modal */}
+      {/* Részletek modal - FRISSÍTETT SZERKESZTÉS GOMBBAL */}
       {selectedPeriod && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden mx-4">
@@ -265,6 +296,15 @@ export default function PenHistoryTab({
               </div>
               
               <div className="flex items-center gap-3">
+                {/* ÚJ: Szerkesztés gomb */}
+                <button
+                  onClick={() => startEdit(selectedPeriod)}
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors inline-flex items-center"
+                >
+                  <span className="mr-1">✏️</span>
+                  Szerkesztés
+                </button>
+                
                 {/* Törlés gomb */}
                 <button
                   onClick={() => {
@@ -306,6 +346,9 @@ export default function PenHistoryTab({
                       return `${diffDays} nap`;
                     })()}</p>
                     <p><strong>Típus:</strong> {selectedPeriod.historical ? '📚 Manual rögzítés' : '🤖 Automatikus'}</p>
+                    {selectedPeriod.metadata?.last_edited && (
+                      <p><strong>Utolsó szerkesztés:</strong> {new Date(selectedPeriod.metadata.last_edited).toLocaleDateString('hu-HU')}</p>
+                    )}
                   </div>
                 </div>
                 
@@ -329,6 +372,14 @@ export default function PenHistoryTab({
                       })()}
                     </div>
                   )}
+                  
+                  {/* Eladott állatok információ */}
+                  {selectedPeriod.metadata?.sold_animals_count > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded p-2 text-sm">
+                      <p className="text-red-800 font-medium">📦 Eladott állatok: {selectedPeriod.metadata.sold_animals_count} db</p>
+                      <p className="text-red-600 text-xs">Csak történeti rögzítés</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -348,6 +399,9 @@ export default function PenHistoryTab({
                         {selectedPeriod.metadata.bulls.map((bull: any, index: number) => (
                           <div key={index} className="text-sm text-pink-700 bg-pink-100 px-2 py-1 rounded">
                             • {bull.name || `${index + 1}. tenyészbika`} {bull.enar && `(${bull.enar})`}
+                            {bull.sold_status === 'eladott' && (
+                              <span className="ml-2 text-xs text-red-600">[ELADOTT]</span>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -384,6 +438,9 @@ export default function PenHistoryTab({
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Ivar
                           </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Státusz
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -397,6 +454,17 @@ export default function PenHistoryTab({
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                               {animal.ivar === 'hím' ? '♂️' : '♀️'} {animal.ivar}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {animal.statusz === 'eladott' ? (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                  📦 Eladott
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                  ✅ Aktív
+                                </span>
+                              )}
                             </td>
                           </tr>
                         ))}

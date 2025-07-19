@@ -1,7 +1,7 @@
 // src/components/AnimalSelector.tsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Search, User, Calendar, MapPin } from 'lucide-react';
+import { Search, User, Calendar, MapPin, AlertCircle } from 'lucide-react';
 
 interface Animal {
   id: number;
@@ -14,6 +14,7 @@ interface Animal {
   anya_enar?: string;
   apa_enar?: string;
   birth_location?: 'nálunk' | 'vásárolt' | 'ismeretlen';
+  name?: string;
 }
 
 interface AnimalSelectorProps {
@@ -22,6 +23,7 @@ interface AnimalSelectorProps {
   onChange: (selected: number[]) => void;
   multiSelect?: boolean;
   currentOnly?: boolean; // Csak jelenleg karámban lévők
+  includeSoldAnimals?: boolean; // ÚJ: Eladott állatok is megjelenjenek-e
   label?: string;
   placeholder?: string;
   maxHeight?: string;
@@ -33,6 +35,7 @@ const AnimalSelector: React.FC<AnimalSelectorProps> = ({
   onChange,
   multiSelect = true,
   currentOnly = false,
+  includeSoldAnimals = false, // ÚJ prop
   label = "Állatok kiválasztása",
   placeholder = "Keresés ENAR, kategória alapján...",
   maxHeight = "max-h-64"
@@ -45,55 +48,66 @@ const AnimalSelector: React.FC<AnimalSelectorProps> = ({
   // 🔍 Állatok betöltése
   useEffect(() => {
     loadAnimals();
-  }, [penId, currentOnly]);
+  }, [penId, currentOnly, includeSoldAnimals]); // includeSoldAnimals hozzáadva a dependency-khez
 
   const loadAnimals = async () => {
-    console.log('🔍 loadAnimals called with:', { penId, currentOnly });
+    console.log('🔍 loadAnimals called with:', { penId, currentOnly, includeSoldAnimals });
     try {
       setLoading(true);
       setError(null);
-console.log('📊 Query setup:', { penId, currentOnly });
+      
       let query = supabase
         .from('animals')
-        .select('*')
-        .eq('statusz', 'aktív')
-        .order('enar');
-        console.log('🔍 Before pen filtering');
+        .select('id, enar, szuletesi_datum, ivar, kategoria, statusz, jelenlegi_karam, anya_enar, apa_enar, birth_location, name'); // ← KONKRÉT OSZLOPOK!
+
+      // MÓDOSÍTOTT LOGIKA: státusz szűrés az includeSoldAnimals alapján
+      if (includeSoldAnimals) {
+        // Ha eladott állatokat is akarunk, akkor minden állatot lekérdezünk (aktív + eladott + elhullott)
+        query = query.in('statusz', ['aktív', 'eladott', 'elhullott']);
+        console.log('🐄 Loading ACTIVE + SOLD + DECEASED animals');
+      } else {
+        // Alapértelmezett: csak aktív állatok
+        query = query.eq('statusz', 'aktív');
+        console.log('🐄 Loading ACTIVE animals only');
+      }
+
+      query = query.order('enar');
+
+      console.log('🔍 Before pen filtering');
 
       // JAVÍTOTT LOGIKA: csak akkor szűrjünk karám alapján, ha MINDKETTŐ igaz
-if (penId && currentOnly && penId !== undefined) {
-     console.log('🚨 PEN FILTERING ACTIVATED!', { penId, currentOnly });
-    // Jelenleg karámban lévő állatok lekérdezése
-    const { data: assignments, error: assignError } = await supabase
-        .from('animal_pen_assignments')
-        .select('animal_id')
-        .eq('pen_id', penId)
-        .is('removed_at', null);
+      if (penId && currentOnly && penId !== undefined) {
+        console.log('🚨 PEN FILTERING ACTIVATED!', { penId, currentOnly });
+        // Jelenleg karámban lévő állatok lekérdezése
+        const { data: assignments, error: assignError } = await supabase
+          .from('animal_pen_assignments')
+          .select('animal_id')
+          .eq('pen_id', penId)
+          .is('removed_at', null);
 
-    if (assignError) throw assignError;
+        if (assignError) throw assignError;
 
-    const animalIds = assignments?.map(a => a.animal_id) || [];
-    
-    if (animalIds.length === 0) {
-        setAnimals([]);
-        setLoading(false);
-        return;
-    }
+        const animalIds = assignments?.map(a => a.animal_id) || [];
+        
+        if (animalIds.length === 0) {
+          setAnimals([]);
+          setLoading(false);
+          return;
+        }
 
-    query = query.in('id', animalIds);
-} else {
-    console.log('✅ NO PEN FILTERING - loading all animals');  // ← ÚJ SOR!
-}
-// Ha currentOnly = false, akkor MINDEN állatot betöltünk penId-től függetlenül
-// Ha currentOnly = false, akkor MINDEN állatot betöltünk penId-től függetlenül
+        query = query.in('id', animalIds);
+      } else {
+        console.log('✅ NO PEN FILTERING - loading all animals');
+      }
 
-    console.log('🔍 Executing query...');
+      console.log('🔍 Executing query...');
       const { data, error } = await query;
-       console.log('📊 Query result:', { 
-            data: data?.length || 0, 
-            error: error?.message || 'none',
-            first_animal: data?.[0]?.enar || 'none'
-        });
+      console.log('📊 Query result:', { 
+        data: data?.length || 0, 
+        error: error?.message || 'none',
+        first_animal: data?.[0]?.enar || 'none',
+        sold_count: data?.filter(a => a.statusz === 'eladott').length || 0
+      });
 
       if (error) throw error;
 
@@ -112,6 +126,11 @@ if (penId && currentOnly && penId !== undefined) {
     animal.kategoria?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // 📊 Statisztikák az eladott és elhullott állatokról
+  const activeAnimalsCount = filteredAnimals.filter(a => a.statusz === 'aktív').length;
+  const soldAnimalsCount = filteredAnimals.filter(a => a.statusz === 'eladott').length;
+  const deceasedAnimalsCount = filteredAnimals.filter(a => a.statusz === 'elhullott').length;
+
   // 📝 Állat kiválasztása/eltávolítása
   const toggleAnimal = (animalId: number) => {
     if (multiSelect) {
@@ -121,7 +140,6 @@ if (penId && currentOnly && penId !== undefined) {
         onChange([...selected, animalId]);
       }
     } else {
-
       onChange(selected.includes(animalId) ? [] : [animalId]);
     }
   };
@@ -187,9 +205,21 @@ if (penId && currentOnly && penId !== undefined) {
       <div className="flex items-center justify-between">
         <label className="block text-sm font-medium text-gray-700">
           {label}
+          {includeSoldAnimals && (
+            <span className="ml-2 text-xs text-blue-600 font-normal">
+              (eladott és elhullott állatok is)
+            </span>
+          )}
         </label>
         <div className="text-sm text-gray-500">
           {selected.length} / {filteredAnimals.length} kiválasztva
+          {includeSoldAnimals && (soldAnimalsCount > 0 || deceasedAnimalsCount > 0) && (
+            <span className="ml-2 text-xs">
+              ({activeAnimalsCount} aktív
+              {soldAnimalsCount > 0 && `, ${soldAnimalsCount} eladott`}
+              {deceasedAnimalsCount > 0 && `, ${deceasedAnimalsCount} elhullott`})
+            </span>
+          )}
         </div>
       </div>
 
@@ -266,6 +296,8 @@ if (penId && currentOnly && penId !== undefined) {
                   key={animal.id}
                   className={`p-3 hover:bg-gray-50 cursor-pointer transition-colors ${
                     selected.includes(animal.id) ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                  } ${
+                    animal.statusz === 'eladott' ? 'bg-red-50' : animal.statusz === 'elhullott' ? 'bg-gray-50' : ''
                   }`}
                   onClick={() => toggleAnimal(animal.id)}
                 >
@@ -284,10 +316,24 @@ if (penId && currentOnly && penId !== undefined) {
                         <div className="flex items-center space-x-2">
                           <span className="font-medium text-gray-900">
                             {animal.enar}
+                            {animal.name && ` - ${animal.name}`}
                           </span>
                           <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-full">
                             {animal.ivar}
                           </span>
+                          {/* ÚJ: Eladott és elhullott badge */}
+                          {animal.statusz === 'eladott' && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                              Eladott
+                            </span>
+                          )}
+                          {animal.statusz === 'elhullott' && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                              Elhullott
+                            </span>
+                          )}
                         </div>
                         
                         <div className="flex items-center space-x-4 mt-1 text-sm text-gray-500">
@@ -303,6 +349,18 @@ if (penId && currentOnly && penId !== undefined) {
                             </span>
                           )}
                         </div>
+
+                        {/* Eladott és elhullott állatoknál egyszerű jelzés - részletes adatok nélkül */}
+                        {animal.statusz === 'eladott' && (
+                          <div className="mt-2 text-xs text-red-600">
+                            📦 Ez az állat eladásra került
+                          </div>
+                        )}
+                        {animal.statusz === 'elhullott' && (
+                          <div className="mt-2 text-xs text-gray-600">
+                            💀 Ez az állat elhullott
+                          </div>
+                        )}
                       </div>
                     </div>
 

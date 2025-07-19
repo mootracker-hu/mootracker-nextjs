@@ -85,7 +85,7 @@ export const usePenHistorySync = (
   };
 };
 
-// 🤖 AUTOMATIKUS SNAPSHOT GENERÁLÁS
+// 🤖 AUTOMATIKUS SNAPSHOT GENERÁLÁS - JAVÍTOTT OSZLOPNEVEK
 export const createAutomaticPeriodSnapshot = async (
   penId: string, 
   trigger: PenHistoryEvent,
@@ -94,24 +94,43 @@ export const createAutomaticPeriodSnapshot = async (
   try {
     console.log(`📸 Creating automatic snapshot for pen ${penId}, trigger: ${trigger}`);
     
-    // Jelenlegi állatok lekérdezése
+    // ✅ JAVÍTOTT: Jelenlegi állatok lekérdezése a helyes oszlopnevek alapján
+    const { data: penData } = await supabase
+      .from('pens')
+      .select('pen_number')
+      .eq('id', penId)
+      .single();
+
+    if (!penData) {
+      console.error('Pen not found:', penId);
+      return null;
+    }
+
+    // Állatok lekérdezése a jelenlegi karám alapján
     const { data: animals, error: animalsError } = await supabase
       .from('animals')
-      .select('id, enar, kategoria, nev')
-      .eq('current_pen_id', penId)
-      .eq('aktiv', true);
+      .select('id, enar, kategoria, name')
+      .eq('jelenlegi_karam', penData.pen_number) // ✅ JAVÍTOTT oszlopnév
+      .eq('statusz', 'aktív'); // ✅ JAVÍTOTT oszlopnév
 
-    if (animalsError) throw animalsError;
+    if (animalsError) {
+      console.error('Error fetching animals:', animalsError);
+      // Ne dobjunk hibát, csak logoljuk
+      return null;
+    }
 
-    // Karám funkció lekérdezése ha nincs megadva
+    // ✅ JAVÍTOTT: Karám funkció lekérdezése a pen_functions táblából
     let currentFunction = functionType;
     if (!currentFunction) {
-      const { data: pen } = await supabase
-        .from('pens')
-        .select('function')
-        .eq('id', penId)
+      const { data: penFunction } = await supabase
+        .from('pen_functions')
+        .select('function_type')
+        .eq('pen_id', penId)
+        .is('end_date', null) // Csak aktív funkció
+        .order('start_date', { ascending: false })
+        .limit(1)
         .single();
-      currentFunction = pen?.function || 'ismeretlen';
+      currentFunction = penFunction?.function_type || 'ismeretlen';
     }
 
     // Előző periódus lezárása
@@ -135,14 +154,19 @@ export const createAutomaticPeriodSnapshot = async (
       .select()
       .single();
 
-    if (periodError) throw periodError;
+    if (periodError) {
+      console.error('Error creating period:', periodError);
+      // Ne dobjunk hibát, csak logoljuk
+      return null;
+    }
 
     console.log(`✅ Automatic snapshot created: ${newPeriod.id}`);
     return newPeriod;
 
   } catch (error) {
     console.error('❌ Error creating automatic snapshot:', error);
-    throw error;
+    // Ne dobjunk hibát, csak logoljuk és térjünk vissza null-lal
+    return null;
   }
 };
 
@@ -155,14 +179,17 @@ export const closePreviousPeriod = async (penId: string) => {
     const { error } = await supabase
       .from('pen_history_periods')
       .update({ 
-        end_date: yesterday.toISOString().split('T')[0],
-        updated_at: new Date().toISOString()
+        end_date: yesterday.toISOString().split('T')[0]
       })
       .eq('pen_id', penId)
       .is('end_date', null);
 
-    if (error) throw error;
-    console.log(`🔚 Previous period closed for pen ${penId}`);
+    if (error) {
+      console.error('Error closing previous period:', error);
+      // Ne dobjunk hibát
+    } else {
+      console.log(`🔚 Previous period closed for pen ${penId}`);
+    }
   } catch (error) {
     console.error('❌ Error closing previous period:', error);
   }
@@ -177,7 +204,10 @@ export const fetchAnimalsInPeriod = async (periodId: string): Promise<string[]> 
       .eq('id', periodId)
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching animals in period:', error);
+      return [];
+    }
     
     const animals = data?.animals_snapshot as any[] || [];
     return animals.map(animal => animal.id || animal.enar).filter(Boolean);
@@ -209,7 +239,10 @@ export const checkPeriodOverlap = async (
     }
 
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) {
+      console.error('Error checking period overlap:', error);
+      return false;
+    }
 
     return (data?.length || 0) > 0;
   } catch (error) {
@@ -227,12 +260,15 @@ export const removeDuplicatePeriods = async (penId: string) => {
       .eq('pen_id', penId)
       .order('start_date', { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching periods for deduplication:', error);
+      return;
+    }
 
     const duplicates = [];
-    for (let i = 1; i < periods.length; i++) {
-      const prev = periods[i - 1];
-      const curr = periods[i];
+    for (let i = 1; i < (periods?.length || 0); i++) {
+      const prev = periods![i - 1];
+      const curr = periods![i];
       
       // Ha azonos kezdetű és funkciójú
       if (prev.start_date === curr.start_date && 
@@ -242,12 +278,16 @@ export const removeDuplicatePeriods = async (penId: string) => {
     }
 
     if (duplicates.length > 0) {
-      await supabase
+      const { error: deleteError } = await supabase
         .from('pen_history_periods')
         .delete()
         .in('id', duplicates);
       
-      console.log(`🧹 Removed ${duplicates.length} duplicate periods`);
+      if (deleteError) {
+        console.error('Error removing duplicates:', deleteError);
+      } else {
+        console.log(`🧹 Removed ${duplicates.length} duplicate periods`);
+      }
     }
   } catch (error) {
     console.error('❌ Error removing duplicates:', error);
