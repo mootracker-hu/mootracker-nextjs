@@ -1,0 +1,4 @@
+C:\Users\jakus\mootracker-nextjs\src\app\layout.tsx - 376 bytes 
+C:\Users\jakus\mootracker-nextjs\src\components\calf-details-modal.tsx - 0 bytes 
+C:\Users\jakus\mootracker-nextjs\src\lib\supabase.ts - 424 bytes 
+C:\Users\jakus\mootracker-nextjs\src\lib\supabase\client.ts - 335 bytes 

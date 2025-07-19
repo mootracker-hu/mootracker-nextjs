@@ -1,0 +1,44 @@
+..\src\app\auth\login\page.tsx:3:import { useState } from 'react'
+..\src\app\auth\signup\page.tsx:3:import { useState } from 'react'
+..\src\app\dashboard\animals\new\page.tsx:3:import { useState, useEffect } from 'react';
+..\src\app\dashboard\animals\page.tsx:4:import { useState, useEffect } from 'react';
+..\src\app\dashboard\animals\page.tsx:40:  const [itemsPerPage] = useState(15);
+..\src\app\dashboard\animals\[enar]\page.tsx:9:import { useState, useEffect } from 'react';
+..\src\app\dashboard\bulls\page.tsx:4:import { useState, useEffect } from 'react';
+..\src\app\dashboard\calves\ear-tag-modal.tsx:4:import { useState, useEffect } from 'react';
+..\src\app\dashboard\calves\page.tsx:4:import { useState, useEffect } from 'react';
+..\src\app\dashboard\expected-births\components\births-by-date.tsx:3:import { useState, useEffect } from 'react';
+..\src\app\dashboard\expected-births\components\births-by-pen.tsx:3:import { useState, useEffect } from 'react';
+..\src\app\dashboard\expected-births\page.tsx:3:import { useState } from 'react';
+..\src\app\dashboard\import-export\page.tsx:4:import React, { useState, useCallback } from 'react';
+..\src\app\dashboard\layout.tsx:4:import { ReactNode, useState } from 'react';
+..\src\app\dashboard\page.tsx:4:import { useState } from 'react';
+..\src\app\dashboard\pens\add\page.tsx:4:import { useState } from 'react';
+..\src\app\dashboard\pens\components\animal-movement-panel.tsx:5:import { useState, useEffect } from 'react';
+..\src\app\dashboard\pens\components\pen-function-manager.tsx:4:import { useState, useEffect } from 'react';
+..\src\app\dashboard\pens\components\pen-specific-animal-table.tsx:1:import React, { useState } from 'react';
+..\src\app\dashboard\pens\components\pen-stats.tsx:6:import { useEffect, useState } from 'react'
+..\src\app\dashboard\pens\page.tsx:4:import { useState, useEffect } from 'react';
+..\src\app\dashboard\pens\[id]\page.tsx:4:import { useState, useEffect } from 'react';
+..\src\app\dashboard\pens\[id]\page.tsx:81:    // A useState típus javítása:
+..\src\app\dashboard\settings\farm\page.tsx:3:import { useState, useEffect } from 'react';
+..\src\app\dashboard\tasks\page.tsx:3:import React, { useState, useEffect } from 'react';
+..\src\app\dashboard\team\page.tsx:3:import React, { useState, useEffect } from 'react'
+..\src\app\login\page.tsx:3:import { useState } from 'react';
+..\src\app\tasks\page.tsx:4:import React, { useState } from 'react';
+..\src\components\AddHistoricalPeriod.tsx:4:import { useState, useEffect } from 'react';
+..\src\components\AnimalPenHistory.tsx:4:import { useState, useEffect } from 'react';
+..\src\components\AnimalSelector.tsx:2:import React, { useState, useEffect } from 'react';
+..\src\components\birth-form.tsx:3:import React, { useState, useEffect } from 'react';
+..\src\components\ear-tag-modal.tsx:4:import { useState, useEffect } from 'react';
+..\src\components\EnhancedAlertActionPanel.tsx:4:import React, { useState, useEffect } from 'react';
+..\src\components\expected-births-widget.tsx:3:import { useState, useEffect } from 'react';
+..\src\components\HaremDashboard.tsx:3:import React, { useState, useEffect } from 'react';
+..\src\components\HybridAnimalPenHistory.tsx:4:import { useState, useEffect } from 'react';
+..\src\components\ManualEventForm.tsx:4:import React, { useState, useEffect } from 'react';
+..\src\components\PenEventsTab.tsx:3:import { useState, useEffect } from 'react';
+..\src\components\PenHistoryCard.tsx:4:import { useState } from 'react';
+..\src\components\PenHistoryTab.tsx:4:import { useState, useEffect } from 'react';
+..\src\components\TeljesKaramTortenelem.tsx:4:import React, { useState, useEffect } from 'react';
+..\src\components\TeljesKaramTortenelem.tsx:78:    const [eventsPerPage] = useState(20); // 20 esemény/oldal
+..\src\components\vv-form.tsx:4:import { useState, useEffect } from 'react';

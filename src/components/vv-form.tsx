@@ -405,7 +405,7 @@ const VVForm: React.FC<VVFormProps> = ({
                   className="sr-only"
                 />
                 <span className="font-medium">
-                  {status === 'vemhes' ? '🤰 Vemhes' :
+                  {status === 'vemhes' ? '🐄💖 Vemhes' :
                     status === 'ures' ? '❌ Üres' : '🌱 Csíra'}
                 </span>
               </label>
