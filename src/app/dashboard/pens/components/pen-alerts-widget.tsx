@@ -89,7 +89,7 @@ export function PenAlertsWidget({
     });
 
     console.log(`🔍 Relevant alerts for pen ${penId}/${penNumber}:`, relevantAlerts.length);
-    return relevantAlerts.slice(0, maxDisplayed);
+return relevantAlerts;  // ✅ NINCS LIMITÁLÁS!
   };
 
   const penAlerts = getRelevantAlerts();

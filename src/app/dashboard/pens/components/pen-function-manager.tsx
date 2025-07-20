@@ -300,6 +300,118 @@ const addBullToHaremMetadata = async (
   }
 };
 
+// 🐄 VV RIASZTÁS JAVÍTÁS - ÁLLATOK PAIRING_DATE FRISSÍTÉSE
+const updateAnimalsPairingDate = async (
+  penId: string, 
+  pairingStartDate: string
+): Promise<{ success: boolean; message: string; affectedAnimals?: number }> => {
+  try {
+    console.log('🔄 VV riasztás javítás: állatok pairing_date frissítése kezdése...', {
+      penId,
+      pairingStartDate
+    });
+
+    if (!pairingStartDate) {
+      console.log('⚠️ Nincs párzás kezdete megadva, pairing_date frissítés kihagyva');
+      return { success: true, message: 'Nincs párzás dátum megadva' };
+    }
+
+    // 1. Karámban lévő állatok lekérdezése (csak nőivarok)
+    const { data: assignments, error: assignError } = await supabase
+      .from('animal_pen_assignments')
+      .select(`
+        animal_id,
+        animals!inner(
+          id,
+          enar,
+          ivar,
+          kategoria
+        )
+      `)
+      .eq('pen_id', penId)
+      .is('removed_at', null);
+
+    if (assignError) {
+      console.error('❌ Állat hozzárendelések lekérdezési hiba:', assignError);
+      return { success: false, message: 'Állatok lekérdezési hiba: ' + assignError.message };
+    }
+
+    // 2. Csak nőivar állatok szűrése
+    const femaleAnimals = assignments
+      ?.filter((assignment: any) => 
+        assignment.animals?.ivar === 'nő' && 
+        (assignment.animals?.kategoria === 'tehén' || 
+         assignment.animals?.kategoria.includes('üsző'))
+      ) || [];
+
+    if (femaleAnimals.length === 0) {
+      console.log('ℹ️ Nincs nőivar állat a karámban, pairing_date frissítés kihagyva');
+      return { success: true, message: 'Nincs nőivar állat a karámban' };
+    }
+
+    console.log(`🐄 ${femaleAnimals.length} nőivar állat található a karámban, pairing_date frissítése...`);
+
+    // 3. Összes nőivar állat pairing_date frissítése
+    const animalIds = femaleAnimals.map((a: any) => a.animals.id);
+    
+    const { error: updateError } = await supabase
+      .from('animals')
+      .update({ 
+        pairing_date: pairingStartDate + 'T00:00:00.000Z' 
+      })
+      .in('id', animalIds);
+
+    if (updateError) {
+      console.error('❌ Pairing_date frissítési hiba:', updateError);
+      return { success: false, message: 'Pairing_date frissítés sikertelen: ' + updateError.message };
+    }
+
+    // 4. Állat események rögzítése
+    const eventPromises = femaleAnimals.map((assignment: any) => 
+      supabase
+        .from('animal_events')
+        .insert({
+          animal_id: assignment.animals.id,
+          event_type: 'pairing_started',
+          event_date: pairingStartDate,
+          event_time: '00:00:00',
+          pen_id: penId,
+          reason: 'Hárem funkció aktiválás',
+          notes: `Párzás kezdete rögzítve automatikusan. VV esedékesség: ${
+            new Date(new Date(pairingStartDate).getTime() + (75 * 24 * 60 * 60 * 1000))
+              .toISOString().split('T')[0]
+          }`,
+          is_historical: false
+        })
+    );
+
+    await Promise.all(eventPromises);
+
+    const message = `✅ ${femaleAnimals.length} állat pairing_date frissítve! VV riasztások aktiválva.`;
+    console.log(message);
+
+    // 5. Eredmény információk
+    const vvDueDate = new Date(new Date(pairingStartDate).getTime() + (75 * 24 * 60 * 60 * 1000))
+      .toISOString().split('T')[0];
+    
+    console.log(`📅 VV esedékesség: ${vvDueDate} (75 nap múlva)`);
+    console.log(`🐄 Érintett állatok: ${femaleAnimals.map((a: any) => a.animals.enar).join(', ')}`);
+
+    return { 
+      success: true, 
+      message: message,
+      affectedAnimals: femaleAnimals.length
+    };
+
+  } catch (error) {
+    console.error('❌ updateAnimalsPairingDate hiba:', error);
+    return { 
+      success: false, 
+      message: 'Pairing_date frissítés exception: ' + (error as Error).message 
+    };
+  }
+};
+
 interface Pen {
   id: string;
   pen_number: string;
@@ -851,6 +963,32 @@ if (newFunction === 'hárem') {
         ...finalMetadata,
         ...haremSnapshot
       };
+
+      // ✅ ÚJ: VV RIASZTÁS AKTIVÁLÁS - PAIRING_DATE FRISSÍTÉSE
+console.log('🔍 DEBUG: VV aktiválás feltétel ellenőrzés:', {
+  newFunction,
+  parozasKezdete,
+  isHistoricalEntry,
+  editMode,
+  haremSnapshot: !!haremSnapshot
+});
+if (parozasKezdete && !isHistoricalEntry) { // ✅ editMode nem számít
+        try {
+          console.log('🐄 VV riasztás aktiválás: pairing_date frissítése...');
+const updateResult = await updateAnimalsPairingDate(pen.id, parozasKezdete);
+
+if (updateResult.success) {
+  console.log('✅ VV riasztás aktiválás sikeres:', updateResult.message);
+  if (updateResult.affectedAnimals && updateResult.affectedAnimals > 0) {
+    alert(`🎉 VV riasztások aktiválva!\n🐄 ${updateResult.affectedAnimals} állat pairing_date frissítve\n📅 VV esedékesség: ${new Date(new Date(parozasKezdete).getTime() + (75 * 24 * 60 * 60 * 1000)).toLocaleDateString('hu-HU')}`);
+  }
+} else {
+  console.warn('⚠️ VV riasztás aktiválás probléma:', updateResult.message);
+}
+        } catch (pairingError) {
+          // ...
+        }
+      }
 
       console.log('✅ Hárem snapshot hozzáadva a metadata-hoz');
     }

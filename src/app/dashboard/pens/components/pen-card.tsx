@@ -1,10 +1,13 @@
 // src/app/dashboard/pens/components/pen-card.tsx
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle } from 'lucide-react';
 import { PenAlertsWidget } from './pen-alerts-widget';
 import { useAlertsNew } from '@/hooks/useAlertsNew';
+import DeletePenModal from './DeletePenModal';
+import { useDeletePen } from '@/hooks/useDeletePen';
 
 interface Pen {
   id: string;
@@ -30,23 +33,37 @@ interface PenCardProps {
 
 export default function PenCard({ pen }: PenCardProps) {
   const { alerts, animalPenMap } = useAlertsNew();
+  
+  // ✅ ÚJ: Törlési funkciók
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const { canQuickDelete } = useDeletePen();
 
-// Állat alertek hozzárendelése ehhez a karámhoz
-const penSpecificAlerts = alerts.filter(alert => {
-  if (!pen?.id) return false;
-  
-  // 1. Karám-specifikus alertek
-  if (alert.pen_id === pen.id) return true;
-  
-  // 2. Állat alertek - mapping alapján
-  if (alert.animal_id && animalPenMap) {
-  return animalPenMap[alert.animal_id] === pen.pen_number;
-}
-  
-  return false;
-});
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Ne navigáljon a karám oldalra
+    setShowDeleteModal(true);
+  };
 
-console.log('FILTERED ALERTS for pen', pen.id, ':', penSpecificAlerts);
+  const handleDeleteSuccess = () => {
+    // Refresh az egész oldal
+    window.location.reload();
+  };
+
+  // Állat alertek hozzárendelése ehhez a karámhoz
+  const penSpecificAlerts = alerts.filter(alert => {
+    if (!pen?.id) return false;
+    
+    // 1. Karám-specifikus alertek
+    if (alert.pen_id === pen.id) return true;
+    
+    // 2. Állat alertek - mapping alapján
+    if (alert.animal_id && animalPenMap) {
+      return animalPenMap[alert.animal_id] === pen.pen_number;
+    }
+    
+    return false;
+  });
+
+  console.log('FILTERED ALERTS for pen', pen.id, ':', penSpecificAlerts);
 
   const router = useRouter();
 
@@ -135,7 +152,19 @@ console.log('FILTERED ALERTS for pen', pen.id, ':', penSpecificAlerts);
             <span className="text-xl mr-2">🏠</span>
             {pen.pen_number}
           </h3>
-          <span className="text-sm text-gray-500">{getPenTypeDisplay(pen.pen_type)}</span>
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-500">{getPenTypeDisplay(pen.pen_type)}</span>
+            {/* ✅ ÚJ: Törlés gomb */}
+            {canQuickDelete(pen) && (
+              <button
+                onClick={handleDeleteClick}
+                className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded transition-colors"
+                title="Karám törlése"
+              >
+                🗑️
+              </button>
+            )}
+          </div>
         </div>
         {pen.location && (
           <div className="flex items-center mt-1 text-sm text-gray-500">
@@ -164,13 +193,13 @@ console.log('FILTERED ALERTS for pen', pen.id, ':', penSpecificAlerts);
             Kapacitás:
           </span>
           <span className={`text-sm font-medium px-2 py-1 rounded ${getCapacityColor(pen.animal_count, pen.capacity)}`}>
-  {pen.animal_count} / {pen.capacity}
-  {(pen as any).temp_calf_count > 0 && (
-    <div className="text-xs text-orange-600 mt-1">
-      🐮 +{(pen as any).temp_calf_count} temp borjú
-    </div>
-  )}
-</span>
+            {pen.animal_count} / {pen.capacity}
+            {(pen as any).temp_calf_count > 0 && (
+              <div className="text-xs text-orange-600 mt-1">
+                🐮 +{(pen as any).temp_calf_count} temp borjú
+              </div>
+            )}
+          </span>
         </div>
 
         {/* Progress Bar */}
@@ -206,12 +235,21 @@ console.log('FILTERED ALERTS for pen', pen.id, ':', penSpecificAlerts);
             Túlzsúfolt!
           </div>
         )}
-        {/* ÚJ specializált riasztások widget */}
+        
+        {/* ✅ ÚJ specializált riasztások widget */}
         <PenAlertsWidget
-  penId={pen.id}
-  alerts={penSpecificAlerts as any}
+          penId={pen.id}
+          alerts={penSpecificAlerts as any}
         />
       </div>
+
+      {/* ✅ ÚJ: Delete Modal */}
+      <DeletePenModal
+        pen={pen as any}
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onSuccess={handleDeleteSuccess}
+      />
     </div>
   );
 }

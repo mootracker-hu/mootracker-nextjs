@@ -6,6 +6,95 @@ import { supabase } from '@/lib/supabase';
 import AnimalSelector from './AnimalSelector';
 import { broadcastPenHistoryUpdate, broadcastAnimalHistoryUpdate } from '@/lib/penHistorySync';
 
+
+// Importok után, interface-ek előtt:
+
+// 🐄 VV RIASZTÁS JAVÍTÁS - ÁLLATOK PAIRING_DATE FRISSÍTÉSE
+const updateAnimalsPairingDate = async (
+  penId: string, 
+  pairingStartDate: string
+): Promise<{ success: boolean; message: string; affectedAnimals?: number }> => {
+  try {
+    console.log('🔄 VV riasztás javítás: állatok pairing_date frissítése kezdése...', {
+      penId,
+      pairingStartDate
+    });
+
+    if (!pairingStartDate) {
+      console.log('⚠️ Nincs párzás kezdete megadva, pairing_date frissítés kihagyva');
+      return { success: true, message: 'Nincs párzás dátum megadva' };
+    }
+
+    // 1. Karámban lévő állatok lekérdezése (csak nőivarok)
+    const { data: assignments, error: assignError } = await supabase
+      .from('animal_pen_assignments')
+      .select(`
+        animal_id,
+        animals!inner(
+          id,
+          enar,
+          ivar,
+          kategoria
+        )
+      `)
+      .eq('pen_id', penId)
+      .is('removed_at', null);
+
+    if (assignError) {
+      console.error('❌ Állat hozzárendelések lekérdezési hiba:', assignError);
+      return { success: false, message: 'Állatok lekérdezési hiba: ' + assignError.message };
+    }
+
+    // 2. Csak nőivar állatok szűrése (kibővített kategória lista)
+    const femaleAnimals = assignments
+      ?.filter((assignment: any) => 
+        assignment.animals?.ivar === 'nő' && 
+        (assignment.animals?.kategoria === 'tehén' || 
+         assignment.animals?.kategoria.includes('üsző') ||
+         assignment.animals?.kategoria === 'szűz_üsző' ||
+         assignment.animals?.kategoria === 'vemhes_üsző')
+      ) || [];
+
+    if (femaleAnimals.length === 0) {
+      console.log('ℹ️ Nincs nőivar állat a karámban, pairing_date frissítés kihagyva');
+      return { success: true, message: 'Nincs nőivar állat a karámban' };
+    }
+
+    console.log(`🐄 ${femaleAnimals.length} nőivar állat található a karámban, pairing_date frissítése...`);
+
+    // 3. Összes nőivar állat pairing_date frissítése
+    const animalIds = femaleAnimals.map((a: any) => a.animals.id);
+    
+    const { error: updateError } = await supabase
+      .from('animals')
+      .update({ 
+        pairing_date: pairingStartDate + 'T00:00:00.000Z' 
+      })
+      .in('id', animalIds);
+
+    if (updateError) {
+      console.error('❌ Pairing_date frissítési hiba:', updateError);
+      return { success: false, message: 'Pairing_date frissítés sikertelen: ' + updateError.message };
+    }
+
+    const message = `✅ ${femaleAnimals.length} állat pairing_date frissítve! VV riasztások aktiválva.`;
+    console.log(message);
+
+    return { 
+      success: true, 
+      message: message,
+      affectedAnimals: femaleAnimals.length
+    };
+
+  } catch (error) {
+    console.error('❌ updateAnimalsPairingDate hiba:', error);
+    return { 
+      success: false, 
+      message: 'Pairing_date frissítés exception: ' + (error as Error).message 
+    };
+  }
+};
+
 interface PenHistoryPeriod {
   id: string;
   pen_id: string;
@@ -207,6 +296,30 @@ export default function EditHistoricalPeriod({
         delete metadata.female_count;
         delete metadata.selected_bulls;
       }
+
+      // ✅ ÚJ: VV RIASZTÁS AKTIVÁLÁS - EDITHISTORICALPERIOD
+if (formData.function_type === 'hárem' && formData.start_date) {
+  try {
+    console.log('🐄 EditHistoricalPeriod: VV riasztás aktiválás...', {
+      penId: period.pen_id,
+      startDate: formData.start_date
+    });
+    
+    const updateResult = await updateAnimalsPairingDate(period.pen_id, formData.start_date);
+    
+    if (updateResult.success) {
+      console.log('✅ EditHistoricalPeriod VV aktiválás sikeres:', updateResult.message);
+      if (updateResult.affectedAnimals && updateResult.affectedAnimals > 0) {
+        console.log(`🎉 ${updateResult.affectedAnimals} állat pairing_date frissítve!`);
+      }
+    } else {
+      console.warn('⚠️ EditHistoricalPeriod VV aktiválás probléma:', updateResult.message);
+    }
+  } catch (pairingError) {
+    console.error('❌ EditHistoricalPeriod VV aktiválás hiba:', pairingError);
+    // Nem blokkoljuk a mentést
+  }
+}
 
       // Kategória összesítő frissítése
       const categoryStats: Record<string, number> = {};

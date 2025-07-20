@@ -504,6 +504,7 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
          !animal.vv_date && // ✅ Még nem volt háremben
          animal.kategoria === 'szűz_üsző' && // ✅ Specifikus kategória
          !animal.kategoria.includes('tehén') &&
+         animal.current_pen_function !== 'hárem' && // ✅ ÚJ FELTÉTEL!
          animal.statusz === 'aktív';
 },
     daysFromBirth: 760, // 25 hónap
