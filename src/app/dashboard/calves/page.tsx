@@ -15,6 +15,13 @@ export default function CalvesPage() {
     const [isEarTagModalOpen, setIsEarTagModalOpen] = useState(false);
     const [selectedCalfDetails, setSelectedCalfDetails] = useState<CalfWithDetails | null>(null);
     const [motherEnarFilter, setMotherEnarFilter] = useState('');
+    const [isDeathModalOpen, setIsDeathModalOpen] = useState(false);
+    const [dyingCalf, setDyingCalf] = useState<CalfWithDetails | null>(null);
+    const [deathFormData, setDeathFormData] = useState({
+        death_date: new Date().toISOString().split('T')[0],
+        death_reason: '',
+        death_notes: ''
+    });
 
     const supabase = createClient();
 
@@ -26,7 +33,8 @@ export default function CalvesPage() {
     const fetchCalves = async () => {
         try {
             setLoading(true);
-            console.log('🐮 Fetching calves with VV data...');
+            console.log('🐮 Fetching calves with VV data (CSAK ÉLŐ BORJAK)...');
+            console.log('🔧 Debug: motherEnarFilter value:', motherEnarFilter);
 
             // 1. LÉPÉS: Borjak + születési adatok
             const { data: calvesData, error: calvesError } = await supabase
@@ -43,6 +51,7 @@ export default function CalvesPage() {
                     )
                 `)
                 .is('enar', null) // Csak fülszám nélküli borjak
+                .eq('is_alive', true) // 🆕 CSAK ÉLŐ BORJAK!
                 .order('created_at', { ascending: false });
 
             if (calvesError) {
@@ -152,6 +161,136 @@ export default function CalvesPage() {
             setAvailablePens(data || []);
         } catch (error) {
             console.error('Hiba a karamok betöltésekor:', error);
+        }
+    };
+
+    // 🆕 MODERN MODAL MEGNYITÁSA
+    const handleCalfDeath = async (calf: CalfWithDetails) => {
+        setDyingCalf(calf);
+        setDeathFormData({
+            death_date: new Date().toISOString().split('T')[0],
+            death_reason: '',
+            death_notes: ''
+        });
+        setIsDeathModalOpen(true);
+    };
+
+    // 🆕 ELPUSZTULÁS VÉGREHAJTÁSA
+    const executeCalfDeath = async () => {
+        if (!dyingCalf) return;
+
+        try {
+            console.log('💀 Borjú elpusztulás rögzítése:', dyingCalf.temp_id);
+
+            const { error: calfError } = await supabase
+                .from('calves')
+                .update({ 
+                    is_alive: false,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', dyingCalf.id);
+
+            if (calfError) throw calfError;
+
+            // 🆕 ELLÉSI REKORD FRISSÍTÉSE - KÉSŐBB ELPUSZTULT JELÖLÉS
+        if (dyingCalf.birth?.id) {
+            const { error: birthUpdateError } = await supabase
+                .from('births')
+                .update({ 
+                    calf_died_later: true,
+                    calf_death_date: deathFormData.death_date,
+                    calf_death_reason: deathFormData.death_reason,
+                    calf_death_notes: deathFormData.death_notes,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', dyingCalf.birth.id);
+
+            if (birthUpdateError) {
+                console.error('⚠️ Birth update hiba:', birthUpdateError);
+                // Folytatjuk, mert a fő művelet (calf update) sikerült
+            } else {
+                console.log('✅ Ellési rekord frissítve: később elpusztult');
+            }
+        }
+
+            // Anya kategória visszaállítás
+            const motherEnar = dyingCalf.birth?.mother_enar;
+            if (motherEnar) {
+                await handleMotherCategoryReset(motherEnar);
+            }
+
+            // Modal bezárása és UI frissítés
+            setIsDeathModalOpen(false);
+            setDyingCalf(null);
+            fetchCalves();
+            
+            alert(`✅ ${dyingCalf.temp_id} borjú elpusztulása rögzítve!`);
+
+        } catch (error) {
+            console.error('❌ Hiba:', error);
+            alert('❌ Hiba történt!');
+        }
+    };
+
+    // 🆕 ANYA KATEGÓRIA VISSZAÁLLÍTÁS (BORJÚ HALÁLA UTÁN)
+    const handleMotherCategoryReset = async (motherEnar: string) => {
+        try {
+            console.log('🔄 Anya kategória ellenőrzés halott borjú után:', motherEnar);
+
+            // Ellenőrizzük: van-e még élő borja ennek az anyának
+            const { data: livingCalves, error: calvesError } = await supabase
+                .from('calves')
+                .select('id, birth_id')
+                .eq('is_alive', true)
+                .is('enar', null);
+
+            if (calvesError) {
+                console.error('❌ Élő borjak lekérdezése sikertelen:', calvesError);
+                return;
+            }
+
+            // Lekérjük az anya adatait
+            const { data: mother, error: motherError } = await supabase
+                .from('animals')
+                .select('kategoria, has_given_birth')
+                .eq('enar', motherEnar)
+                .single();
+
+            if (motherError || !mother) {
+                console.error('❌ Anya adatok lekérdezése sikertelen:', motherError);
+                return;
+            }
+
+            // Ellenőrizzük az anya elléseit
+            const { data: births, error: birthsError } = await supabase
+                .from('births')
+                .select('id')
+                .eq('mother_enar', motherEnar);
+
+            if (birthsError) {
+                console.error('❌ Ellések lekérdezése sikertelen:', birthsError);
+                return;
+            }
+
+            // Van-e élő borja ennek az anyának?
+            const hasLivingCalfFromThisMother = livingCalves?.some(calf => 
+                births?.some(birth => birth.id === calf.birth_id)
+            );
+
+            if (!hasLivingCalfFromThisMother && mother.kategoria === 'tehén' && !mother.has_given_birth) {
+                // Ha nincs élő borja és még sosem ellett "hivatalosan", visszaáll szűz üszőre
+                const { error: updateError } = await supabase
+                    .from('animals')
+                    .update({ kategoria: 'szűz_üsző' })
+                    .eq('enar', motherEnar);
+
+                if (!updateError) {
+                    console.log('🔄 Anya kategória visszaállítva: tehén → szűz_üsző');
+                }
+            }
+
+        } catch (error) {
+            console.error('❌ Anya kategória visszaállítás hiba:', error);
         }
     };
 
@@ -367,6 +506,9 @@ export default function CalvesPage() {
                                         Ivar
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Státusz
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Tervezett ENAR
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -421,6 +563,17 @@ export default function CalvesPage() {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
+                                                {calf.is_alive ? (
+                                                    <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 border-green-200">
+                                                        ✅ Élő
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 border-red-200">
+                                                        💀 Elpusztult
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="text-sm">
                                                     {calf.planned_enar ? (
                                                         <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 border-blue-200">
@@ -462,6 +615,13 @@ export default function CalvesPage() {
                                                     }}
                                                 >
                                                     🏷️ Fülszám
+                                                </button>
+                                                <button
+                                                    className="text-red-600 hover:text-red-900 mr-3"
+                                                    onClick={() => handleCalfDeath(calf)}
+                                                    title="Borjú elpusztulásának rögzítése"
+                                                >
+                                                    💀 Elpusztult
                                                 </button>
                                                 <button
                                                     className="text-blue-600 hover:text-blue-900"
@@ -554,6 +714,20 @@ export default function CalvesPage() {
                                                     `${calculateAge(selectedCalfDetails.birth.birth_date)} nap` :
                                                     '-'
                                                 }
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span className="text-gray-600">Státusz:</span>
+                                            <div className="font-medium">
+                                                {selectedCalfDetails.is_alive ? (
+                                                    <span className="inline-flex items-center px-2 py-1 text-sm font-medium rounded-full bg-green-100 text-green-800 border-green-200">
+                                                        ✅ Élő
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center px-2 py-1 text-sm font-medium rounded-full bg-red-100 text-red-800 border-red-200">
+                                                        💀 Elpusztult
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                         <div>
@@ -724,6 +898,104 @@ export default function CalvesPage() {
                                     🏷️ Fülszám kezelése
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* 🆕 Modern Elpusztulás Modal */}
+            {isDeathModalOpen && dyingCalf && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg shadow-xl border max-w-md w-full mx-4">
+                        <div className="bg-gradient-to-r from-red-50 to-orange-50 p-6 rounded-t-lg border-b">
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl">💀</span>
+                                <h3 className="text-xl font-bold text-red-900">Borjú Elpusztulása</h3>
+                            </div>
+                            <p className="text-red-700 mt-2">
+                                {dyingCalf.temp_id} • Anya: {dyingCalf.birth?.mother_enar}
+                            </p>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            {/* Dátum */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    📅 Elpusztulás dátuma *
+                                </label>
+                                <input
+                                    type="date"
+                                    value={deathFormData.death_date}
+                                    onChange={(e) => setDeathFormData(prev => ({...prev, death_date: e.target.value}))}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                    required
+                                />
+                            </div>
+
+                            {/* Ok */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    ⚠️ Elpusztulás oka *
+                                </label>
+                                <select
+                                    value={deathFormData.death_reason}
+                                    onChange={(e) => setDeathFormData(prev => ({...prev, death_reason: e.target.value}))}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                    required
+                                >
+                                    <option value="">Válassz okot...</option>
+                                    <option value="Betegség">🦠 Betegség</option>
+                                    <option value="Baleset">💥 Baleset</option>
+                                    <option value="Születési rendellenesség">🧬 Születési rendellenesség</option>
+                                    <option value="Gyengeség">😵 Gyengeség</option>
+                                    <option value="Ismeretlen">❓ Ismeretlen</option>
+                                    <option value="Egyéb">📝 Egyéb</option>
+                                </select>
+                            </div>
+
+                            {/* Megjegyzés */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    📝 Megjegyzések
+                                </label>
+                                <textarea
+                                    value={deathFormData.death_notes}
+                                    onChange={(e) => setDeathFormData(prev => ({...prev, death_notes: e.target.value}))}
+                                    placeholder="További részletek az elpusztulásról..."
+                                    rows={3}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
+                                />
+                            </div>
+
+                            {/* Figyelmeztetés */}
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                                <div className="flex items-start gap-2">
+                                    <span className="text-red-600 text-lg">⚠️</span>
+                                    <div className="text-red-800 text-sm">
+                                        <p className="font-medium">Figyelem!</p>
+                                        <p>Ez a művelet visszavonhatatlan. A borjú eltűnik a listából és az anya kategóriája visszaállhat.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Gombok */}
+                        <div className="bg-gray-50 px-6 py-4 rounded-b-lg flex justify-end gap-3">
+                            <button
+                                onClick={() => {
+                                    setIsDeathModalOpen(false);
+                                    setDyingCalf(null);
+                                }}
+                                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                                ❌ Mégsem
+                            </button>
+                            <button
+                                onClick={executeCalfDeath}
+                                disabled={!deathFormData.death_date || !deathFormData.death_reason}
+                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                💀 Elpusztulás rögzítése
+                            </button>
                         </div>
                     </div>
                 </div>

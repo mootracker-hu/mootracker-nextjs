@@ -39,14 +39,25 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ animal, editedAnimal, isEditing
         <div><label className="block text-sm font-medium text-gray-700 mb-1">📝 Név</label>{isEditing ? (<input type="text" value={editedAnimal.name || ''} onChange={(e) => updateField('name', e.target.value)} placeholder="Állat neve (opcionális)" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500" />) : (<div className="w-full px-3 py-2 border border-transparent rounded-lg bg-gray-50 text-gray-700 min-h-[42px] flex items-center">{animal.name || <span className="text-gray-400">Nincs név megadva</span>}</div>)}</div>
         <div><label className="block text-sm font-medium text-gray-700 mb-1">🏷️ Kategória</label>{isEditing ? (<select value={editedAnimal.kategoria || ''} onChange={(e) => updateField('kategoria', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 bg-white">{categoryOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>) : (<div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getCategoryColor(animal.kategoria)}`}>{categoryOptions.find(opt => opt.value === animal.kategoria)?.label || animal.kategoria}</div>)}</div>
         
-        {/* --- ITT A JAVÍTÁS --- */}
+        {/* --- IVAR MEZŐ JAVÍTÁS --- */}
         <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">⚥ Ivar</label>
-            <div className="w-full px-3 py-2 border border-transparent rounded-lg bg-gray-50 text-gray-700 min-h-[42px] flex items-center">
-                {animal.ivar === 'nő' ? '♀️ Nőivar' : '♂️ Hímivar'}
-            </div>
+            {isEditing ? (
+                <select 
+                    value={editedAnimal.ivar || ''} 
+                    onChange={(e) => updateField('ivar', e.target.value)} 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 bg-white"
+                >
+                    <option value="">Válasszon...</option>
+                    <option value="nő">♀️ Nőivar</option>
+                    <option value="hím">♂️ Hímivar</option>
+                </select>
+            ) : (
+                <div className="w-full px-3 py-2 border border-transparent rounded-lg bg-gray-50 text-gray-700 min-h-[42px] flex items-center">
+                    {animal.ivar === 'nő' ? '♀️ Nőivar' : '♂️ Hímivar'}
+                </div>
+            )}
         </div>
-        {/* --- JAVÍTÁS VÉGE --- */}
 
         <div><label className="block text-sm font-medium text-gray-700 mb-1">⏰ Életkor</label><div className="w-full px-3 py-2 border border-transparent rounded-lg bg-gray-50 text-gray-700 min-h-[42px] flex items-center">{calculateAge(animal.szuletesi_datum)}</div></div>
     </div>
@@ -69,7 +80,29 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ animal, editedAnimal, isEditing
             </div>
           </div>
 
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">📅 Születési dátum</label><div className="w-full px-3 py-2 border border-transparent rounded-lg bg-gray-50 text-gray-700 min-h-[42px] flex items-center">{new Date(animal.szuletesi_datum).toLocaleDateString('hu-HU')}</div></div>
+          {/* 🔧 SZERKESZTHETŐ SZÜLETÉSI DÁTUM */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              📅 Születési dátum
+              {isEditing && (
+                <span className="text-xs text-blue-600 ml-2">
+                  (Ez frissíti a kapcsolt ellés dátumát is)
+                </span>
+              )}
+            </label>
+            {isEditing ? (
+              <input 
+                type="date" 
+                value={editedAnimal.szuletesi_datum || ''} 
+                onChange={(e) => updateField('szuletesi_datum', e.target.value)} 
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              />
+            ) : (
+              <div className="w-full px-3 py-2 border border-transparent rounded-lg bg-gray-50 text-gray-700 min-h-[42px] flex items-center">
+                {new Date(animal.szuletesi_datum).toLocaleDateString('hu-HU')}
+              </div>
+            )}
+          </div>
           
           {/* --- Visszaállított és áthelyezett mezők --- */}
           <div><label className="block text-sm font-medium text-gray-700 mb-1">📅 Bekerülés dátuma</label>{isEditing ? (<input type="date" value={editedAnimal.bekerules_datum || ''} onChange={(e) => updateField('bekerules_datum', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"/>) : (<div className="w-full px-3 py-2 border border-transparent rounded-lg bg-gray-50 text-gray-700 min-h-[42px] flex items-center">{animal.bekerules_datum ? new Date(animal.bekerules_datum).toLocaleDateString('hu-HU') : <span className="text-gray-400">Nincs megadva</span>}</div>)}</div>

@@ -93,34 +93,56 @@ export default function AnimalDetailPage() {
   };
 
   const handleSave = async () => {
-    if (!editedAnimal || !animal) return;
-    try {
-      setSaving(true);
-      const { error } = await supabase.from('animals').update({
-        name: editedAnimal.name,
-        kategoria: editedAnimal.kategoria,
-        ivar: editedAnimal.ivar,
-        statusz: editedAnimal.statusz,
-        breed: editedAnimal.breed,
-        birth_location: editedAnimal.birth_location,
-        szuletesi_datum: editedAnimal.szuletesi_datum,
-        bekerules_datum: editedAnimal.bekerules_datum,
-        anya_enar: editedAnimal.anya_enar,
-        kplsz: editedAnimal.kplsz,
-        notes: editedAnimal.notes
-      }).eq('enar', animal.enar);
+  if (!editedAnimal || !animal) return;
+  try {
+    setSaving(true);
+    
+    // Ellenőrizzük, hogy változott-e a születési dátum
+    const birthDateChanged = editedAnimal.szuletesi_datum !== animal.szuletesi_datum;
+    
+    const { error } = await supabase.from('animals').update({
+      name: editedAnimal.name,
+      kategoria: editedAnimal.kategoria,
+      ivar: editedAnimal.ivar,
+      statusz: editedAnimal.statusz,
+      breed: editedAnimal.breed,
+      birth_location: editedAnimal.birth_location,
+      szuletesi_datum: editedAnimal.szuletesi_datum,
+      bekerules_datum: editedAnimal.bekerules_datum,
+      anya_enar: editedAnimal.anya_enar,
+      kplsz: editedAnimal.kplsz,
+      notes: editedAnimal.notes
+    }).eq('enar', animal.enar);
 
-      if (error) throw error;
-      alert('✅ Állat adatok sikeresen mentve!');
-      setIsEditing(false);
-      await fetchAnimal(animal.enar);
-    } catch (error: any) {
-      console.error('❌ Mentési hiba:', error);
-      alert(`❌ Hiba történt a mentés során: ${error.message}`);
-    } finally {
-      setSaving(false);
+    if (error) throw error;
+
+    // 🔄 HA VÁLTOZOTT A SZÜLETÉSI DÁTUM, SZINKRONIZÁLJUK A BIRTHS TÁBLÁT IS
+    if (birthDateChanged && animal.birth_id) {
+      console.log('🔄 Születési dátum változott, births tábla frissítése...');
+      
+      const { error: birthSyncError } = await supabase
+        .from('births')
+        .update({ birth_date: editedAnimal.szuletesi_datum })
+        .eq('id', animal.birth_id);
+
+      if (birthSyncError) {
+        console.error('⚠️ Birth tábla szinkronizálási hiba:', birthSyncError);
+        alert('⚠️ Állat mentve, de az ellési dátum frissítése sikertelen!');
+      } else {
+        console.log('✅ Birth tábla is frissítve');
+      }
     }
-  };
+
+    alert('✅ Állat adatok sikeresen mentve és szinkronizálva!');
+    setIsEditing(false);
+    await fetchAnimal(animal.enar);
+  } catch (error: any) {
+    console.error('❌ Mentési hiba:', error);
+    alert(`❌ Hiba történt a mentés során: ${error.message}`);
+  } finally {
+    setSaving(false);
+  }
+};
 
   const fetchCurrentPen = async () => {
     if (!animal?.id) return;

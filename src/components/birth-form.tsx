@@ -30,6 +30,87 @@ export default function BirthForm({
   editData               // 🆕 SZERKESZTENDŐ ADATOK
 }: BirthFormProps) {
 
+// 🆕 ANYA KATEGÓRIA LOGIKA FÜGGVÉNY
+const handleMotherCategoryLogic = async (motherEnar: string, hasLivingCalf: boolean) => {
+  try {
+    console.log('🔄 Anya kategória logika kezdete:', { motherEnar, hasLivingCalf });
+
+    // Lekérjük az anya jelenlegi adatait
+    const { data: mother, error: motherError } = await supabase
+      .from('animals')
+      .select('kategoria, has_given_birth')
+      .eq('enar', motherEnar)
+      .single();
+
+    if (motherError || !mother) {
+      console.error('❌ Anya adatok lekérdezése sikertelen:', motherError);
+      return;
+    }
+
+    console.log('📊 Anya jelenlegi adatok:', mother);
+
+    let newCategory = mother.kategoria;
+    let updates: any = {
+      last_birth_date: formData.birth_date,
+      pregnancy_status: null,
+      expected_birth_date: null
+    };
+
+    if (hasLivingCalf && formData.birth_outcome === 'successful' && formData.mother_survived) {
+      // ✅ ÉLŐ BORJÚ + SIKERES ELLÉS: Normál kategória váltás
+      if (mother.kategoria === 'vemhes_üsző') {
+        newCategory = 'tehén';
+        console.log('🐄 Élő borjú → vemhes_üsző → tehén');
+      } else if (mother.kategoria === 'szűz_üsző') {
+        newCategory = 'tehén';
+        console.log('🐄 Élő borjú → szűz_üsző → tehén (első ellés)');
+      }
+      
+      updates.kategoria = newCategory;
+      updates.has_given_birth = true;
+
+    } else if (!hasLivingCalf) {
+      // 💀 HALOTT BORJÚ: Kategória visszaállítás
+      if (mother.kategoria === 'vemhes_üsző' && !mother.has_given_birth) {
+        newCategory = 'szűz_üsző';
+        console.log('💀 Halott borjú → vemhes_üsző → szűz_üsző (visszaállítás)');
+      } else if (mother.kategoria === 'vemhes_üsző' && mother.has_given_birth) {
+        newCategory = 'tehén';
+        console.log('💀 Halott borjú → vemhes_üsző → tehén (korábban már ellett)');
+      }
+      
+      updates.kategoria = newCategory;
+    }
+
+    // Anya túlélés ellenőrzése
+    if (!formData.mother_survived) {
+      updates.statusz = 'elhullott';
+      updates.kikerulesi_datum = formData.birth_date;
+      updates.exit_reason = 'elhullás';
+      updates.elhullas_datum = formData.birth_date;
+    }
+
+    // Adatbázis frissítése
+    const { error: updateError } = await supabase
+      .from('animals')
+      .update(updates)
+      .eq('enar', motherEnar);
+
+    if (updateError) {
+      console.error('❌ Anya frissítése sikertelen:', updateError);
+    } else {
+      console.log('✅ Anya kategória sikeresen frissítve:', {
+        from: mother.kategoria,
+        to: newCategory,
+        hasLivingCalf
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Anya kategória logika hiba:', error);
+  }
+};
+
   // 🆕 FORM INICIALIZÁLÁS FÜGGVÉNY (ÚJ/EDIT ALAPJÁN)
   const initializeFormData = (): BirthFormData => {
     if (editMode && editData) {
@@ -91,14 +172,14 @@ export default function BirthForm({
         
         calf_count: 1,
         calves: [
-          {
-            calf_number: 1,
-            gender: 'male',
-            is_alive: true,
-            birth_weight: undefined,
-            temp_id: generateTempId(motherEnar, 1)
-          }
-        ]
+  {
+    calf_number: 1,
+    gender: 'male',
+    is_alive: false,  // ← JAVÍTOTT: Default halott
+    birth_weight: undefined,
+    temp_id: generateTempId(motherEnar, 1)
+  }
+]
       };
     }
   };
@@ -432,44 +513,11 @@ if (formData.historical) {
           
           console.log('✅ Calves táblába mentve:', calves.length + ' borjú');
 
-          // Update mother animal record (only if not historical)
-          const updates: any = {
-            last_birth_date: formData.birth_date
-          };
+          // 🆕 INTELLIGENS ANYA KATEGÓRIA LOGIKA (ÉLŐ/HALOTT BORJÚ ALAPJÁN)
+          const hasLivingCalf = formData.calves.some(calf => calf.is_alive);
+          console.log('🔍 Van élő borjú?', hasLivingCalf);
 
-          if (formData.birth_outcome === 'successful' && formData.mother_survived) {
-            updates.pregnancy_status = null;
-            updates.expected_birth_date = null;
-            
-            // 🔥 KATEGÓRIA VÁLTÁSI LOGIKA - ELLÉS UTÁN
-            const { data: motherData, error: motherError } = await supabase
-              .from('animals')
-              .select('kategoria')
-              .eq('enar', motherEnar)
-              .single();
-            
-            if (!motherError && motherData) {
-              if (motherData.kategoria === 'vemhes_üsző') {
-                updates.kategoria = 'tehén';
-                console.log('🐄 Kategória váltás: vemhes_üsző → tehén');
-              } else if (motherData.kategoria === 'szűz_üsző') {
-                updates.kategoria = 'tehén';
-                console.log('🐄 Kategória váltás: szűz_üsző → tehén (első ellés)');
-              }
-            }
-          }
-
-          if (!formData.mother_survived) {
-            updates.statusz = 'elhullott';
-            updates.kikerulesi_datum = formData.birth_date;
-            updates.exit_reason = 'elhullás';
-            updates.elhullas_datum = formData.birth_date;
-          }
-
-          await supabase
-            .from('animals')
-            .update(updates)
-            .eq('enar', motherEnar);
+          await handleMotherCategoryLogic(motherEnar, hasLivingCalf);
           
           // Success callback
           if (onSuccess) {
