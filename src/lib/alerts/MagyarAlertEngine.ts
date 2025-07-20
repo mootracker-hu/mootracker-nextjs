@@ -355,14 +355,17 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     type: 'karam_valtas_ovi_kezdete',
     priority: 'alacsony',
     title: 'Óvi karámba áthelyezés időszak kezdete',
-    description: '11 hónapos szűz üsző - óvi karámba költöztetés előkészítése - ENAR: {enar}',
+    description: '12 hónapos szűz üsző - óvi karámba költöztetés előkészítése - ENAR: {enar}',
     checkCondition: (animal) => {
-      const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-      return ageInMonths >= 11 && ageInMonths < 12 && 
-             animal.ivar === 'nő' &&
-             (animal.kategoria.includes('szűz_üsző') || animal.current_pen_function === 'bölcsi') &&
-             animal.statusz === 'aktív';
-    },
+  const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+  
+  return ageInMonths >= 11 && 
+         ageInMonths < 12 && 
+         animal.ivar === 'nő' &&
+         animal.has_given_birth === false && // ✅ CSAK akik még nem ellettek!
+         (animal.kategoria === 'nőivarú_borjú' || animal.kategoria === 'szűz_üsző') && // ✅ SPECIFIKUS KATEGÓRIÁK
+         animal.statusz === 'aktív';
+},
     daysFromBirth: 335, // 11 hónap
     suggestedActions: [
       'Óvi karám kapacitás ellenőrzése',
@@ -380,12 +383,15 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     title: 'Óvi karámba áthelyezés ajánlott',
     description: '12-13 hónapos szűz üsző - óvi karámba költöztetés ajánlott - ENAR: {enar}',
     checkCondition: (animal) => {
-      const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-      return ageInMonths >= 12 && ageInMonths < 14 && 
-             animal.ivar === 'nő' &&
-             (animal.kategoria.includes('szűz_üsző') || animal.current_pen_function === 'bölcsi') &&
-             animal.statusz === 'aktív';
-    },
+  const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+  
+  return ageInMonths >= 13 && 
+         ageInMonths < 14 && 
+         animal.ivar === 'nő' &&
+         animal.has_given_birth === false && // ✅ CSAK akik még nem ellettek!
+         (animal.kategoria === 'nőivarú_borjú' || animal.kategoria === 'szűz_üsző') && // ✅ SPECIFIKUS KATEGÓRIÁK
+         animal.statusz === 'aktív';
+},
     daysFromBirth: 365, // 12 hónap
     suggestedActions: [
       'Bölcsi karámból óvi karámba költöztetés',
@@ -403,12 +409,18 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     title: 'Óvi karámba áthelyezés sürgős!',
     description: '14+ hónapos szűz üsző - óvi karámba költöztetés sürgős! - ENAR: {enar}',
     checkCondition: (animal) => {
-      const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-      return ageInMonths >= 14 && 
-             animal.ivar === 'nő' &&
-             (animal.kategoria.includes('szűz_üsző') || animal.current_pen_function === 'bölcsi') &&
-             animal.statusz === 'aktív';
-    },
+  const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+  
+  return ageInMonths >= 14 && 
+         ageInMonths <= 18 && // (a te 18 hónapos limiteddel)
+         animal.ivar === 'nő' &&
+         animal.has_given_birth === false && 
+         (animal.kategoria === 'nőivarú_borjú' || animal.kategoria === 'szűz_üsző') && 
+         // ✅ ÚJ FELTÉTEL - NE RIASSZON, HA MÁR ÓVI KARÁMBAN VAN:
+         animal.current_pen_function !== 'óvi' &&
+         animal.statusz === 'aktív';
+},
+    
     daysFromBirth: 425, // 14 hónap
     suggestedActions: [
       'AZONNALI óvi karámba költöztetés',
@@ -431,12 +443,15 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     title: 'Hárem karám alkalmasság időszak kezdete',
     description: '22 hónapos szűz üsző - hárem karámba költöztetés előkészítése - ENAR: {enar}',
     checkCondition: (animal) => {
-      const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-      return ageInMonths >= 22 && ageInMonths < 23 && 
-             animal.ivar === 'nő' && 
-             !animal.kategoria.includes('tehén') &&
-             animal.statusz === 'aktív';
-    },
+  const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+  return ageInMonths >= 22 && ageInMonths < 23 && 
+         animal.ivar === 'nő' && 
+         animal.has_given_birth === false && // ✅ Még nem ellett
+         !animal.vv_date && // ✅ Még nem volt háremben
+         animal.kategoria === 'szűz_üsző' && // ✅ Specifikus kategória
+         !animal.kategoria.includes('tehén') &&
+         animal.statusz === 'aktív';
+},
     daysFromBirth: 670, // 22 hónap
     suggestedActions: [
       'Hárem karám kapacitás ellenőrzése',
@@ -454,12 +469,15 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     title: 'Hárem karám alkalmasság ajánlott',
     description: '23-24 hónapos szűz üsző - hárem karámba költöztetés ajánlott - ENAR: {enar}',
     checkCondition: (animal) => {
-      const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-      return ageInMonths >= 23 && ageInMonths < 25 && 
-             animal.ivar === 'nő' && 
-             !animal.kategoria.includes('tehén') &&
-             animal.statusz === 'aktív';
-    },
+  const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+  return ageInMonths >= 23 && ageInMonths < 25 && 
+         animal.ivar === 'nő' && 
+         animal.has_given_birth === false && // ✅ Még nem ellett
+         !animal.vv_date && // ✅ Még nem volt háremben
+         animal.kategoria === 'szűz_üsző' && // ✅ Specifikus kategória
+         !animal.kategoria.includes('tehén') &&
+         animal.statusz === 'aktív';
+},
     daysFromBirth: 700, // 23 hónap
     suggestedActions: [
       'Hárem karámba költöztetés',
@@ -478,12 +496,16 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     title: 'Hárem karám alkalmasság sürgős!',
     description: '25+ hónapos szűz üsző - hárem karámba költöztetés sürgős! - ENAR: {enar}',
     checkCondition: (animal) => {
-      const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-      return ageInMonths >= 25 && 
-             animal.ivar === 'nő' && 
-             !animal.kategoria.includes('tehén') &&
-             animal.statusz === 'aktív';
-    },
+  const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+  return ageInMonths >= 25 && 
+         ageInMonths <= 28 && // ✅ Felső limit
+         animal.ivar === 'nő' && 
+         animal.has_given_birth === false && // ✅ Még nem ellett
+         !animal.vv_date && // ✅ Még nem volt háremben
+         animal.kategoria === 'szűz_üsző' && // ✅ Specifikus kategória
+         !animal.kategoria.includes('tehén') &&
+         animal.statusz === 'aktív';
+},
     daysFromBirth: 760, // 25 hónap
     suggestedActions: [
       'AZONNALI hárem karámba költöztetés',

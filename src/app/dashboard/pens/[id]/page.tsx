@@ -88,26 +88,26 @@ export default function PenDetailsPage() {
 
     // Állat alertek hozzárendelése ehhez a karámhoz (ugyanaz mint pen-card.tsx-ben)
     // Állat alertek hozzárendelése ehhez a karámhoz
-    const penSpecificAlerts = alerts.filter(alert => {
-        if (!pen?.id) return false;
+const penSpecificAlerts = alerts.filter(alert => {
+    if (!pen?.id) return false;
 
-        console.log('🔍 Checking alert:', alert.id, 'animal_id:', alert.animal_id, 'pen_id:', alert.pen_id);
+    console.log('🔍 Checking alert:', alert.id, 'animal_id:', alert.animal_id, 'pen_id:', alert.pen_id);
 
-        // 1. Karám-specifikus alertek
-        if (alert.pen_id === pen.id) {
-            console.log('✅ Pen alert match!');
-            return true;
-        }
+    // 1. Karám-specifikus alertek
+    if (alert.pen_id === pen.id) {
+        console.log('✅ Pen alert match!');
+        return true;
+    }
 
-        // 2. Állat alertek - mapping alapján
-        if (alert.animal_id && animalPenMap) {
-            const animalPenId = animalPenMap[alert.animal_id];
-            console.log('🗺️ Animal', alert.animal_id, 'is in pen:', animalPenId, 'current pen:', pen.id);
-            return animalPenId === pen.id;
-        }
+    // 2. Állat alertek - JAVÍTOTT: karám szám alapú mapping
+    if (alert.animal_id && animalPenMap) {
+        const animalPenId = animalPenMap[alert.animal_id];
+        console.log('🗺️ Animal', alert.animal_id, 'is in pen:', animalPenId, 'current pen:', pen.pen_number); // ← pen.pen_number a log-ban is
+        return animalPenId === pen.pen_number; // ← JAVÍTVA!
+    }
 
-        return false;
-    });
+    return false;
+});
 
     console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
 
@@ -1261,10 +1261,14 @@ export default function PenDetailsPage() {
                         </div>
                     )}
                     <PenAlertsWidget
-                        penId={pen.id}
-                        alerts={penSpecificAlerts as any}
-                        className="mt-6"
-                    />
+    penId={pen.id}
+    penNumber={pen.pen_number}
+    alerts={penSpecificAlerts as any}
+    animalPenMap={animalPenMap}
+    showAnimalAlerts={true}
+    maxDisplayed={5}
+    className="mt-6"
+/>
                     {/* Univerzális Karám Történet Gomb */}
                     <div className="mt-6">
                         <button

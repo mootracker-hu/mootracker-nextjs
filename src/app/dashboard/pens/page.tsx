@@ -490,12 +490,16 @@ const { count: tempCalfCount } = await supabase
           </div>
         </div>
 
-        {/* Karám Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {sortedFilteredPens.map((pen: any) => (
-            <PenCard key={pen.id} pen={pen} />
-          ))}
-        </div>
+   {/* Karám Grid */}
+<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+  {sortedFilteredPens.map((pen: any) => (
+    <PenCard 
+      key={pen.id} 
+      pen={pen} 
+      {...(alerts && { alerts })}
+    />
+  ))}
+</div>
 
         {/* No Results State */}
         {sortedFilteredPens.length === 0 && (

@@ -40,8 +40,8 @@ const penSpecificAlerts = alerts.filter(alert => {
   
   // 2. Állat alertek - mapping alapján
   if (alert.animal_id && animalPenMap) {
-    return animalPenMap[alert.animal_id] === pen.id;
-  }
+  return animalPenMap[alert.animal_id] === pen.pen_number;
+}
   
   return false;
 });

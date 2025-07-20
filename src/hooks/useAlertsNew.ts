@@ -1,11 +1,11 @@
 // src/hooks/useAlertsNew.ts
-// Unified Alert Hook - Uses MagyarAlertEngine + PenQueries
+// ✅ JAVÍTOTT VERZIÓ - Állat Riasztások Megjavítva
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { MagyarAlertEngine, magyarAlertEngine, Animal, PenInfo } from '@/lib/alerts/MagyarAlertEngine';
 import { Alert, AlertPriority, AlertType } from '@/types/alert-task-types';
 import { getAllAnimalsWithPens, getPensWithCounts, clearCache } from '@/lib/data/PenQueries';
-
+import { supabase } from '@/lib/supabase';
 
 // ============================================
 // HOOK INTERFACE
@@ -50,7 +50,7 @@ export interface UseAlertsReturn {
   resolveAlert: (alertId: string) => void;
   snoozeAlert: (alertId: string, until: Date) => void;
   dismissAlert: (alertId: string) => void;
-  createTaskFromAlert: (alert: Alert) => Promise<string>;  // ← ✅ ADD HOZZÁ!
+  createTaskFromAlert: (alert: Alert) => Promise<string>;
   
   // Filters
   getActiveAlerts: () => Alert[];
@@ -75,7 +75,7 @@ export const useAlertsNew = (): UseAlertsReturn => {
   const [animalPenMap, setAnimalPenMap] = useState<Record<string, string>>({});
   
   // ============================================
-  // DATA LOADING
+  // 🔧 JAVÍTOTT DATA LOADING
   // ============================================
   
   const loadAlerts = useCallback(async () => {
@@ -85,38 +85,19 @@ export const useAlertsNew = (): UseAlertsReturn => {
       
       console.log('🔄 Loading unified alerts...');
       
-      // Load animals and pens
-      const [animals, pens] = await Promise.all([
-        getAllAnimalsWithPens(),
-        getPensWithCounts()
-      ]);
+      // ✅ STEP 1: ÁLLATOK LEKÉRDEZÉSE - JAVÍTOTT VERZIÓ
+      const animalsData = await loadAnimalsWithPenFunction();
+      const pensData = await getPensWithCounts();
       
-
-
-      console.log(`📊 Loaded ${animals.length} animals and ${pens.length} pens`);
+      console.log(`📊 Loaded ${animalsData.animals.length} animals and ${pensData.length} pens`);
+      console.log(`🗺️ Animal-Pen mapping: ${Object.keys(animalsData.animalPenMapping).length} entries`);
       
-      // Generate all alerts using MagyarAlertEngine
-      const generatedAlerts = magyarAlertEngine.generateAllAlerts(animals as any[], pens as any[]);
+      // ✅ STEP 2: RIASZTÁSOK GENERÁLÁSA - MagyarAlertEngine
+      const generatedAlerts = magyarAlertEngine.generateAllAlerts(
+        animalsData.animals as any[], 
+        pensData as any[]
+      );
 
-      console.log(`🚨 Generated ${generatedAlerts.length} alerts`);
-
-     // Debug: nézzük meg az első állat struktúráját
-if (animals.length > 0) {
-  console.log('🐄 First animal structure:', animals[0]);
-}
-
-// Állat-Karám mapping létrehozása a meglévő animals tömbből
-const mapping = animals.reduce((map: Record<string, string>, animal: any) => {
-  // JAVÍTÁS: pen_id helyett current_pen_id!
-  if (animal.id && animal.jelenlegi_karam) {
-  map[animal.id] = animal.jelenlegi_karam;
-}
-  return map;
-}, {} as Record<string, string>);
-
-setAnimalPenMap(mapping);
-console.log('🗺️ Animal-Pen mapping sample:', Object.entries(mapping).slice(0, 5));
-      
       console.log(`🚨 Generated ${generatedAlerts.length} alerts`);
       console.log('📈 Alert breakdown:', {
         animal_alerts: generatedAlerts.filter(a => a.animal_id).length,
@@ -124,11 +105,22 @@ console.log('🗺️ Animal-Pen mapping sample:', Object.entries(mapping).slice(
         total: generatedAlerts.length
       });
       
-      // Load resolved alerts from localStorage
+      // ✅ STEP 3: DEBUG - Első pár riasztás részletei
+      if (generatedAlerts.length > 0) {
+        console.log('🔍 First few alerts:', generatedAlerts.slice(0, 3).map(a => ({
+          id: a.id,
+          type: a.type,
+          animal_id: a.animal_id,
+          pen_id: a.pen_id,
+          title: a.title,
+          priority: a.priority
+        })));
+      }
+      
+      // ✅ STEP 4: RESOLVED/SNOOZED STATUS
       const resolvedAlerts = getResolvedAlertsFromStorage();
       const snoozedAlerts = getSnoozedAlertsFromStorage();
       
-      // Apply resolved/snoozed status
       const alertsWithStatus = generatedAlerts.map((alert: Alert) => ({
         ...alert,
         is_resolved: resolvedAlerts.includes(alert.id),
@@ -136,7 +128,9 @@ console.log('🗺️ Animal-Pen mapping sample:', Object.entries(mapping).slice(
         snoozed_until: snoozedAlerts.find(s => s.alertId === alert.id)?.until
       }));
       
+      // ✅ STEP 5: STATE FRISSÍTÉS
       setAlerts(alertsWithStatus);
+      setAnimalPenMap(animalsData.animalPenMapping);
       
     } catch (err) {
       console.error('❌ Error loading alerts:', err);
@@ -147,7 +141,165 @@ console.log('🗺️ Animal-Pen mapping sample:', Object.entries(mapping).slice(
   }, []);
 
   // ============================================
-  // COMPUTED VALUES
+  // 🆕 HELPER FUNCTION - ÁLLATOK KARÁM FUNKCIÓVAL
+  // ============================================
+  
+  const loadAnimalsWithPenFunction = async (): Promise<{
+    animals: any[];
+    animalPenMapping: Record<string, string>;
+  }> => {
+    try {
+      console.log('🔄 Loading animals with pen function...');
+      
+      // ✅ MÓDSZER 1: Próbáljuk a komplex JOIN-nal
+      const { data: animalsWithPenFunction, error: complexError } = await supabase
+        .from('animals')
+        .select(`
+          *,
+          pens!left(
+            id,
+            pen_number,
+            pen_functions!left(
+              function_type,
+              end_date
+            )
+          )
+        `)
+        .eq('statusz', 'aktív')
+        .is('pens.pen_functions.end_date', null);
+
+      if (!complexError && animalsWithPenFunction) {
+        console.log('✅ Complex JOIN sikeres, animals:', animalsWithPenFunction.length);
+        
+        // Karám funkció hozzáadása az állat objektumhoz
+        const animals = animalsWithPenFunction.map(animal => ({
+          ...animal,
+          current_pen_function: animal.pens?.pen_functions?.[0]?.function_type || null
+        }));
+        
+        // Animal-Pen mapping
+        const animalPenMapping = animals.reduce((map: Record<string, string>, animal: any) => {
+          if (animal.id && animal.jelenlegi_karam) {
+            map[animal.id] = animal.jelenlegi_karam;
+          }
+          return map;
+        }, {} as Record<string, string>);
+
+        console.log('✅ Complex JOIN method successful');
+        return { animals, animalPenMapping };
+      }
+      
+      console.log('⚠️ Complex JOIN failed, trying fallback method...');
+      
+      // ✅ MÓDSZER 2: FALLBACK - Külön lekérdezések
+      const animalsData = await loadAnimalsWithFallbackMethod();
+      console.log('✅ Fallback method successful');
+      return animalsData;
+      
+    } catch (error) {
+      console.error('❌ Error in loadAnimalsWithPenFunction:', error);
+      
+      // ✅ MÓDSZER 3: ULTIMATE FALLBACK
+      const { data: basicAnimals } = await supabase
+        .from('animals')
+        .select('*')
+        .eq('statusz', 'aktív');
+      
+      const animals = basicAnimals?.map(animal => ({
+        ...animal,
+        current_pen_function: null // Nincs karám funkció adat
+      })) || [];
+      
+      const animalPenMapping = animals.reduce((map: Record<string, string>, animal: any) => {
+        if (animal.id && animal.jelenlegi_karam) {
+          map[animal.id] = animal.jelenlegi_karam;
+        }
+        return map;
+      }, {} as Record<string, string>);
+      
+      console.log('⚠️ Using ultimate fallback method');
+      return { animals, animalPenMapping };
+    }
+  };
+
+  // ============================================
+  // 🔧 FALLBACK METHOD - KÜLÖN LEKÉRDEZÉSEK
+  // ============================================
+  
+  const loadAnimalsWithFallbackMethod = async (): Promise<{
+    animals: any[];
+    animalPenMapping: Record<string, string>;
+  }> => {
+    console.log('🔄 Fallback method: separate queries...');
+    
+    // 1. Állatok lekérdezése
+    const { data: animals, error: animalsError } = await supabase
+      .from('animals')
+      .select('*')
+      .eq('statusz', 'aktív');
+
+    if (animalsError) {
+      console.error('❌ Animals query error:', animalsError);
+      throw animalsError;
+    }
+
+    // 2. Karamok és funkciók lekérdezése
+    const { data: pensWithFunctions, error: pensError } = await supabase
+      .from('pens')
+      .select(`
+        id,
+        pen_number,
+        pen_functions!left(
+          function_type,
+          end_date
+        )
+      `)
+      .is('pen_functions.end_date', null);
+
+    if (pensError) {
+      console.error('❌ Pens query error:', pensError);
+      throw pensError;
+    }
+
+    // 3. Pen_number -> function_type mapping
+    const penFunctionMap = pensWithFunctions?.reduce((map: Record<string, string>, pen: any) => {
+      if (pen.pen_number && pen.pen_functions?.[0]?.function_type) {
+        map[pen.pen_number] = pen.pen_functions[0].function_type;
+      }
+      return map;
+    }, {} as Record<string, string>) || {};
+
+    console.log('🗺️ Pen function mapping sample:', Object.entries(penFunctionMap).slice(0, 5));
+
+    // 4. Állatok current_pen_function hozzáadása
+    const animalsWithFunction = animals?.map(animal => ({
+      ...animal,
+      current_pen_function: animal.jelenlegi_karam ? penFunctionMap[animal.jelenlegi_karam] : null
+    })) || [];
+
+    // 5. Animal-Pen mapping
+    const animalPenMapping = animalsWithFunction.reduce((map: Record<string, string>, animal: any) => {
+      if (animal.id && animal.jelenlegi_karam) {
+        map[animal.id] = animal.jelenlegi_karam;
+      }
+      return map;
+    }, {} as Record<string, string>);
+
+    console.log(`✅ Fallback method: ${animalsWithFunction.length} animals processed`);
+    console.log(`🔍 Sample animal with function:`, animalsWithFunction.slice(0, 1).map(a => ({
+      enar: a.enar,
+      jelenlegi_karam: a.jelenlegi_karam,
+      current_pen_function: a.current_pen_function
+    })));
+
+    return { 
+      animals: animalsWithFunction, 
+      animalPenMapping 
+    };
+  };
+
+  // ============================================
+  // COMPUTED VALUES - változatlan
   // ============================================
   
   const animalAlerts = useMemo(() => 
@@ -228,7 +380,7 @@ console.log('🗺️ Animal-Pen mapping sample:', Object.entries(mapping).slice(
   }, [alerts]);
 
   // ============================================
-  // ACTIONS
+  // ACTIONS - változatlan
   // ============================================
   
   const refreshAlerts = useCallback(async () => {
@@ -246,7 +398,6 @@ console.log('🗺️ Animal-Pen mapping sample:', Object.entries(mapping).slice(
         : alert
     ));
     
-    // Save to localStorage
     const resolved = getResolvedAlertsFromStorage();
     resolved.push(alertId);
     localStorage.setItem('mootracker_resolved_alerts', JSON.stringify(resolved));
@@ -261,7 +412,6 @@ console.log('🗺️ Animal-Pen mapping sample:', Object.entries(mapping).slice(
         : alert
     ));
     
-    // Save to localStorage
     const snoozed = getSnoozedAlertsFromStorage();
     const existing = snoozed.findIndex(s => s.alertId === alertId);
     
@@ -280,7 +430,7 @@ console.log('🗺️ Animal-Pen mapping sample:', Object.entries(mapping).slice(
   }, []);
 
   // ============================================
-  // FILTERS
+  // FILTERS - változatlan
   // ============================================
   
   const getActiveAlerts = useCallback(() => {
@@ -309,25 +459,22 @@ console.log('🗺️ Animal-Pen mapping sample:', Object.entries(mapping).slice(
   }, [alerts]);
 
   // ============================================
-  // EFFECTS
+  // EFFECTS - változatlan
   // ============================================
   
-  // Load alerts on mount
   useEffect(() => {
     loadAlerts();
   }, [loadAlerts]);
 
-  // Auto-refresh every 5 minutes
   useEffect(() => {
     const interval = setInterval(() => {
       console.log('⏰ Auto-refreshing alerts...');
       loadAlerts();
-    }, 5 * 60 * 1000); // 5 minutes
+    }, 5 * 60 * 1000);
 
     return () => clearInterval(interval);
   }, [loadAlerts]);
 
-  // Check snoozed alerts every minute
   useEffect(() => {
     const interval = setInterval(() => {
       const now = new Date();
@@ -344,7 +491,7 @@ console.log('🗺️ Animal-Pen mapping sample:', Object.entries(mapping).slice(
         }
         return alert;
       }));
-    }, 60 * 1000); // 1 minute
+    }, 60 * 1000);
 
     return () => clearInterval(interval);
   }, []);
@@ -358,7 +505,7 @@ console.log('🗺️ Animal-Pen mapping sample:', Object.entries(mapping).slice(
     alerts,
     animalAlerts,
     penAlerts,
-    animalPenMap, // ← ÚJ!
+    animalPenMap,
     loading,
     error,
     
@@ -373,6 +520,11 @@ console.log('🗺️ Animal-Pen mapping sample:', Object.entries(mapping).slice(
     resolveAlert,
     snoozeAlert,
     dismissAlert,
+    createTaskFromAlert: async (alert: Alert): Promise<string> => {
+      const taskId = `task-${Date.now()}`;
+      console.log(`✅ Task created from alert: ${taskId} for ${alert.title}`);
+      return taskId;
+    },
     
     // Filters
     getActiveAlerts,
@@ -380,18 +532,11 @@ console.log('🗺️ Animal-Pen mapping sample:', Object.entries(mapping).slice(
     getOverdueAlerts,
     getAlertsByPriority,
     getAlertsByType,
-
-    createTaskFromAlert: async (alert: Alert): Promise<string> => {
-    const taskId = `task-${Date.now()}`;
-    console.log(`✅ Task created from alert: ${taskId} for ${alert.title}`);
-    return taskId;
-  },
-
   };
 };
 
 // ============================================
-// LOCALSTORAGE HELPERS
+// LOCALSTORAGE HELPERS - változatlan
 // ============================================
 
 function getResolvedAlertsFromStorage(): string[] {
@@ -413,12 +558,9 @@ function getSnoozedAlertsFromStorage(): SnoozedAlert[] {
 }
 
 // ============================================
-// SPECIALIZED HOOKS
+// SPECIALIZED HOOKS - változatlan
 // ============================================
 
-/**
- * Hook for only active alerts
- */
 export const useActiveAlerts = () => {
   const { getActiveAlerts, loading, error, refreshAlerts } = useAlertsNew();
   
@@ -432,9 +574,6 @@ export const useActiveAlerts = () => {
   };
 };
 
-/**
- * Hook for only critical alerts
- */
 export const useCriticalAlerts = () => {
   const { getCriticalAlerts, loading, error, refreshAlerts } = useAlertsNew();
   
@@ -448,9 +587,6 @@ export const useCriticalAlerts = () => {
   };
 };
 
-/**
- * Hook for alerts by priority
- */
 export const useAlertsByPriority = (priority: AlertPriority) => {
   const { getAlertsByPriority, loading, error, refreshAlerts } = useAlertsNew();
   
@@ -463,9 +599,5 @@ export const useAlertsByPriority = (priority: AlertPriority) => {
     refreshAlerts
   };
 };
-
-// ============================================
-// EXPORTS
-// ============================================
 
 export default useAlertsNew;
