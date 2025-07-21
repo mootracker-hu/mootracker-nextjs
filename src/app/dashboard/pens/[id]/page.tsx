@@ -266,23 +266,30 @@ const penSpecificAlerts = alerts.filter(alert => {
 
             // 1. ✅ VALÓDI ÁLLATOK LEKÉRDEZÉSE (eredeti)
             const { data: assignments, error: assignError } = await supabase
-                .from('animal_pen_assignments')
-                .select(`
-                animal_id,
-                assigned_at,
-                assignment_reason,
-                animals!inner(
-                    id,
-                    enar,
-                    szuletesi_datum,
-                    ivar,
-                    kategoria,
-                    statusz,
-                    anya_enar,
-                    apa_enar,
-                    birth_location
-                )
-            `)
+    .from('animal_pen_assignments')
+    .select(`
+    animal_id,
+    assigned_at,
+    assignment_reason,
+    animals!inner(
+        id,
+        enar,
+        szuletesi_datum,
+        ivar,
+        kategoria,
+        statusz,
+        anya_enar,
+        apa_enar,
+        birth_location,
+        pairing_date,
+        current_weight,
+        last_weight_measured_at,
+        vv_date,
+        pregnancy_status,
+        expected_birth_date,
+        name
+    )
+`)
                 .eq('pen_id', pen.id)
                 .is('removed_at', null);
 
