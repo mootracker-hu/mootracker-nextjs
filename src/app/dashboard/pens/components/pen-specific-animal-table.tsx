@@ -90,6 +90,20 @@ const calculateAge = (birthDate: string): string => {
     return `${Math.floor(ageInMonths / 12)} év ${ageInMonths % 12} hónap`;
 };
 
+const calculateCalfAgeFromBirthDate = (birthDate: string): string => {
+    if (!birthDate) return '-';
+    const birth = new Date(birthDate);
+    const today = new Date();
+    const ageInDays = Math.floor((today.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24));
+    const ageInMonths = Math.floor(ageInDays / 30.44);
+    
+    // Csak 12 hónapnál fiatalabb borjakra mutatjuk
+    if (ageInMonths < 12) {
+        return `${ageInMonths} hónap`;
+    }
+    return '-';
+};
+
 const addDays = (date: Date, days: number): string => {
     const result = new Date(date);
     result.setDate(result.getDate() + days);
@@ -307,260 +321,319 @@ const OviAnimalTable: React.FC<AnimalTableProps> = ({
 );
 };
 
-// 👑 HÁREM TÁBLÁZAT - DESIGN SYSTEM MODERNIZED
+// 👑 HÁREM TÁBLÁZAT - JAVÍTOTT VV LOGIKÁVAL
 const HaremAnimalTable: React.FC<AnimalTableProps> = ({
     animals, selectedAnimals, onToggleAnimal, onSelectAll, onClearSelection, handleAnimalClick
 }) => {
     return (
-    <div className="bg-white shadow-sm rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-            <table className="table-auto w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                    <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <input
-                                type="checkbox"
-                                checked={selectedAnimals.length === animals.length && animals.length > 0}
-                                onChange={() => selectedAnimals.length === animals.length ? onClearSelection() : onSelectAll()}
-                                className="rounded border-gray-300"
-                            />
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">🏷️ ENAR</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">📛 Név</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">💕 Hárem kezdete</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">🔬 VV tervezett</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">✅ VV eredmény</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">🍼 Várható ellés</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">⚖️ UTOLSÓ MÉRÉS</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">📝 Feljegyzés</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">⚙️ Műveletek</th>
-                    </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                    {animals.map((animal, index) => {
-                        const vvPlanned = (() => {
-                            // 1. Ha van pairing_date, azt használjuk
-                            if (animal.pairing_date) {
-                                return addDays(new Date(animal.pairing_date), 75);
+        <div className="bg-white shadow-sm rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+                <table className="table-auto w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50 sticky top-0 z-10">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <input
+                                    type="checkbox"
+                                    checked={selectedAnimals.length === animals.length && animals.length > 0}
+                                    onChange={() => selectedAnimals.length === animals.length ? onClearSelection() : onSelectAll()}
+                                    className="rounded border-gray-300"
+                                />
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">🏷️ ENAR</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">📛 Név</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">💕 Hárem kezdete</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">🔬 VV tervezett</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">✅ VV eredmény</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">🍼 Várható ellés</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">📅 Borjú kora</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">⚖️ UTOLSÓ MÉRÉS</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">📝 Feljegyzés</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">⚙️ Műveletek</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                        {animals.map((animal, index) => {
+                            // Életkor számítás egyszer
+                            const birthDate = animal.szuletesi_datum || animal.birth_date;
+                            let ageInMonths = 0;
+                            if (birthDate) {
+                                const birth = new Date(birthDate);
+                                const today = new Date();
+                                ageInMonths = Math.floor((today.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
                             }
 
-                            // 2. Ha van assigned_at (karámba kerülés), azt használjuk
-                            if (animal.assigned_at) {
-                                return addDays(new Date(animal.assigned_at), 75);
-                            }
+                            // VV INTELLIGENS LOGIKA
+                            const vvPlanned = (() => {
+                                // 1. Csak nőivarokra (ivar ellenőrzés)
+                                if (animal.ivar !== 'nőivar' && animal.ivar !== 'nő') {
+                                    return '-';
+                                }
 
-                            return '-';
-                        })();
-                        return (
-                            <tr key={getSafeKey(animal, index)}
-                                className={`hover:bg-gray-50 ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''} ${animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
-                                    ? 'cursor-pointer'
-                                    : ''
-                                    }`}
-                                onClick={animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
-                                    ? () => handleAnimalClick(animal)
-                                    : undefined}>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedAnimals.includes(animal.id)}
-                                        onChange={() => onToggleAnimal(animal.id)}
-                                        className="rounded border-gray-300"
-                                    />
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    {animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-')) ? (
-                                        <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
-                                            🐮 {animal.enar}
-                                        </span>
-                                    ) : (
-                                        <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
-                                            {animal.enar}
-                                        </Link>
-                                    )}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                                    {animal.name || '-'}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {formatDate(animal.harem_start_date)}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-blue-600">
-                                    {vvPlanned}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    {animal.vv_result ? (
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${animal.vv_result === 'vemhes' ? 'bg-green-100 text-green-800' :
-                                            animal.vv_result === 'ures' ? 'bg-red-100 text-red-800' :
-                                                'bg-yellow-100 text-yellow-800'
-                                            }`}>
-                                            {animal.vv_result === 'vemhes' ? '🤰 Vemhes' :
-                                                animal.vv_result === 'ures' ? '❌ Üres' : '🌱 Csíra'}
-                                        </span>
-                                    ) : (
-                                        <span className="text-gray-400">-</span>
-                                    )}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-green-600">
-    {formatDate(animal.expected_birth_date)}
-</td>
-<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-  {animal.current_weight ? (
-    <div>
-      <div className="font-medium text-green-600">{animal.current_weight} kg</div>
-      <div className="text-xs text-gray-500">
-        {animal.last_weight_measured_at ? 
-          new Date(animal.last_weight_measured_at).toLocaleDateString('hu-HU') : 
-          'Dátum ismeretlen'
-        }
-      </div>
-    </div>
-  ) : (
-    <div className="text-orange-600 font-medium">Nincs mérés</div>
-  )}
-</td>
-<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-    {animal.notes || '-'}
-</td>
-<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-    <button 
-        className="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100 transition-colors"
-        title="Műveletek"
-        onClick={(e) => {
-            e.stopPropagation();
-            alert('🔧 Műveletek menü hamarosan elérhető!');
-        }}
-    >
-        <span className="text-lg">⋯</span>
-    </button>
-</td>
-                            </tr>
-                        );
-                    })}
-                </tbody>
-            </table>
+                                // 2. Csak 24+ hónapos állatokra (életkor ellenőrzés)
+                                if (ageInMonths > 0 && ageInMonths < 24) {
+                                    return '-';
+                                }
+
+                                // 3. 24+ hónapos nőivarokra számítjuk a VV-t
+                                if (animal.vv_date) {
+                                    return formatDate(animal.vv_date);
+                                }
+
+                                if (animal.pairing_date) {
+                                    return addDays(new Date(animal.pairing_date), 75);
+                                }
+
+                                if (animal.assigned_at) {
+                                    return addDays(new Date(animal.assigned_at), 75);
+                                }
+
+                                return '-';
+                            })();
+
+                            return (
+                                <tr key={getSafeKey(animal, index)}
+                                    className={`hover:bg-gray-50 ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''} ${animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                        ? 'cursor-pointer'
+                                        : ''
+                                        }`}
+                                    onClick={animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                        ? () => handleAnimalClick(animal)
+                                        : undefined}>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedAnimals.includes(animal.id)}
+                                            onChange={() => onToggleAnimal(animal.id)}
+                                            className="rounded border-gray-300"
+                                        />
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        {animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-')) ? (
+                                            <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
+                                                🐮 {animal.enar}
+                                            </span>
+                                        ) : (
+                                            <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
+                                                {animal.enar}
+                                            </Link>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                                        {animal.name || '-'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {formatDate(animal.harem_start_date)}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-blue-600">
+                                        {vvPlanned}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        {animal.vv_result ? (
+                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${animal.vv_result === 'vemhes' ? 'bg-green-100 text-green-800' :
+                                                animal.vv_result === 'ures' ? 'bg-red-100 text-red-800' :
+                                                    'bg-yellow-100 text-yellow-800'
+                                                }`}>
+                                                {animal.vv_result === 'vemhes' ? '🤰 Vemhes' :
+                                                    animal.vv_result === 'ures' ? '❌ Üres' : '🌱 Csíra'}
+                                            </span>
+                                        ) : (
+                                            <span className="text-gray-400">-</span>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-green-600">
+                                        {formatDate(animal.expected_birth_date)}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {(() => {
+                                            // Borjú kora - optimalizált (ageInMonths már kiszámítva)
+                                            if (birthDate && ageInMonths < 12) {
+                                                return (
+                                                    <div className="font-medium text-blue-600">
+                                                        {ageInMonths} hónap
+                                                    </div>
+                                                );
+                                            }
+                                            return '-';
+                                        })()}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {animal.current_weight ? (
+                                            <div>
+                                                <div className="font-medium text-green-600">{animal.current_weight} kg</div>
+                                                <div className="text-xs text-gray-500">
+                                                    {animal.last_weight_measured_at ? 
+                                                        new Date(animal.last_weight_measured_at).toLocaleDateString('hu-HU') : 
+                                                        'Dátum ismeretlen'
+                                                    }
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="text-orange-600 font-medium">Nincs mérés</div>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {animal.notes || '-'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <button 
+                                            className="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                                            title="Műveletek"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                alert('🔧 Műveletek menü hamarosan elérhető!');
+                                            }}
+                                        >
+                                            <span className="text-lg">⋯</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
-);
+    );
 };
 
-// 🤰 VEMHES TÁBLÁZAT - DESIGN SYSTEM MODERNIZED
+// 🤰 VEMHES TÁBLÁZAT - JAVÍTOTT VERZIÓ
 const VemhesAnimalTable: React.FC<AnimalTableProps> = ({
     animals, selectedAnimals, onToggleAnimal, onSelectAll, onClearSelection, handleAnimalClick
 }) => {
     return (
-    <div className="bg-white shadow-sm rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-            <table className="table-auto w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                    <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <input
-                                type="checkbox"
-                                checked={selectedAnimals.length === animals.length && animals.length > 0}
-                                onChange={() => selectedAnimals.length === animals.length ? onClearSelection() : onSelectAll()}
-                                className="rounded border-gray-300"
-                            />
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">🏷️ ENAR</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">📛 Név</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">🍼 Várható ellés</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">💉 RCC ideje</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">💉 BoviPast ideje</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">🚫 Abrak elvétel</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">⚖️ UTOLSÓ MÉRÉS</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">📝 Feljegyzés</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">⚙️ Műveletek</th>
-                    </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                    {animals.map((animal, index) => {
-                        const expectedBirth = animal.expected_birth_date ? new Date(animal.expected_birth_date) : null;
-                        const rccDate = expectedBirth ? addDays(expectedBirth, -42) : '-';
-                        const bovipastDate = expectedBirth ? addDays(expectedBirth, -28) : '-';
-                        const feedRemovalDate = expectedBirth ? addDays(expectedBirth, -14) : '-';
+        <div className="bg-white shadow-sm rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+                <table className="table-auto w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50 sticky top-0 z-10">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <input
+                                    type="checkbox"
+                                    checked={selectedAnimals.length === animals.length && animals.length > 0}
+                                    onChange={() => selectedAnimals.length === animals.length ? onClearSelection() : onSelectAll()}
+                                    className="rounded border-gray-300"
+                                />
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">🏷️ ENAR</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">📛 Név</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">🍼 Várható ellés</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">💉 RCC ideje</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">💉 BoviPast ideje</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">🚫 Abrak elvétel</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">📅 Borjú kora</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">⚖️ UTOLSÓ MÉRÉS</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">📝 Feljegyzés</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">⚙️ Műveletek</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                        {animals.map((animal, index) => {
+                            const expectedBirth = animal.expected_birth_date ? new Date(animal.expected_birth_date) : null;
+                            const rccDate = expectedBirth ? addDays(expectedBirth, -42) : '-';
+                            const bovipastDate = expectedBirth ? addDays(expectedBirth, -28) : '-';
+                            const feedRemovalDate = expectedBirth ? addDays(expectedBirth, -14) : '-';
 
-                        return (
-                            <tr key={getSafeKey(animal, index)}
-                                className={`hover:bg-gray-50 ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''} ${animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
-                                    ? 'cursor-pointer'
-                                    : ''
-                                    }`}
-                                onClick={animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
-                                    ? () => handleAnimalClick(animal)
-                                    : undefined}>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedAnimals.includes(animal.id)}
-                                        onChange={() => onToggleAnimal(animal.id)}
-                                        className="rounded border-gray-300"
-                                    />
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    {animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-')) ? (
-                                        <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
-                                            🐮 {animal.enar}
-                                        </span>
-                                    ) : (
-                                        <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
-                                            {animal.enar}
-                                        </Link>
-                                    )}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                                    {animal.name || '-'}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-green-600">
-                                    {formatDate(animal.expected_birth_date)}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-red-600">
-                                    {rccDate}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-orange-600">
-                                    {bovipastDate}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-blue-600">
-    {feedRemovalDate}
-</td>
-<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-  {animal.current_weight ? (
-    <div>
-      <div className="font-medium text-green-600">{animal.current_weight} kg</div>
-      <div className="text-xs text-gray-500">
-        {animal.last_weight_measured_at ? 
-          new Date(animal.last_weight_measured_at).toLocaleDateString('hu-HU') : 
-          'Dátum ismeretlen'
-        }
-      </div>
-    </div>
-  ) : (
-    <div className="text-orange-600 font-medium">Nincs mérés</div>
-  )}
-</td>
-<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-    {animal.notes || '-'}
-</td>
-<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-    <button 
-        className="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100 transition-colors"
-        title="Műveletek"
-        onClick={(e) => {
-            e.stopPropagation();
-            alert('🔧 Műveletek menü hamarosan elérhető!');
-        }}
-    >
-        <span className="text-lg">⋯</span>
-    </button>
-</td>
-                            </tr>
-                        );
-                    })}
-                </tbody>
-            </table>
+                            return (
+                                <tr key={getSafeKey(animal, index)}
+                                    className={`hover:bg-gray-50 ${selectedAnimals.includes(animal.id) ? 'bg-blue-50' : ''} ${animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                        ? 'cursor-pointer'
+                                        : ''
+                                        }`}
+                                    onClick={animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-'))
+                                        ? () => handleAnimalClick(animal)
+                                        : undefined}>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedAnimals.includes(animal.id)}
+                                            onChange={() => onToggleAnimal(animal.id)}
+                                            className="rounded border-gray-300"
+                                        />
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        {animal.enar && (animal.enar.includes('/') || animal.enar.startsWith('temp-')) ? (
+                                            <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
+                                                🐮 {animal.enar}
+                                            </span>
+                                        ) : (
+                                            <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
+                                                {animal.enar}
+                                            </Link>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                                        {animal.name || '-'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-green-600">
+                                        {formatDate(animal.expected_birth_date)}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-red-600">
+                                        {rccDate}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-orange-600">
+                                        {bovipastDate}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-blue-600">
+                                        {feedRemovalDate}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {(() => {
+                                            // Bármilyen születési dátum alapján számolunk
+                                            const birthDate = animal.szuletesi_datum || animal.birth_date;
+                                            if (birthDate) {
+                                                const birth = new Date(birthDate);
+                                                const today = new Date();
+                                                const ageInMonths = Math.floor((today.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
+                                                
+                                                if (ageInMonths < 12) {
+                                                    return (
+                                                        <div className="font-medium text-blue-600">
+                                                            {ageInMonths} hónap
+                                                        </div>
+                                                    );
+                                                }
+                                            }
+                                            return '-';
+                                        })()}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {animal.current_weight ? (
+                                            <div>
+                                                <div className="font-medium text-green-600">{animal.current_weight} kg</div>
+                                                <div className="text-xs text-gray-500">
+                                                    {animal.last_weight_measured_at ? 
+                                                        new Date(animal.last_weight_measured_at).toLocaleDateString('hu-HU') : 
+                                                        'Dátum ismeretlen'
+                                                    }
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="text-orange-600 font-medium">Nincs mérés</div>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {animal.notes || '-'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <button 
+                                            className="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                                            title="Műveletek"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                alert('🔧 Műveletek menü hamarosan elérhető!');
+                                            }}
+                                        >
+                                            <span className="text-lg">⋯</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
-);
+    );
 };
 
 // 🍼 ELLETŐ TÁBLÁZAT - DESIGN SYSTEM MODERNIZED
@@ -571,7 +644,7 @@ const ElletoAnimalTable: React.FC<AnimalTableProps> = ({
     <div className="bg-white shadow-sm rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
             <table className="table-auto w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+                <thead className="bg-gray-50 sticky top-0 z-10">
                     <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             <input
@@ -684,7 +757,7 @@ const ElletoAnimalTable: React.FC<AnimalTableProps> = ({
 );
 };
 
-// 🐄 TEHÉN TÁBLÁZAT - DESIGN SYSTEM MODERNIZED
+// 🐄 TEHÉN TÁBLÁZAT - JAVÍTOTT VERZIÓ
 const TehenAnimalTable: React.FC<AnimalTableProps> = ({
     animals, selectedAnimals, onToggleAnimal, onSelectAll, onClearSelection, handleAnimalClick
 }) => {
@@ -706,6 +779,7 @@ const TehenAnimalTable: React.FC<AnimalTableProps> = ({
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">📛 Név</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">🍼 Ellés dátuma</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">🏷️ Borjú ENAR</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">📅 Borjú kora</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">⚥ Borjú neme</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">🔬 Következő VV</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">⚖️ UTOLSÓ MÉRÉS</th>
@@ -746,54 +820,74 @@ const TehenAnimalTable: React.FC<AnimalTableProps> = ({
                                     {animal.name || '-'}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-green-600">
-    {formatDate(animal.birth_date)}
-</td>
-<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-    {animal.calf_enar || '-'}
-</td>
-<td className="px-6 py-4 whitespace-nowrap">
-    {animal.calf_gender ? (
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${animal.calf_gender === 'hímivar' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'
-            }`}>
-            {animal.calf_gender === 'hímivar' ? '♂ Hímivar' : '♀ Nőivar'}
-        </span>
-    ) : (
-        <span className="text-gray-400">-</span>
-    )}
-</td>
-<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-blue-600">
-    {formatDate(animal.expected_birth_date)}
-</td>
-<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-  {animal.current_weight ? (
-    <div>
-      <div className="font-medium text-green-600">{animal.current_weight} kg</div>
-      <div className="text-xs text-gray-500">
-        {animal.last_weight_measured_at ? 
-          new Date(animal.last_weight_measured_at).toLocaleDateString('hu-HU') : 
-          'Dátum ismeretlen'
-        }
-      </div>
-    </div>
-  ) : (
-    <div className="text-orange-600 font-medium">Nincs mérés</div>
-  )}
-</td>
-<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-    {animal.notes || '-'}
-</td>
-<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-    <button 
-        className="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100 transition-colors"
-        title="Műveletek"
-        onClick={(e) => {
-            e.stopPropagation();
-            alert('🔧 Műveletek menü hamarosan elérhető!');
-        }}
-    >
-        <span className="text-lg">⋯</span>
-    </button>
-</td>
+                                    {formatDate(animal.birth_date)}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                                    {animal.calf_enar || '-'}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {(() => {
+                                        // Bármilyen születési dátum alapján számolunk
+                                        const birthDate = animal.szuletesi_datum || animal.birth_date;
+                                        if (birthDate) {
+                                            const birth = new Date(birthDate);
+                                            const today = new Date();
+                                            const ageInMonths = Math.floor((today.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
+                                            
+                                            if (ageInMonths < 12) {
+                                                return (
+                                                    <div className="font-medium text-blue-600">
+                                                        {ageInMonths} hónap
+                                                    </div>
+                                                );
+                                            }
+                                        }
+                                        return '-';
+                                    })()}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                    {animal.calf_gender ? (
+                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${animal.calf_gender === 'hímivar' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'
+                                            }`}>
+                                            {animal.calf_gender === 'hímivar' ? '♂ Hímivar' : '♀ Nőivar'}
+                                        </span>
+                                    ) : (
+                                        <span className="text-gray-400">-</span>
+                                    )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-blue-600">
+                                    {formatDate(animal.expected_birth_date)}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {animal.current_weight ? (
+                                        <div>
+                                            <div className="font-medium text-green-600">{animal.current_weight} kg</div>
+                                            <div className="text-xs text-gray-500">
+                                                {animal.last_weight_measured_at ? 
+                                                    new Date(animal.last_weight_measured_at).toLocaleDateString('hu-HU') : 
+                                                    'Dátum ismeretlen'
+                                                }
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="text-orange-600 font-medium">Nincs mérés</div>
+                                    )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {animal.notes || '-'}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <button 
+                                        className="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                                        title="Műveletek"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            alert('🔧 Műveletek menü hamarosan elérhető!');
+                                        }}
+                                    >
+                                        <span className="text-lg">⋯</span>
+                                    </button>
+                                </td>
                             </tr>
                         ))}
                     </tbody>

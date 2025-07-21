@@ -316,7 +316,7 @@ const updateAnimalsPairingDate = async (
       return { success: true, message: 'Nincs párzás dátum megadva' };
     }
 
-    // 1. Karámban lévő állatok lekérdezése (csak nőivarok)
+    // 1. Karámban lévő állatok lekérdezése (+ születési dátum)
     const { data: assignments, error: assignError } = await supabase
       .from('animal_pen_assignments')
       .select(`
@@ -325,7 +325,8 @@ const updateAnimalsPairingDate = async (
           id,
           enar,
           ivar,
-          kategoria
+          kategoria,
+          szuletesi_datum
         )
       `)
       .eq('pen_id', penId)
@@ -336,22 +337,43 @@ const updateAnimalsPairingDate = async (
       return { success: false, message: 'Állatok lekérdezési hiba: ' + assignError.message };
     }
 
-    // 2. Csak nőivar állatok szűrése
+    // 2. Csak 24+ hónapos nőivar állatok szűrése
     const femaleAnimals = assignments
-      ?.filter((assignment: any) => 
-        assignment.animals?.ivar === 'nő' && 
-        (assignment.animals?.kategoria === 'tehén' || 
-         assignment.animals?.kategoria.includes('üsző'))
-      ) || [];
+      ?.filter((assignment: any) => {
+        const animal = assignment.animals;
+        if (!animal) return false;
+        
+        // Csak nőivarok
+        if (animal.ivar !== 'nő' && animal.ivar !== 'nőivar') return false;
+        
+        // Kategória ellenőrzés
+        if (!(animal.kategoria === 'tehén' || animal.kategoria.includes('üsző'))) return false;
+        
+        // 24+ hónapos ellenőrzés
+        if (animal.szuletesi_datum) {
+          const birthDate = new Date(animal.szuletesi_datum);
+          const today = new Date();
+          const ageInMonths = Math.floor((today.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
+          
+          if (ageInMonths < 24) {
+            console.log(`⏳ ${animal.enar}: ${ageInMonths} hónapos - túl fiatal VV-hez, kihagyva`);
+            return false;
+          }
+          
+          console.log(`✅ ${animal.enar}: ${ageInMonths} hónapos - alkalmas VV-hez`);
+        }
+        
+        return true;
+      }) || [];
 
     if (femaleAnimals.length === 0) {
-      console.log('ℹ️ Nincs nőivar állat a karámban, pairing_date frissítés kihagyva');
-      return { success: true, message: 'Nincs nőivar állat a karámban' };
+      console.log('ℹ️ Nincs 24+ hónapos nőivar állat a karámban, pairing_date frissítés kihagyva');
+      return { success: true, message: 'Nincs alkalmas nőivar állat a karámban' };
     }
 
-    console.log(`🐄 ${femaleAnimals.length} nőivar állat található a karámban, pairing_date frissítése...`);
+    console.log(`🐄 ${femaleAnimals.length} alkalmas nőivar állat található a karámban, pairing_date frissítése...`);
 
-    // 3. Összes nőivar állat pairing_date frissítése
+    // 3. Csak alkalmas állatok pairing_date frissítése
     const animalIds = femaleAnimals.map((a: any) => a.animals.id);
     
     const { error: updateError } = await supabase
