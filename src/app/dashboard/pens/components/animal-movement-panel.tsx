@@ -5,7 +5,7 @@ import React from 'react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { createAutomaticPeriodSnapshot } from '@/lib/penHistorySync';
-
+import { recordAnimalEvent, ALERT_EVENT_TYPES } from '@/lib/alerts/MagyarAlertEngine';
 interface Animal {
   id: number;
   enar: string;
@@ -224,6 +224,37 @@ export default function AnimalMovementPanel({
       }
 
       await onMove(targetPenId, movementReason, notes, isHistorical, moveDate, functionType, metadata);
+
+      // ✅ ÚJ: AUTOMATIKUS ESEMÉNY RÖGZÍTÉS
+if (!isHistorical && functionType) {
+  try {
+    let eventType: string | null = null;
+    
+    // Esemény típus meghatározása
+    if (functionType === 'óvi') {
+      eventType = ALERT_EVENT_TYPES.MOVED_TO_OVI_PEN;
+    } else if (functionType === 'hárem') {
+      eventType = ALERT_EVENT_TYPES.MOVED_TO_HAREM_PEN;
+    } else if (functionType === 'ellető') {
+      eventType = ALERT_EVENT_TYPES.MOVED_TO_BIRTHING_PEN;
+    }
+    
+    // Ha van releváns esemény típus, rögzítjük minden állathoz
+    if (eventType) {
+      for (const animalId of selectedAnimals) {
+        await recordAnimalEvent(
+          supabase,
+          animalId,
+          eventType,
+          `Karám mozgatás: ${movementReason}. ${notes || ''}`
+        );
+      }
+      console.log(`✅ ${selectedAnimals.length} állat ${functionType} eseménye rögzítve`);
+    }
+  } catch (eventError) {
+    console.error('❌ Esemény rögzítés hiba:', eventError);
+  }
+}
 
       // ✅ ÚJ: Automatikus snapshot állat mozgatás után
 if (!isHistorical) {

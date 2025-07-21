@@ -399,7 +399,6 @@ const handleMotherCategoryLogic = async (motherEnar: string, hasLivingCalf: bool
         }
 
         // 🔧 JAVÍTOTT BIRTHFORM TÖRTÉNETI ELLÉS LOGIKA
-// src/components/birth-form.tsx fájlban keressd meg ezt a részt:
 
 if (formData.historical) {
   // 📚 TÖRTÉNETI ELLÉS: EGYSZERŰ KERESÉS ÉS MANUAL ÖSSZEKAPCSOLÁS
@@ -444,7 +443,9 @@ if (formData.historical) {
     const updates: any = {
       last_birth_date: formData.birth_date,
       pregnancy_status: null,
-      expected_birth_date: null
+      expected_birth_date: null,
+      // ✅ ÚJ: has_given_birth mező hozzáadása!
+      has_given_birth: true
     };
 
     // Kategória váltási logika
@@ -459,10 +460,17 @@ if (formData.historical) {
       console.log('🐄 Kategória váltás: ' + motherData.kategoria + ' → tehén');
     }
 
-    await supabase
+    // ✅ JAVÍTOTT: hibakezeléssel és logolással
+    const { error: motherUpdateError } = await supabase
       .from('animals')
       .update(updates)
       .eq('enar', motherEnar);
+
+    if (motherUpdateError) {
+      console.error('❌ Történeti ellés - anya frissítése sikertelen:', motherUpdateError);
+    } else {
+      console.log('✅ Történeti ellés - anya állapota sikeresen frissítve (has_given_birth=true)');
+    }
   }
 
   // 3. SUCCESS CALLBACK ÉS KILÉPÉS
@@ -471,6 +479,7 @@ if (formData.historical) {
     onSuccess(birth);
   }
   return; // 🚨 KRITIKUS: Kilépés történeti ellés után!
+
 
 
 // 🔍 KERESÉSI SEGÍTSÉG:
