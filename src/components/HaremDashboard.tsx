@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useSmartPenData } from '@/hooks/useSmartPenData';
 
 // TypeScript interfaces
 interface Animal {
@@ -52,6 +53,8 @@ const HaremDashboard: React.FC<HaremDashboardProps> = ({
   penFunction,
   onDataChange
 }) => {
+
+  // const { refresh: refreshSmartData } = useSmartPenData(penId);
   const [animals, setAnimals] = useState<HaremAnimal[]>([]);
   const [currentPenFunction, setCurrentPenFunction] = useState<PenFunction | null>(null);
   const [stats, setStats] = useState<HaremStats>({ haremben: 0, vemhes: 0, borjas: 0, total: 0 });
@@ -201,9 +204,23 @@ const HaremDashboard: React.FC<HaremDashboardProps> = ({
     }
   };
 
-  useEffect(() => {
+  // JAVÍTOTT useEffect - cseréld le a 163-170. sort
+useEffect(() => {
+  // Kezdeti betöltés
+  loadHaremData();
+}, [penId]); // Újratölt ha változik a karám
+
+
+// Kommentezd ki a teljes 167-172. sort:
+/*
+useEffect(() => {
+  const interval = setInterval(() => {
     loadHaremData();
-  }, [penId]);
+  }, 10000);
+  
+  return () => clearInterval(interval);
+}, []);
+*/
 
   // Státusz badge színek
   const getStatusColor = (status: 'haremben' | 'vemhes' | 'borjas') => {
@@ -273,22 +290,22 @@ const HaremDashboard: React.FC<HaremDashboardProps> = ({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-lg p-6 shadow-sm">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-bold text-gray-900 flex items-center">
-            <span className="text-2xl mr-3">💕</span>
-            Hárem Dashboard - Karám {penNumber}
-          </h3>
-          <button
-            onClick={loadHaremData}
-            className="text-green-600 hover:text-green-700 transition-colors"
-            title="Adatok frissítése"
-          >
-            🔄
-          </button>
-        </div>
+  <div className="space-y-6">
+    <div className="bg-white rounded-lg p-6 shadow-sm">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-xl font-bold text-gray-900 flex items-center">
+          <span className="text-2xl mr-3">💕</span>
+          Hárem Dashboard - Karám {penNumber}
+        </h3>
+        <button
+  onClick={loadHaremData}  // ← Vissza az eredeti
+  className="text-green-600 hover:text-green-700 transition-colors"
+  title="Adatok frissítése"
+>
+  🔄
+</button>
+      </div>
 
         {/* Hárem Statisztikák */}
         <div className="grid grid-cols-4 gap-4 mb-6">

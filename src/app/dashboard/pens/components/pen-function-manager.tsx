@@ -928,6 +928,24 @@ useEffect(() => {
 
   // Funkció változtatás - TÖRTÉNETI TÁMOGATÁSSAL
 const handleFunctionChange = async () => {
+  // 🔍 DEBUG START - IDEIGLENESEN HOZZÁADVA
+console.log('🔥 === FUNKCIÓ VÁLTÁS DEBUG START ===');
+console.log('📊 Paraméterek:', {
+  newFunction,
+  isHistoricalEntry,
+  editMode,
+  selectedBulls: selectedBulls.length,
+  penId: pen.id,
+  timestamp: new Date().toISOString()
+});
+
+// @ts-ignore
+if (!window.snapshotCounter) window.snapshotCounter = 0;
+// @ts-ignore
+window.snapshotCounter++;
+// @ts-ignore
+console.log('📈 Snapshot számláló:', window.snapshotCounter);
+// DEBUG END
   if (!newFunction) return;
 
   // Validáció
@@ -948,16 +966,134 @@ const handleFunctionChange = async () => {
 
     let finalMetadata = buildMetadata();
 
+    // ⭐ TENYÉSZBIKA FIZIKAI CSERE ELŐSZÖR (duplikáció megelőzés)
+if (newFunction === 'hárem' && selectedBulls.length > 0 && !isHistoricalEntry && !editMode) {
+  try {
+    console.log('🐂 Tenyészbika csere kezelés kezdése...');
+    
+    // 1. Jelenlegi tenyészbikák lekérdezése a karámban
+    const { data: currentBulls, error: bullsError } = await supabase
+      .from('animal_pen_assignments')
+      .select(`
+        id,
+        animal_id,
+        animals!inner(
+          enar,
+          kategoria,
+          name
+        )
+      `)
+      .eq('pen_id', pen.id)
+      .is('removed_at', null)
+      .eq('animals.kategoria', 'tenyészbika');
+
+    if (bullsError) {
+      console.error('❌ Jelenlegi bikák lekérdezési hiba:', bullsError);
+    } else if (currentBulls && currentBulls.length > 0) {
+      console.log('🔍 Talált jelenlegi bikák:', currentBulls.length);
+      
+      // 2. Új bikák ENAR listája
+      const newBullENARs = selectedBulls.map((bull: any) => bull.enar);
+      console.log('📋 Új bikák ENAR-jai:', newBullENARs);
+      
+      // 3. Eltávolítandó bikák (akik nincsenek az új listában)
+      const bullsToRemove = currentBulls.filter((assignment: any) => {
+        const bullEnar = assignment.animals?.enar;
+        const shouldRemove = !newBullENARs.includes(bullEnar);
+        if (shouldRemove) {
+          console.log(`🗑️ Eltávolításra jelölt bika: ${assignment.animals?.name || assignment.animals?.enar}`);
+        }
+        return shouldRemove;
+      });
+
+      // 4. Régi bikák assignment lezárása
+      if (bullsToRemove.length > 0) {
+        console.log(`🔒 ${bullsToRemove.length} régi bika assignment lezárása...`);
+        
+        const { error: removeError } = await supabase
+          .from('animal_pen_assignments')
+          .update({ removed_at: new Date().toISOString() })
+          .in('id', bullsToRemove.map((b: any) => b.id));
+
+        if (removeError) {
+          console.error('❌ Régi bikák eltávolítási hiba:', removeError);
+        } else {
+          console.log('✅ Régi bikák sikeresen eltávolítva:', 
+            bullsToRemove.map((b: any) => b.animals?.name || b.animals?.enar)
+          );
+        }
+      } else {
+        console.log('ℹ️ Nincs eltávolítandó régi bika');
+      }
+      
+      // 5. Új bikák hozzáadása (csak azok, akik még nincsenek jelen)
+      for (const bull of selectedBulls) {
+        const isAlreadyPresent = currentBulls.some((assignment: any) => 
+          assignment.animals?.enar === bull.enar
+        );
+
+        if (!isAlreadyPresent) {
+          console.log(`➕ Új bika hozzáadása: ${bull.name} (${bull.enar})`);
+          
+          // Bika ID megkeresése
+          const { data: animalData, error: animalError } = await supabase
+            .from('animals')
+            .select('id')
+            .eq('enar', bull.enar)
+            .single();
+
+          if (animalError || !animalData) {
+            console.error(`❌ Bika nem található: ${bull.enar}`, animalError);
+            continue;
+          }
+
+          // Új assignment létrehozása
+          const { error: assignError } = await supabase
+            .from('animal_pen_assignments')
+            .insert({
+              animal_id: animalData.id,
+              pen_id: pen.id,
+              assigned_at: new Date().toISOString(),
+              assignment_reason: 'tenyészbika_csere_automat',
+              notes: `Automatikus tenyészbika hozzárendelés: ${bull.name}`
+            });
+
+          if (assignError) {
+            console.error(`❌ Bika assignment hiba: ${bull.name}`, assignError);
+          } else {
+            console.log(`✅ Új bika sikeresen hozzáadva: ${bull.name}`);
+          }
+        } else {
+          console.log(`ℹ️ Bika már jelen van: ${bull.name}`);
+        }
+      }
+    }
+
+    console.log('🎉 Tenyészbika csere kezelés befejezve!');
+    
+  } catch (bullSyncError) {
+    console.error('❌ Tenyészbika csere hiba:', bullSyncError);
+  }
+}
+
     // ✅ HÁREM SPECIFIKUS SNAPSHOT KÉSZÍTÉS
     if (newFunction === 'hárem' && (selectedBulls.length > 0 || parozasKezdete)) {
-      console.log('📸 Hárem snapshot készítése...');
+  console.log('📸 Hárem snapshot készítése...');
 
-      const haremSnapshot = await createHaremSnapshot(
-        pen.id,
-        selectedBulls,
-        parozasKezdete,
-        vvEsedekessege
-      );
+  const haremSnapshot = await createHaremSnapshot(
+    pen.id,
+    selectedBulls,
+    parozasKezdete,
+    vvEsedekessege
+  );
+
+  finalMetadata = {
+    ...finalMetadata,
+    ...haremSnapshot
+  };
+
+   console.log('✅ Hárem snapshot hozzáadva a metadata-hoz');
+
 
       // ✅ HÁREM TENYÉSZBIKA SZINKRONIZÁCIÓ
 if (newFunction === 'hárem') {
@@ -985,6 +1121,156 @@ if (newFunction === 'hárem') {
         ...finalMetadata,
         ...haremSnapshot
       };
+
+      // JAVÍTOTT VERZIÓ - TypeScript hibák nélkül
+// Cseréld ki a teljes tenyészbika csere blokkot erre:
+
+// ✅ ÚJ: TENYÉSZBIKA CSERE KEZELÉS - DUPLIKÁCIÓ MEGELŐZÉS
+if (newFunction === 'hárem' && selectedBulls.length > 0 && !isHistoricalEntry && !editMode) {
+  try {
+    console.log('🐂 Tenyészbika csere kezelés kezdése...');
+    
+    // 1. Jelenlegi tenyészbikák lekérdezése a karámban
+    const { data: currentBulls, error: bullsError } = await supabase
+      .from('animal_pen_assignments')
+      .select(`
+        id,
+        animal_id,
+        animals!inner(
+          enar,
+          kategoria,
+          name
+        )
+      `)
+      .eq('pen_id', pen.id)
+      .is('removed_at', null)
+      .eq('animals.kategoria', 'tenyészbika');
+
+    if (bullsError) {
+      console.error('❌ Jelenlegi bikák lekérdezési hiba:', bullsError);
+    } else if (currentBulls && currentBulls.length > 0) {
+      console.log('🔍 Talált jelenlegi bikák:', currentBulls.length);
+      
+      // 2. Új bikák ENAR listája
+      const newBullENARs = selectedBulls.map((bull: any) => bull.enar);
+      console.log('📋 Új bikák ENAR-jai:', newBullENARs);
+      
+      // 3. Eltávolítandó bikák (akik nincsenek az új listában)
+      const bullsToRemove = currentBulls.filter((assignment: any) => {
+        const bullEnar = assignment.animals?.enar;
+        const shouldRemove = !newBullENARs.includes(bullEnar);
+        if (shouldRemove) {
+          console.log(`🗑️ Eltávolításra jelölt bika: ${assignment.animals?.name || assignment.animals?.enar}`);
+        }
+        return shouldRemove;
+      });
+
+      // 4. Régi bikák assignment lezárása
+      if (bullsToRemove.length > 0) {
+        console.log(`🔒 ${bullsToRemove.length} régi bika assignment lezárása...`);
+        
+        const { error: removeError } = await supabase
+          .from('animal_pen_assignments')
+          .update({ removed_at: new Date().toISOString() })
+          .in('id', bullsToRemove.map((b: any) => b.id));
+
+        if (removeError) {
+          console.error('❌ Régi bikák eltávolítási hiba:', removeError);
+          // Ne dobjunk hibát, csak logoljuk
+        } else {
+          console.log('✅ Régi bikák sikeresen eltávolítva:', 
+            bullsToRemove.map((b: any) => b.animals?.name || b.animals?.enar)
+          );
+        }
+      } else {
+        console.log('ℹ️ Nincs eltávolítandó régi bika');
+      }
+      
+      // 5. Új bikák hozzáadása (csak azok, akik még nincsenek jelen)
+      for (const bull of selectedBulls) {
+        const isAlreadyPresent = currentBulls.some((assignment: any) => 
+          assignment.animals?.enar === bull.enar
+        );
+
+        if (!isAlreadyPresent) {
+          console.log(`➕ Új bika hozzáadása: ${bull.name} (${bull.enar})`);
+          
+          // Bika ID megkeresése
+          const { data: animalData, error: animalError } = await supabase
+            .from('animals')
+            .select('id')
+            .eq('enar', bull.enar)
+            .single();
+
+          if (animalError || !animalData) {
+            console.error(`❌ Bika nem található: ${bull.enar}`, animalError);
+            continue;
+          }
+
+          // Új assignment létrehozása
+          const { error: assignError } = await supabase
+            .from('animal_pen_assignments')
+            .insert({
+              animal_id: animalData.id,
+              pen_id: pen.id,
+              assigned_at: new Date().toISOString(),
+              assignment_reason: 'tenyészbika_csere_automat',
+              notes: `Automatikus tenyészbika hozzárendelés: ${bull.name}`
+            });
+
+          if (assignError) {
+            console.error(`❌ Bika assignment hiba: ${bull.name}`, assignError);
+          } else {
+            console.log(`✅ Új bika sikeresen hozzáadva: ${bull.name}`);
+          }
+        } else {
+          console.log(`ℹ️ Bika már jelen van: ${bull.name}`);
+        }
+      }
+      
+    } else {
+      console.log('ℹ️ Nincs jelenlegi tenyészbika a karámban');
+      
+      // Ha nincs jelenlegi bika, csak hozzáadjuk az újakat
+      for (const bull of selectedBulls) {
+        console.log(`➕ Bika hozzáadása üres karámhoz: ${bull.name}`);
+        
+        const { data: animalData } = await supabase
+          .from('animals')
+          .select('id')
+          .eq('enar', bull.enar)
+          .single();
+
+        if (animalData) {
+          await supabase
+            .from('animal_pen_assignments')
+            .insert({
+              animal_id: animalData.id,
+              pen_id: pen.id,
+              assigned_at: new Date().toISOString(),
+              assignment_reason: 'tenyészbika_hozzáadás',
+              notes: `Tenyészbika hozzárendelés: ${bull.name}`
+            });
+          
+          console.log(`✅ Bika hozzáadva üres karámhoz: ${bull.name}`);
+        }
+      }
+    }
+
+    console.log('🎉 Tenyészbika csere kezelés befejezve!');
+    
+  } catch (bullSyncError) {
+    console.error('❌ Tenyészbika csere hiba:', bullSyncError);
+    // Ne állítsuk meg a mentést, csak logoljuk a hibát
+  }
+} else {
+  console.log('ℹ️ Tenyészbika csere kihagyva:', {
+    newFunction,
+    bullsCount: selectedBulls.length,
+    isHistorical: isHistoricalEntry,
+    isEdit: editMode
+  });
+}
 
       // ✅ ÚJ: VV RIASZTÁS AKTIVÁLÁS - PAIRING_DATE FRISSÍTÉSE
 console.log('🔍 DEBUG: VV aktiválás feltétel ellenőrzés:', {
@@ -1101,28 +1387,6 @@ const successMessage = editMode
     ? `✅ Történeti ${newFunction} periódus rögzítve!\n📅 ${startDate} - ${endDate}`
     : `✅ Karám funkció váltás sikeres!\n🔄 Új funkció: ${newFunction}`;
 
-// ✅ ÚJ: Automatikus snapshot generálás
-    if (!isHistoricalEntry && !editMode) {
-      try {
-        console.log('📸 Automatikus snapshot generálás...');
-        await createAutomaticPeriodSnapshot(pen.id, 'function_changed', newFunction);
-        
-        // Broadcast értesítés
-        broadcastPenHistoryUpdate(pen.id, 'function_changed', { 
-          newFunction: newFunction,
-          automatic: true,
-          timestamp: Date.now()
-        });
-        
-        console.log('✅ Automatikus snapshot elkészítve');
-      } catch (snapshotError) {
-        console.error('❌ Automatikus snapshot hiba:', snapshotError);
-        // Nem blokkoljuk a mentést, csak logoljuk
-      }
-    } else {
-      console.log('📚 Történeti/Edit mód - snapshot kihagyva');
-    }
-
     // ✅ ÚJ: Automatikus snapshot generálás
 if (!isHistoricalEntry && !editMode) {
   try {
@@ -1148,7 +1412,12 @@ if (!isHistoricalEntry && !editMode) {
 alert(successMessage);
 
 onClose();
-
+// 🔍 DEBUG END - IDEIGLENESEN HOZZÁADVA
+console.log('🔥 === FUNKCIÓ VÁLTÁS DEBUG END ===');
+// @ts-ignore
+console.log('📈 Végső snapshot számláló:', window.snapshotCounter);
+console.log('⏰ Időtartam:', new Date().toISOString());
+// DEBUG END
 // UI frissítés
 setTimeout(() => {
   window.location.reload();
