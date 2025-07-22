@@ -19,7 +19,6 @@ import TeljesKaramTortenelem from '@/components/TeljesKaramTortenelem';
 import HaremDashboard from '@/components/HaremDashboard';
 import PenEventsTab from '@/components/PenEventsTab';
 import PenHistoryTab from '@/components/PenHistoryTab';
-import { useSmartPenData } from '@/hooks/useSmartPenData';
 
 // TypeScript interfaces - egyértelműen definiálva
 interface Animal {
@@ -81,11 +80,7 @@ export default function PenDetailsPage() {
     // Ha van dashboard default, akkor events-re változtatni:
     // A useState típus javítása:
     const [activeTab, setActiveTab] = useState<'animals' | 'events' | 'harem' | 'timeline'>('animals');
-    const { 
-  refresh: refreshSmartData,
-  isLoading: smartLoading,
-  error: smartError 
-} = useSmartPenData(penId);
+    
 
 
 
@@ -1750,9 +1745,6 @@ const deletePeriod = async (periodId: string, functionType: string, isActive: bo
                         setShowFunctionManager(false);
                         setEditingPeriod(null); // Reset edit state
                         alert('Funkció sikeresen megváltoztatva!');
-
-                        // ⭐ ÚJ: Smart hook frissítés
-        refreshSmartData();
 
                         window.location.reload();
                     } catch (error) {
