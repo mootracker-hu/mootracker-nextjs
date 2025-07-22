@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { mockStorage } from '@/lib/mockStorage';
+import { supabase } from '@/lib/supabase';
 
 const BREEDS = [
   'Blonde d\'aquitaine',
@@ -13,11 +13,12 @@ const BREEDS = [
 ];
 
 interface Animal {
+  id?: number;
   enar: string;
   szuletesi_datum: string;
   ivar: 'hímivar' | 'nőivar';
   kategoria: string;
-  jelenlegi_karam: string;
+  jelenlegi_karam?: string;
   statusz: string;
   anya_enar?: string;
   apa_enar?: string;
@@ -26,14 +27,26 @@ interface Animal {
   fotok?: string[];
   name?: string;
   breed?: string;
-  utolso_modositas: string;
-  letrehozva: string;
+  birth_location?: string;
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface Pen {
+  id: number;
+  pen_number: string;
+  pen_type: string;
+  location?: string;
 }
 
 export default function NewAnimalPage() {
+  console.log('🚀 NEW ANIMAL PAGE LOADED - VERSION 2.0 - CACHE BUSTER');
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [existingAnimals, setExistingAnimals] = useState<Animal[]>([]);
+  const [availablePens, setAvailablePens] = useState<Pen[]>([]);
+  const [loading, setLoading] = useState(false);
 
   // Form adatok
   const [formData, setFormData] = useState({
@@ -58,14 +71,36 @@ export default function NewAnimalPage() {
     // Elhelyezés
     jelenlegi_karam: '',
     bekerules_datum: '',
-    statusz: 'egészséges'
+    statusz: 'aktív'
   });
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
+  // Adatok betöltése
   useEffect(() => {
-    const animals = mockStorage.getAllAnimals();
-    setExistingAnimals(animals);
+    const fetchData = async () => {
+      try {
+        // Meglévő állatok betöltése
+        const { data: animals } = await supabase
+          .from('animals')
+          .select('enar, kategoria, ivar')
+          .order('enar');
+        
+        setExistingAnimals((animals as Animal[]) || []);
+
+        // Elérhető karámok betöltése
+        const { data: pens } = await supabase
+          .from('pens')
+          .select('id, pen_number, pen_type, location')
+          .order('pen_number');
+        
+        setAvailablePens((pens as Pen[]) || []);
+      } catch (error) {
+        console.error('❌ Adatok betöltési hiba:', error);
+      }
+    };
+
+    fetchData();
   }, []);
 
   // Kategória automatikus kalkuláció
@@ -74,28 +109,36 @@ export default function NewAnimalPage() {
     const now = new Date();
     const ageInMonths = (now.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
 
-    if (ageInMonths < 6) return 'növarú_borjú';
+    if (ageInMonths < 6) {
+      return gender === 'hímivar' ? 'hímivarú_borjú' : 'nőivarú_borjú';
+    }
 
     if (gender === 'hímivar') {
-      if (ageInMonths >= 24) return 'tenyészbika';
       return 'hízóbika';
     } else {
-      if (ageInMonths >= 36) return 'tehén';
       if (ageInMonths >= 24) return 'szűz_üsző';
-      return 'növarú_borjú';
+      return 'nőivarú_borjú';
     }
   };
 
   // Karám javaslatok kategória alapján
-  const getKaramSuggestions = (category: string): string[] => {
-    const suggestions: { [key: string]: string[] } = {
-      'növarú_borjú': ['Bölcsi #1', 'Bölcsi #2', 'Ellető istálló - Fogadó #1'],
-      'hízóbika': ['Hízóbika karám #1', 'Hízóbika karám #2', 'Karám #3'],
-      'szűz_üsző': ['Óvi #1', 'Óvi #2', 'Óvi #3'],
-      'tehén': ['Hárem #1', 'Hárem #2', 'Vemhes karám #1'],
-      'tenyészbika': ['Hárem #1', 'Hárem #2', 'Tenyészbika karám']
+  const getKaramSuggestions = (category: string): Pen[] => {
+    const categoryKeywords: { [key: string]: string[] } = {
+      'nőivarú_borjú': ['bölcsi', 'ellető'],
+      'hímivarú_borjú': ['bölcsi', 'ellető'],
+      'hízóbika': ['hízó', 'bika'],
+      'szűz_üsző': ['óvi', 'üsző'],
+      'tehén': ['hárem', 'vemhes', 'tehén'],
+      'tenyészbika': ['hárem', 'bika', 'tenyész']
     };
-    return suggestions[category] || [];
+
+    const keywords = categoryKeywords[category] || [];
+    return availablePens.filter(pen =>
+      keywords.some(keyword =>
+        pen.pen_type?.toLowerCase().includes(keyword) ||
+        pen.pen_number?.toLowerCase().includes(keyword)
+      )
+    );
   };
 
   // Potenciális anyák (nőivar + megfelelő kategória)
@@ -199,11 +242,15 @@ export default function NewAnimalPage() {
     }
   };
 
-  // Mentés
+  // Mentés Supabase-be
   const handleSave = async () => {
     if (!validateStep2()) return;
 
     try {
+      setLoading(true);
+      
+      console.log('🔍 FormData:', formData);
+      
       // TypeScript típus ellenőrzés
       if (!formData.ivar || !formData.szuletesi_datum) {
         setErrors({ general: 'Hiányos adatok. Kérjük töltse ki az összes kötelező mezőt.' });
@@ -212,18 +259,30 @@ export default function NewAnimalPage() {
 
       const category = calculateCategory(formData.szuletesi_datum, formData.ivar as 'hímivar' | 'nőivar');
 
-      const newAnimal: Animal = {
+      // Kiválasztott karám ID-jának megkeresése
+      const selectedPen = availablePens.find(pen => pen.pen_number === formData.jelenlegi_karam);
+      if (!selectedPen) {
+        setErrors({ jelenlegi_karam: 'Érvénytelen karám kiválasztás' });
+        return;
+      }
+
+      console.log('🏠 Kiválasztott karám:', selectedPen);
+
+      const newAnimal: any = {
         enar: formData.enar,
         szuletesi_datum: formData.szuletesi_datum,
         ivar: formData.ivar,
         kategoria: category,
-        jelenlegi_karam: formData.jelenlegi_karam,
         statusz: formData.statusz,
-        bekerules_datum: formData.bekerules_datum,
-        fotok: [],
-        utolso_modositas: new Date().toISOString(),
-        letrehozva: new Date().toISOString()
+        bekerules_datum: formData.bekerules_datum || formData.szuletesi_datum,
+        name: formData.name || null,
+        breed: formData.breed,
+        birth_location: formData.eredet === 'nalunk_szuletett' ? 'farm' : 'external',
+        notes: null,
+        jelenlegi_karam: formData.jelenlegi_karam // Hozzáadjuk a jelenlegi karám mezőt is
       };
+
+      console.log('🐄 NewAnimal objektum (szülők nélkül):', newAnimal);
 
       // Szülők beállítása eredet alapján
       if (formData.eredet === 'nalunk_szuletett') {
@@ -244,12 +303,92 @@ export default function NewAnimalPage() {
           newAnimal.apa_enar = formData.apa_enar_manual;
         }
       }
+      
+      // EXPLICIT birth_location beállítás a szülők beállítása UTÁN!
+      if (formData.eredet === 'nalunk_szuletett') {
+        newAnimal.birth_location = 'nálunk';
+      } else if (formData.eredet === 'vasarolt') {
+        newAnimal.birth_location = 'vásárolt';  
+      } else {
+        newAnimal.birth_location = 'ismeretlen';
+      }
 
-      await mockStorage.addAnimal(newAnimal);
-      router.push(`/dashboard/animals/${newAnimal.enar}`);
-    } catch (error) {
-      console.error('Mentési hiba:', error);
-      setErrors({ general: 'Mentési hiba történt. Kérjük próbálja újra.' });
+      console.log('🐄 Végső newAnimal objektum (szülőkkel):', newAnimal);
+
+      console.log('🔍 birth_location érték:', newAnimal.birth_location);
+      console.log('🔍 formData.eredet:', formData.eredet);
+
+      // Állat mentése
+      console.log('💾 Állat mentése az adatbázisba...');
+      const { data: animalData, error: animalError } = await supabase
+        .from('animals')
+        .insert([newAnimal])
+        .select()
+        .single();
+
+      if (animalError) {
+        console.error('❌ Állat mentési hiba:', animalError);
+        alert(`❌ Állat mentési hiba: ${animalError.message}\nKód: ${animalError.code}\nRészletek: ${animalError.details}`);
+        throw animalError;
+      }
+
+      console.log('✅ Állat sikeresen mentve:', animalData);
+
+      // Karám hozzárendelés
+      console.log('🏠 Karám hozzárendelés létrehozása...');
+      const { error: assignmentError } = await supabase
+        .from('animal_pen_assignments')
+        .insert([{
+          animal_id: animalData.id,
+          pen_id: selectedPen.id,
+          assigned_at: formData.bekerules_datum || formData.szuletesi_datum,
+          assignment_reason: 'initial_assignment',
+          notes: 'Új állat regisztráció'
+        }]);
+
+      if (assignmentError) {
+        console.error('❌ Karám hozzárendelési hiba:', assignmentError);
+        throw assignmentError;
+      }
+
+      console.log('✅ Karám hozzárendelés sikeres');
+
+      // Esemény naplózása
+      console.log('📊 Esemény naplózása...');
+      const { error: eventError } = await supabase
+        .from('animal_events')
+        .insert([{
+          animal_id: animalData.id,
+          event_type: 'registration',
+          event_date: formData.bekerules_datum || formData.szuletesi_datum,
+          pen_id: selectedPen.id,
+          notes: `Új állat regisztrálva: ${formData.enar}`,
+          reason: 'initial_registration'
+        }]);
+
+      if (eventError) {
+        console.warn('⚠️ Esemény naplózási hiba:', eventError);
+      } else {
+        console.log('✅ Esemény naplózása sikeres');
+      }
+
+      alert('✅ Állat sikeresen regisztrálva!');
+      router.push(`/dashboard/animals/${animalData.enar}`);
+      
+    } catch (error: any) {
+      console.error('❌ Mentési hiba:', error);
+      console.error('❌ Hiba részletei:', JSON.stringify(error, null, 2));
+      
+      // Részletes hibaüzenet
+      let errorMessage = 'Ismeretlen hiba';
+      if (error?.message) errorMessage = error.message;
+      if (error?.details) errorMessage += ` - ${error.details}`;
+      if (error?.hint) errorMessage += ` (${error.hint})`;
+      
+      alert(`❌ Mentési hiba: ${errorMessage}\nHibakód: ${error.code || 'ismeretlen'}`);
+      setErrors({ general: `Mentési hiba történt: ${errorMessage}` });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -374,8 +513,8 @@ export default function NewAnimalPage() {
                       }`}
                   >
                     <option value="">Válasszon...</option>
-                    <option value="hímivar">♂️ Hímivar</option>
-                    <option value="nőivar">♀️ Nőivar</option>
+                    <option value="hímivar">♂️ hímivar</option>
+                    <option value="nőivar">♀️ nőivar</option>
                   </select>
                   {errors.ivar && <p className="text-red-500 text-sm mt-1">{errors.ivar}</p>}
                 </div>
@@ -389,43 +528,46 @@ export default function NewAnimalPage() {
                     <div className="px-4 py-3 bg-green-50 border border-green-200 rounded-lg text-green-800 font-medium">
                       {previewCategory}
                     </div>
-
-                    {/* Név */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        📝 Név
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.name}
-                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                        placeholder="Állat neve (opcionális)"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-                      />
-                    </div>
-
-                    {/* Fajta */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        🐄 Fajta *
-                      </label>
-                      <select
-                        value={formData.breed}
-                        onChange={(e) => setFormData(prev => ({ ...prev, breed: e.target.value }))}
-                        className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white ${errors.breed ? 'border-red-500' : ''
-                          }`}
-                      >
-                        <option value="">Válasszon fajtát...</option>
-                        {BREEDS.map(breed => (
-                          <option key={breed} value={breed}>
-                            {breed}
-                          </option>
-                        ))}
-                      </select>
-                      {errors.breed && <p className="text-red-500 text-sm mt-1">{errors.breed}</p>}
-                    </div>
                   </div>
                 )}
+              </div>
+
+              {/* Név és Fajta */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Név */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    📝 Név
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Állat neve (opcionális)"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                  />
+                </div>
+
+                {/* Fajta */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    🐄 Fajta *
+                  </label>
+                  <select
+                    value={formData.breed}
+                    onChange={(e) => setFormData(prev => ({ ...prev, breed: e.target.value }))}
+                    className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white ${errors.breed ? 'border-red-500' : ''
+                      }`}
+                  >
+                    <option value="">Válasszon fajtát...</option>
+                    {BREEDS.map(breed => (
+                      <option key={breed} value={breed}>
+                        {breed}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.breed && <p className="text-red-500 text-sm mt-1">{errors.breed}</p>}
+                </div>
               </div>
 
               {/* Állat eredete */}
@@ -636,28 +778,19 @@ export default function NewAnimalPage() {
                     <option value="">Válasszon karámot...</option>
                     {karamSuggestions.length > 0 && (
                       <optgroup label="🎯 Ajánlott kategória alapján">
-                        {karamSuggestions.map(karam => (
-                          <option key={karam} value={karam}>{karam}</option>
+                        {karamSuggestions.map(pen => (
+                          <option key={pen.id} value={pen.pen_number}>
+                            {pen.pen_number} ({pen.pen_type})
+                          </option>
                         ))}
                       </optgroup>
                     )}
                     <optgroup label="🏠 Összes karám">
-                      <option value="Karám #1">Karám #1</option>
-                      <option value="Karám #2">Karám #2</option>
-                      <option value="Karám #3">Karám #3</option>
-                      <option value="Hárem #1">Hárem #1</option>
-                      <option value="Hárem #2">Hárem #2</option>
-                      <option value="Bölcsi #1">Bölcsi #1</option>
-                      <option value="Bölcsi #2">Bölcsi #2</option>
-                      <option value="Óvi #1">Óvi #1</option>
-                      <option value="Óvi #2">Óvi #2</option>
-                      <option value="Óvi #3">Óvi #3</option>
-                      <option value="Hízóbika karám #1">Hízóbika karám #1</option>
-                      <option value="Hízóbika karám #2">Hízóbika karám #2</option>
-                      <option value="Tenyészbika karám">Tenyészbika karám</option>
-                      <option value="Vemhes karám #1">Vemhes karám #1</option>
-                      <option value="Ellető istálló - Fogadó #1">Ellető istálló - Fogadó #1</option>
-                      <option value="Ellető istálló - Fogadó #2">Ellető istálló - Fogadó #2</option>
+                      {availablePens.map(pen => (
+                        <option key={pen.id} value={pen.pen_number}>
+                          {pen.pen_number} - {pen.pen_type} {pen.location && `(${pen.location})`}
+                        </option>
+                      ))}
                     </optgroup>
                   </select>
                   {errors.jelenlegi_karam && <p className="text-red-500 text-sm mt-1">{errors.jelenlegi_karam}</p>}
@@ -693,10 +826,13 @@ export default function NewAnimalPage() {
                     onChange={(e) => setFormData(prev => ({ ...prev, statusz: e.target.value }))}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors bg-white"
                   >
-                    <option value="egészséges">✅ Egészséges</option>
-                    <option value="megfigyelés_alatt">🔍 Megfigyelés alatt</option>
-                    <option value="kezelés_alatt">⚕️ Kezelés alatt</option>
-                    <option value="karantén">🚫 Karantén</option>
+                    <option value="aktív">✅ Aktív</option>
+                    <option value="eladott">💰 Eladott</option>
+                    <option value="elhullott">💀 Elhullott</option>
+                    <option value="házi_vágás">🔪 Házi vágás</option>
+                    <option value="átadott">📤 Átadott</option>
+                    <option value="selejtezett">❌ Selejtezett</option>
+                    <option value="kikerült">🚪 Kikerült</option>
                   </select>
                 </div>
 
@@ -721,16 +857,16 @@ export default function NewAnimalPage() {
                     <h4 className="font-medium text-green-800">Ajánlott karámok a "{previewCategory}" kategóriához:</h4>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {karamSuggestions.map(karam => (
+                    {karamSuggestions.map(pen => (
                       <button
-                        key={karam}
-                        onClick={() => setFormData(prev => ({ ...prev, jelenlegi_karam: karam }))}
-                        className={`px-3 py-2 text-sm rounded-lg border transition-colors ${formData.jelenlegi_karam === karam
+                        key={pen.id}
+                        onClick={() => setFormData(prev => ({ ...prev, jelenlegi_karam: pen.pen_number }))}
+                        className={`px-3 py-2 text-sm rounded-lg border transition-colors ${formData.jelenlegi_karam === pen.pen_number
                           ? 'bg-green-600 text-white border-green-600'
                           : 'bg-white text-green-700 border-green-300 hover:bg-green-100'
                           }`}
                       >
-                        {karam}
+                        {pen.pen_number} ({pen.pen_type})
                       </button>
                     ))}
                   </div>
@@ -756,8 +892,10 @@ export default function NewAnimalPage() {
                     </div>
                     <div className="space-y-2 text-sm">
                       <div><span className="text-gray-600">ENAR:</span> <span className="font-medium">{formData.enar}</span></div>
+                      <div><span className="text-gray-600">Név:</span> <span className="font-medium">{formData.name || 'Nincs megadva'}</span></div>
                       <div><span className="text-gray-600">Születés:</span> <span className="font-medium">{formData.szuletesi_datum}</span></div>
-                      <div><span className="text-gray-600">Ivar:</span> <span className="font-medium">{formData.ivar === 'hímivar' ? '♂️ Hímivar' : '♀️ Nőivar'}</span></div>
+                      <div><span className="text-gray-600">Ivar:</span> <span className="font-medium">{formData.ivar === 'hímivar' ? '♂️ hímivar' : '♀️ nőivar'}</span></div>
+                      <div><span className="text-gray-600">Fajta:</span> <span className="font-medium">{formData.breed}</span></div>
                       <div><span className="text-gray-600">Kategória:</span> <span className="font-medium text-green-600">{previewCategory}</span></div>
                       <div><span className="text-gray-600">Eredet:</span> <span className="font-medium">{formData.eredet === 'nalunk_szuletett' ? '🏠 Nálunk született' : '🛒 Vásárolt'}</span></div>
                     </div>
@@ -850,10 +988,20 @@ export default function NewAnimalPage() {
             ) : (
               <button
                 onClick={handleSave}
-                className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg transition-colors inline-flex items-center"
+                disabled={loading}
+                className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg transition-colors inline-flex items-center disabled:opacity-50"
               >
-                <span className="mr-2">💾</span>
-                Állat mentése
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Mentés...
+                  </>
+                ) : (
+                  <>
+                    <span className="mr-2">💾</span>
+                    Állat mentése
+                  </>
+                )}
               </button>
             )}
           </div>
