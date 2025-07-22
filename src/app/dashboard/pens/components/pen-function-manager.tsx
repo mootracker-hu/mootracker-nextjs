@@ -1078,22 +1078,14 @@ if (newFunction === 'hárem' && selectedBulls.length > 0 && !isHistoricalEntry &
 
     // ✅ HÁREM SPECIFIKUS SNAPSHOT KÉSZÍTÉS
     if (newFunction === 'hárem' && (selectedBulls.length > 0 || parozasKezdete)) {
-  console.log('📸 Hárem snapshot készítése...');
+      console.log('📸 Hárem snapshot készítése...');
 
-  const haremSnapshot = await createHaremSnapshot(
-    pen.id,
-    selectedBulls,
-    parozasKezdete,
-    vvEsedekessege
-  );
-
-  finalMetadata = {
-    ...finalMetadata,
-    ...haremSnapshot
-  };
-
-   console.log('✅ Hárem snapshot hozzáadva a metadata-hoz');
-
+      const haremSnapshot = await createHaremSnapshot(
+        pen.id,
+        selectedBulls,
+        parozasKezdete,
+        vvEsedekessege
+      );
 
       // ✅ HÁREM TENYÉSZBIKA SZINKRONIZÁCIÓ
 if (newFunction === 'hárem') {
@@ -1386,6 +1378,7 @@ const successMessage = editMode
   : isHistoricalEntry
     ? `✅ Történeti ${newFunction} periódus rögzítve!\n📅 ${startDate} - ${endDate}`
     : `✅ Karám funkció váltás sikeres!\n🔄 Új funkció: ${newFunction}`;
+
 
     // ✅ ÚJ: Automatikus snapshot generálás
 if (!isHistoricalEntry && !editMode) {

@@ -477,3 +477,105 @@ export const debugHaremStatus = async (penId: string): Promise<void> => {
     console.error('❌ DEBUG hiba:', error);
   }
 };
+
+// 🔹 TÖRTÉNETI SNAPSHOT KEZELÉS - ÚJ!
+export const createHistoricalSnapshot = async (
+  penId: string,
+  bulls: Bull[],
+  pairingStartDate: string,
+  expectedVVDate: string,
+  specificAnimals?: Array<{enar: string; kategoria: string; ivar: string}>
+): Promise<HaremMetadata | null> => {
+  
+  try {
+    console.log('📚 Történeti hárem snapshot készítése...', {
+      penId,
+      bullCount: bulls.length,
+      specificAnimals: specificAnimals?.length || 0
+    });
+
+    let females: any[] = [];
+
+    if (specificAnimals && specificAnimals.length > 0) {
+      // Konkrét állatok használata
+      females = specificAnimals
+        .filter(animal => animal.ivar === 'nő' || animal.ivar === 'nőivar')
+        .map(animal => ({
+          enar: animal.enar,
+          kategoria: animal.kategoria,
+          birth_location: 'historical',
+          historical_entry: true
+        }));
+    } else {
+      // Történeti placeholder
+      females = [{
+        enar: 'Történeti bejegyzés',
+        kategoria: 'historical_entry',
+        birth_location: 'historical',
+        historical_entry: true
+      }];
+    }
+
+    const historicalSnapshot: HaremMetadata = {
+      bulls: bulls,
+      pairing_start_date: pairingStartDate,
+      expected_vv_date: expectedVVDate,
+      breeding_method: 'natural'
+    };
+
+    // Kiegészítő történeti adatok
+    const extendedSnapshot = {
+      ...historicalSnapshot,
+      females: females,
+      bull_count: bulls.length,
+      female_count: females.length,
+      total_animals: bulls.length + females.length,
+      snapshot_created_at: new Date().toISOString(),
+      historical: true,
+      snapshot_type: 'historical_manual'
+    };
+
+    console.log('✅ Történeti snapshot elkészítve:', {
+      bulls: bulls.length,
+      females: females.length,
+      total: bulls.length + females.length
+    });
+
+    return extendedSnapshot as any;
+
+  } catch (error) {
+    console.error('❌ Történeti snapshot hiba:', error);
+    return null;
+  }
+};
+
+// 🔹 SNAPSHOT TÍPUS DETEKTÁLÁS - ÚJ!
+export const getSnapshotType = async (penId: string): Promise<'active' | 'historical' | 'none'> => {
+  try {
+    const { data: penFunction, error } = await supabase
+      .from('pen_functions')
+      .select('*')
+      .eq('pen_id', penId)
+      .eq('function_type', 'hárem')
+      .is('end_date', null)
+      .order('start_date', { ascending: false })
+      .limit(1);
+    
+    if (error || !penFunction || penFunction.length === 0) {
+      return 'none';
+    }
+
+    const activeFunction = penFunction[0];
+    
+    // Ha van 'historical' flag a metadata-ban
+    if (activeFunction.metadata?.historical === true) {
+      return 'historical';
+    }
+
+    return 'active';
+
+  } catch (error) {
+    console.error('❌ Snapshot típus detektálás hiba:', error);
+    return 'none';
+  }
+};

@@ -3,11 +3,12 @@ import Link from 'next/link';
 // A meglévő importok után add hozzá:
 import { createClient } from '@/lib/supabase/client';
 
+
 // TypeScript típusok
 interface Animal {
     id: string;
     enar: string;
-    name?: string;
+    name?: string; 
     szuletesi_datum: string;
     kategoria: string;
     ivar: string;

@@ -19,6 +19,9 @@ import TeljesKaramTortenelem from '@/components/TeljesKaramTortenelem';
 import HaremDashboard from '@/components/HaremDashboard';
 import PenEventsTab from '@/components/PenEventsTab';
 import PenHistoryTab from '@/components/PenHistoryTab';
+// Ez a helyes import:
+import { QuickDuplicateFixButton } from '@/components/QuickDuplicateFixButton';
+import { AdminEszkozok } from '@/components/AdminEszkozok';
 
 // TypeScript interfaces - egyértelműen definiálva
 interface Animal {
@@ -1143,23 +1146,24 @@ const deletePeriod = async (periodId: string, functionType: string, isActive: bo
                             </h1>
                         </div>
                         <div className="flex items-center space-x-4">
-                            {selectedAnimals.length > 0 && (
-                                <button
-                                    onClick={() => setShowMovementPanel(true)}
-                                    className="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg transition-colors inline-flex items-center"
-                                >
-                                    <span className="mr-2">🔄</span>
-                                    Mozgatás ({selectedAnimals.length})
-                                </button>
-                            )}
-                            <button
-                                onClick={() => setShowFunctionManager(true)}
-                                className="bg-teal-500 hover:bg-teal-600 text-white font-medium px-4 py-2 rounded-lg transition-colors inline-flex items-center"
-                            >
-                                <span className="mr-2">⚙️</span>
-                                Funkció Kezelés
-                            </button>
-                        </div>
+    {selectedAnimals.length > 0 && (
+        <button
+            onClick={() => setShowMovementPanel(true)}
+            className="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg transition-colors inline-flex items-center"
+        >
+            <span className="mr-2">🔄</span>
+            Mozgatás ({selectedAnimals.length})
+        </button>
+    )}
+    <AdminEszkozok />  {/* ← ÚJ: Diszkrét admin dropdown */}
+    <button
+        onClick={() => setShowFunctionManager(true)}
+        className="bg-teal-500 hover:bg-teal-600 text-white font-medium px-4 py-2 rounded-lg transition-colors inline-flex items-center"
+    >
+        <span className="mr-2">⚙️</span>
+        Funkció Kezelés
+    </button>
+</div>
                     </div>
                 </div>
             </div>

@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { syncHaremData, createHistoricalSnapshot } from '@/lib/utils/haremSync';
 import AnimalSelector from '@/components/AnimalSelector';
 
 // 🔹 INTERFACES
@@ -632,27 +633,96 @@ const TeljesKaramTortenelem: React.FC<TeljesKaramTortenelemProps> = ({
             }
 
             let metadata = {};
-            if (formData.funkci === 'hárem' && formData.kivalasztottBikak.length > 0) {
-                const haremKezdete = formData.haremKezdete || formData.datum;
-                const vvDatum = new Date(haremKezdete);
-                vvDatum.setDate(vvDatum.getDate() + 75);
 
-                const selectedBulls = availableBulls.filter(bika =>
-                    formData.kivalasztottBikak.includes(bika.id)
-                );
+// ⭐ HÁREM METADATA - HIBRID LOGIKA!
+if (formData.funkci === 'hárem' && formData.kivalasztottBikak.length > 0) {
+    console.log('💕 Hárem esemény - hibrid snapshot logika');
 
-                metadata = {
-                    bulls: selectedBulls.map(bika => ({
-                        id: bika.id,
-                        name: bika.name,
-                        enar: bika.enar,
-                        kplsz: bika.kplsz
-                    })),
-                    pairing_start_date: haremKezdete,
-                    expected_vv_date: vvDatum.toISOString().split('T')[0],
-                    breeding_method: 'natural'
-                };
+    const haremKezdete = formData.haremKezdete || formData.datum;
+    const vvDatum = new Date(haremKezdete);
+    vvDatum.setDate(vvDatum.getDate() + 75);
+
+    const selectedBulls = availableBulls.filter(bika =>
+        formData.kivalasztottBikak.includes(bika.id)
+    );
+
+    // 🔥 KRITIKUS DÖNTÉS: Történeti vs Aktív esemény
+    if (formData.torteneti) {
+        // ✅ TÖRTÉNETI ESEMÉNY - TELJES SNAPSHOT KÉSZÍTÉSE
+        console.log('📚 Történeti hárem esemény - teljes snapshot készítés');
+        
+        try {
+            // Kiválasztott állatok adatainak lekérdezése
+            let specificAnimals: any[] = [];
+            if (formData.selectedAnimals.length > 0) {
+                const { data: selectedAnimalsData } = await supabase
+                    .from('animals')
+                    .select('enar, kategoria, ivar')
+                    .in('id', formData.selectedAnimals);
+                
+                specificAnimals = selectedAnimalsData || [];
             }
+
+            // Történeti snapshot készítése
+            const fullSnapshot = await createHistoricalSnapshot(
+                formData.hovaPen,
+                selectedBulls,
+                haremKezdete,
+                vvDatum.toISOString().split('T')[0],
+                specificAnimals
+            );
+
+            metadata = {
+                ...fullSnapshot,
+                historical_entry: true,
+                created_via: 'manual_historical_event',
+                snapshot_date: formData.datum
+            };
+
+            console.log('✅ Történeti hárem snapshot elkészítve:', {
+                bulls: fullSnapshot?.bulls?.length || 0,
+                females: (fullSnapshot as any)?.females?.length || 0,
+                total: (fullSnapshot as any)?.total_animals || 0
+            });
+
+        } catch (snapshotError) {
+            console.warn('⚠️ Történeti snapshot hiba, egyszerű metadata használata:', snapshotError);
+            
+            // Fallback egyszerű metadata
+            metadata = {
+                bulls: selectedBulls.map(bika => ({
+                    id: bika.id,
+                    name: bika.name,
+                    enar: bika.enar,
+                    kplsz: bika.kplsz
+                })),
+                pairing_start_date: haremKezdete,
+                expected_vv_date: vvDatum.toISOString().split('T')[0],
+                breeding_method: 'natural',
+                historical_entry: true,
+                created_via: 'manual_event_fallback'
+            };
+        }
+
+    } else {
+        // ✅ AKTÍV ESEMÉNY - EGYSZERŰ METADATA (duplikáció elkerülése)
+        console.log('🔄 Aktív hárem esemény - egyszerű metadata');
+        
+        metadata = {
+            bulls: selectedBulls.map(bika => ({
+                id: bika.id,
+                name: bika.name,
+                enar: bika.enar,
+                kplsz: bika.kplsz
+            })),
+            pairing_start_date: haremKezdete,
+            expected_vv_date: vvDatum.toISOString().split('T')[0],
+            breeding_method: 'natural',
+            historical_entry: false,
+            created_via: 'manual_active_event'
+        };
+    }
+}
 
             if (editingEvent) {
                 // SZERKESZTÉS - UPDATE
@@ -788,8 +858,26 @@ const TeljesKaramTortenelem: React.FC<TeljesKaramTortenelemProps> = ({
                 }
             }
 
-            // ✅ FOKOZOTT FRISSÍTÉS - MINDEN ÚJRATÖLTÉSE
-            alert(`✅ Esemény sikeresen ${editingEvent ? 'frissítve' : 'rögzítve'}!`);
+            // ⭐ SZINKRONIZÁCIÓ LOGIKA - HIBRID
+if (formData.funkci === 'hárem' && !editingEvent) {
+    if (formData.torteneti) {
+        // TÖRTÉNETI: Nincs szinkronizáció (nem zavarja a jelenlegi állapotot)
+        console.log('📚 Történeti hárem esemény - szinkronizáció kihagyva');
+    } else {
+        // AKTÍV: Szinkronizáció szükséges
+        console.log('🔄 Aktív hárem szinkronizáció indítása...');
+        
+        setTimeout(async () => {
+            const syncResult = await syncHaremData(formData.hovaPen);
+            if (syncResult.success) {
+                console.log('✅ Hárem szinkronizáció sikeres:', syncResult.message);
+            }
+        }, 1000);
+    }
+}
+
+// ✅ FOKOZOTT FRISSÍTÉS - MINDEN ÚJRATÖLTÉSE
+alert(`✅ Esemény sikeresen ${editingEvent ? 'frissítve' : 'rögzítve'}!`);
 
             // Modal bezárása
             setShowModal(false);
