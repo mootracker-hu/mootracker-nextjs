@@ -5,6 +5,7 @@ import React, { useState, useCallback } from 'react';
 import { Upload, FileSpreadsheet, Check, AlertCircle, ArrowRight, Database } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { createClient } from '@supabase/supabase-js';
+import { displayEnar } from '@/constants/enar-formatter';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -629,7 +630,7 @@ const ImportExportPage = () => {
                           <div className="flex items-center justify-between">
                             <div>
                               <div className="font-medium">
-                                {animal.enar}
+                                {displayEnar(animal.enar)}
                                 <span className="ml-2 text-sm text-green-600 bg-green-100 px-2 py-1 rounded">
                                   #{getShortEnar(animal.enar)}
                                 </span>

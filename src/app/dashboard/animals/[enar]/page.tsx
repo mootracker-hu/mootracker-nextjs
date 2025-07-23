@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import type { Animal } from '@/types/animal-types'; // Feltételezve, hogy a típusok egy külön fájlban vannak
+// A meglévő importok után add hozzá:
+import { displayEnar } from '@/constants/enar-formatter';
 
 // --- ÚJ: A TAB-KOMPONENSEK IMPORTÁLÁSA ---
 // Ezeket a fájlokat fogjuk létrehozni a components/tabs/ mappában
@@ -302,7 +304,7 @@ export default function AnimalDetailPage() {
               <div className="flex items-center">
                 <span className="text-4xl mr-4">🐄</span>
                 <div>
-                  <h1 className="text-3xl font-bold text-gray-900">{animal.enar}</h1>
+                  <h1 className="text-3xl font-bold text-gray-900">{displayEnar(animal.enar)}</h1>
                   <p className="mt-2 text-gray-600">#{getShortId(animal.enar)} • {animal.kategoria}</p>
                 </div>
               </div>

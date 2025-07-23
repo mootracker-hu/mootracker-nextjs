@@ -2,6 +2,8 @@
 
 import React from 'react';
 import type { Animal } from '@/types/animal-types';
+// A meglévő importok után add hozzá:
+import { displayEnar } from '@/constants/enar-formatter';
 
 // --- Konstansok és segédfüggvények ---
 const getCategoryColor = (category: string | null) => {
@@ -35,7 +37,14 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ animal, editedAnimal, isEditing
 <div className="bg-white rounded-lg shadow-sm border p-6">
     <div className="flex items-center mb-4"><span className="text-2xl mr-3">📋</span><h3 className="text-lg font-semibold text-gray-900">Alapadatok</h3></div>
     <div className="space-y-4">
-        <div><label className="block text-sm font-medium text-gray-700 mb-1">🏷️ ENAR azonosító</label><div className="flex items-center gap-2"><input type="text" value={animal.enar} disabled className="flex-1 w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500" /><span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">#{getShortId(animal.enar)}</span></div></div>
+        <div><label className="block text-sm font-medium text-gray-700 mb-1">🏷️ ENAR azonosító</label>
+        <div className="flex items-center gap-2"><input 
+  type="text" 
+  value={displayEnar(animal.enar)} 
+  disabled 
+  className="flex-1 w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500" 
+/>
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">#{getShortId(animal.enar)}</span></div></div>
         <div><label className="block text-sm font-medium text-gray-700 mb-1">📝 Név</label>{isEditing ? (<input type="text" value={editedAnimal.name || ''} onChange={(e) => updateField('name', e.target.value)} placeholder="Állat neve (opcionális)" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500" />) : (<div className="w-full px-3 py-2 border border-transparent rounded-lg bg-gray-50 text-gray-700 min-h-[42px] flex items-center">{animal.name || <span className="text-gray-400">Nincs név megadva</span>}</div>)}</div>
         <div><label className="block text-sm font-medium text-gray-700 mb-1">🏷️ Kategória</label>{isEditing ? (<select value={editedAnimal.kategoria || ''} onChange={(e) => updateField('kategoria', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 bg-white">{categoryOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>) : (<div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getCategoryColor(animal.kategoria)}`}>{categoryOptions.find(opt => opt.value === animal.kategoria)?.label || animal.kategoria}</div>)}</div>
         

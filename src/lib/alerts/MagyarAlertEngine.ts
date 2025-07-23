@@ -1,6 +1,8 @@
 // src/lib/alerts/MagyarAlertEngine.ts
 // Egységes Magyar Alert Motor - Lecseréli az AlertRuleEngine.ts és useAlerts.ts alert logikáit
 
+import { displayEnar } from '@/constants/enar-formatter';
+
 export interface Alert {
   id: string;
   type: AlertType;
@@ -1173,8 +1175,8 @@ export class MagyarAlertEngine {
           type: rule.type,
           priority: rule.priority,
           title: rule.title,
-          description: rule.description.replace('{enar}', animal.enar),
-          message: `${rule.title} - ${animal.enar}`,
+          description: rule.description.replace('{enar}', displayEnar(animal.enar)),
+          message: `${rule.title} - ${displayEnar(animal.enar)}`,
           animal_id: animal.id,
           enar: animal.enar,
           pen_id: (animal as any).jelenlegi_karam || null,

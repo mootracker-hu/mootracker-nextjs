@@ -4,6 +4,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { WeightCell } from '@/components/shared/WeightCell';
+import { displayEnar } from '@/constants/enar-formatter';
 
 // TypeScript típusok
 interface Animal {
@@ -104,12 +105,12 @@ export const TehenAnimalTable: React.FC<AnimalTableProps> = ({
                                     {/* ✅ ENAR */}
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         {isClickable ? (
-                                            <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">
-                                                🐮 {animal.enar}
+                                            <span className="text-orange-600 font-medium cursor-pointer hover:text-orange-800">   
+                                                🐮 {displayEnar(animal.enar)}
                                             </span>
                                         ) : (
                                             <Link href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`} className="text-blue-600 hover:text-blue-800 font-medium">
-                                                {animal.enar}
+                                                {displayEnar(animal.enar)}
                                             </Link>
                                         )}
                                     </td>

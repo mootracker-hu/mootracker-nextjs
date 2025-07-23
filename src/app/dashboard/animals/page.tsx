@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
+import { displayEnar } from '@/constants/enar-formatter';
 
 interface Animal {
   id: number;
@@ -767,7 +768,7 @@ export default function AnimalsPage() {
                             href={`/dashboard/animals/${encodeURIComponent(animal.enar)}`}
                             className="text-sm font-medium text-green-600 hover:text-green-800 transition-colors"
                           >
-                            {animal.enar}
+                            {displayEnar(animal.enar)}
                           </Link>
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                             #{getShortId(animal.enar)}

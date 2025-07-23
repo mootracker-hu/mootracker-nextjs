@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { displayEnar } from '@/constants/enar-formatter';
 
 // ✅ RIASZTÁS TÍPUS DEFINÍCIÓJA - bővített verzió
 interface PenAlert {
@@ -325,7 +326,7 @@ if (penAlerts.length === 0) {
                 } : undefined}
                 title={`${topAlert.enar} állat részletei`}
               >
-                🐄 {topAlert.enar}
+                🐄 {displayEnar(topAlert.enar)}
               </span>
             )}
             
@@ -367,7 +368,7 @@ if (penAlerts.length === 0) {
               </p>
               {alert.animal_id && alert.enar && (
                 <span className={`text-xs font-mono ${style.textColor} opacity-60`}>
-                  🐄 {alert.enar}
+                  🐄 {displayEnar(alert.enar)}
                 </span>
               )}
             </div>

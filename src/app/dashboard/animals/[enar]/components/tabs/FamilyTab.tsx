@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Animal } from '@/types/animal-types';
+// A meglévő importok után add hozzá:
+import { displayEnar, formatEnarInput, cleanEnarForDb } from '@/constants/enar-formatter';
 
 // A FamilyTab megkapja a szükséges adatokat és függvényeket a fő oldaltól (page.tsx).
 interface FamilyTabProps {
@@ -68,7 +70,7 @@ const FamilyTab: React.FC<FamilyTabProps> = ({ animal, isEditing, updateField, o
           <div className="flex items-start justify-between">
             <div>
               <h3 className="text-green-800 font-semibold mb-1">✅ Apa Azonosítva</h3>
-              <p className="text-green-700">🐂 <strong>{animal.father_name || 'Névtelen'}</strong> ({animal.father_enar})</p>
+              <p className="text-green-700">🐂 <strong>{animal.father_name || 'Névtelen'}</strong> ({displayEnar(animal.father_enar)})</p>
               {animal.father_kplsz && <p className="text-green-700">KPLSZ: {animal.father_kplsz}</p>}
               <p className="text-sm text-green-600 mt-1">Forrás: {animal.father_source || 'Manuális'}</p>
             </div>
@@ -81,7 +83,7 @@ const FamilyTab: React.FC<FamilyTabProps> = ({ animal, isEditing, updateField, o
     if(animal.apa_enar) {
          return (
              <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
-                <p className="text-blue-700">Legacy Apa ENAR: <strong>{animal.apa_enar}</strong></p>
+                <p className="text-blue-700">Legacy Apa ENAR: <strong>{displayEnar(animal.apa_enar)}</strong></p>
                 <button onClick={openFatherModalForEditing} className="mt-2 bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded">⬆️ Adatok frissítése</button>
              </div>
          );
@@ -113,9 +115,21 @@ const FamilyTab: React.FC<FamilyTabProps> = ({ animal, isEditing, updateField, o
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Anya ENAR</label>
             {isEditing ? (
-              <input type="text" value={animal.anya_enar || ''} onChange={(e) => updateField('anya_enar', e.target.value)} placeholder="Pl. HU 12345 6789 0" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500" />
+              <input 
+                type="text" 
+                value={formatEnarInput(animal.anya_enar || '')} 
+                onChange={(e) => {
+                  const formatted = formatEnarInput(e.target.value);
+                  updateField('anya_enar', cleanEnarForDb(formatted));
+                }}
+                placeholder="HU 36050 0080 8" 
+                maxLength={16}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500" 
+              />
             ) : (
-              <div className="w-full px-3 py-2 border border-transparent rounded-lg bg-gray-50 text-gray-700 min-h-[42px] flex items-center">{animal.anya_enar || <span className="text-gray-400">Nincs megadva</span>}</div>
+              <div className="w-full px-3 py-2 border border-transparent rounded-lg bg-gray-50 text-gray-700 min-h-[42px] flex items-center">
+                {displayEnar(animal.anya_enar) || <span className="text-gray-400">Nincs megadva</span>}
+              </div>
             )}
           </div>
           <div>
@@ -143,7 +157,17 @@ const FamilyTab: React.FC<FamilyTabProps> = ({ animal, isEditing, updateField, o
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Apa ENAR *</label>
-                <input type="text" value={manualFatherForm.father_enar} onChange={(e) => setManualFatherForm({ ...manualFatherForm, father_enar: e.target.value })} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"/>
+                <input 
+                  type="text" 
+                  value={manualFatherForm.father_enar} 
+                  onChange={(e) => setManualFatherForm({ 
+                    ...manualFatherForm, 
+                    father_enar: formatEnarInput(e.target.value) 
+                  })} 
+                  placeholder="HU 36050 0080 8"
+                  maxLength={16}
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Apa Neve</label>

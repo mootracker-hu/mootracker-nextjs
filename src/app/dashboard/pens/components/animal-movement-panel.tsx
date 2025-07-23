@@ -6,6 +6,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { createAutomaticPeriodSnapshot } from '@/lib/penHistorySync';
 import { recordAnimalEvent, ALERT_EVENT_TYPES } from '@/lib/alerts/MagyarAlertEngine';
+import { displayEnar } from '@/constants/enar-formatter';
+
 interface Animal {
   id: number;
   enar: string;
@@ -327,7 +329,7 @@ if (!isHistorical) {
             <div className="flex flex-wrap gap-2">
               {selectedAnimalData.slice(0, 10).map(animal => (
                 <span key={animal.id} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
-                  {animal.enar}
+                  {displayEnar(animal.enar)}
                 </span>
               ))}
               {selectedAnimalData.length > 10 && (

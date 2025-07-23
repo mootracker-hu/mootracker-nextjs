@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { displayEnar } from '@/constants/enar-formatter';
 
 const BREEDS = [
   'Blonde d\'aquitaine',
@@ -11,6 +12,28 @@ const BREEDS = [
   'Egyéb húshasznú',
   'Egyéb tejhasznú'
 ];
+
+// ✅ ÚJ (másold az import-ból):
+const formatEnar = (enar: string): string => {
+  const clean = enar.replace(/\s/g, '');
+  if (clean.length === 12 && clean.startsWith('HU')) {
+    const country = clean.substring(0, 2);
+    const part1 = clean.substring(2, 7); 
+    const part2 = clean.substring(7, 11);
+    const part3 = clean.substring(11, 12);
+    return `${country} ${part1} ${part2} ${part3}`;
+  }
+  return enar;
+};
+
+const cleanEnarForDb = (enar: string): string => {
+  return enar.replace(/\s+/g, '').toUpperCase();
+};
+
+const isValidEnar = (enar: string): boolean => {
+  const cleaned = cleanEnarForDb(enar);
+  return /^HU\d{10}$/.test(cleaned);
+};
 
 interface Animal {
   id?: number;
@@ -163,10 +186,13 @@ export default function NewAnimalPage() {
 
     if (!formData.enar) {
       newErrors.enar = 'ENAR megadása kötelező';
-    } else if (!/^HU\d{10}$/.test(formData.enar)) {
-      newErrors.enar = 'ENAR formátuma: HU + 10 számjegy';
-    } else if (existingAnimals.some(a => a.enar === formData.enar)) {
-      newErrors.enar = 'Ez az ENAR már létezik';
+    } else if (!isValidEnar(formData.enar)) {
+      newErrors.enar = 'ENAR formátuma: HU + 10 számjegy (pl. HU 36050 0080 8)';
+    } else {
+      const cleanedEnar = cleanEnarForDb(formData.enar);
+      if (existingAnimals.some(a => cleanEnarForDb(a.enar) === cleanedEnar)) {
+        newErrors.enar = 'Ez az ENAR már létezik';
+      }
     }
 
     if (!formData.szuletesi_datum) {
@@ -269,7 +295,7 @@ export default function NewAnimalPage() {
       console.log('🏠 Kiválasztott karám:', selectedPen);
 
       const newAnimal: any = {
-        enar: formData.enar,
+        enar: cleanEnarForDb(formData.enar), 
         szuletesi_datum: formData.szuletesi_datum,
         ivar: formData.ivar,
         kategoria: category,
@@ -297,10 +323,10 @@ export default function NewAnimalPage() {
         }
       } else if (formData.eredet === 'vasarolt') {
         if (formData.anya_enar_manual) {
-          newAnimal.anya_enar = formData.anya_enar_manual;
+          newAnimal.anya_enar = cleanEnarForDb(formData.anya_enar_manual);  // ✅ TISZTÍTÁS
         }
         if (formData.apa_enar_manual) {
-          newAnimal.apa_enar = formData.apa_enar_manual;
+          newAnimal.apa_enar = cleanEnarForDb(formData.apa_enar_manual);  // ✅ TISZTÍTÁS
         }
       }
       
@@ -470,7 +496,7 @@ export default function NewAnimalPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* ENAR */}
+                {/* ENAR - ✅ FORMÁZÓVAL FRISSÍTVE */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     🏷️ ENAR *
@@ -478,11 +504,18 @@ export default function NewAnimalPage() {
                   <input
                     type="text"
                     value={formData.enar}
-                    onChange={(e) => setFormData(prev => ({ ...prev, enar: e.target.value.toUpperCase() }))}
-                    placeholder="HU1234567890"
+                    onChange={(e) => {
+                      const formatted = formatEnar(e.target.value);
+                      setFormData(prev => ({ ...prev, enar: formatted }));
+                    }}
+                    placeholder="HU 36050 0080 8"
+                    maxLength={16}
                     className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${errors.enar ? 'border-red-500' : ''
                       }`}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Automatikus formázás: HU XXXXX XXXX X
+                  </p>
                   {errors.enar && <p className="text-red-500 text-sm mt-1">{errors.enar}</p>}
                 </div>
 
@@ -645,8 +678,8 @@ export default function NewAnimalPage() {
                         <option value="ismeretlen">❓ Ismeretlen</option>
                         {getPotentialMothers().map(animal => (
                           <option key={animal.enar} value={animal.enar}>
-                            {animal.enar} ({animal.kategoria})
-                          </option>
+  {displayEnar(animal.enar)} ({animal.kategoria})
+</option>
                         ))}
                       </select>
                       {errors.anya_enar && <p className="text-red-500 text-sm mt-1">{errors.anya_enar}</p>}
@@ -687,7 +720,7 @@ export default function NewAnimalPage() {
                         <option value="">Válasszon apát...</option>
                         {getPotentialFathers().map(animal => (
                           <option key={animal.enar} value={animal.enar}>
-                            {animal.enar} (tenyészbika)
+                            {displayEnar(animal.enar)} (tenyészbika)
                           </option>
                         ))}
                       </select>
@@ -731,8 +764,12 @@ export default function NewAnimalPage() {
                       <input
                         type="text"
                         value={formData.anya_enar_manual}
-                        onChange={(e) => setFormData(prev => ({ ...prev, anya_enar_manual: e.target.value.toUpperCase() }))}
-                        placeholder="HU1234567890 (ha ismert)"
+                        onChange={(e) => {
+                          const formatted = formatEnar(e.target.value);
+                          setFormData(prev => ({ ...prev, anya_enar_manual: formatted }));
+                        }}
+                        placeholder="HU 36050 0080 8 (ha ismert)"
+                        maxLength={16}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                       />
                     </div>
@@ -744,8 +781,12 @@ export default function NewAnimalPage() {
                       <input
                         type="text"
                         value={formData.apa_enar_manual}
-                        onChange={(e) => setFormData(prev => ({ ...prev, apa_enar_manual: e.target.value.toUpperCase() }))}
-                        placeholder="HU1234567890 (ha ismert)"
+                        onChange={(e) => {
+                          const formatted = formatEnar(e.target.value);
+                          setFormData(prev => ({ ...prev, apa_enar_manual: formatted }));
+                        }}
+                        placeholder="HU 36050 0080 8 (ha ismert)"
+                        maxLength={16}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                       />
                     </div>
