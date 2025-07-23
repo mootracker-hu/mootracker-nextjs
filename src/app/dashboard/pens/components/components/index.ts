@@ -1,5 +1,5 @@
 // ==================================================
-// 📁 src/components/pen-tables/index.ts
+// 📁 src/app/dashboard/pens/components/components/index.ts
 // Central export file for all pen table components
 // ==================================================
 

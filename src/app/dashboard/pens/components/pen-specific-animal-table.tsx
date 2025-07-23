@@ -13,6 +13,9 @@ import { KorhazAnimalTable } from './components/KorhazAnimalTable';
 import { KarantenAnimalTable } from './components/KarantenAnimalTable';
 import { SelejtAnimalTable } from './components/SelejtAnimalTable';
 import { AtmenetiAnimalTable } from './components/AtmenetiAnimalTable';
+// ✅ ÚJ IMPORTOK - add hozzá a meglévő importok után
+import { CALF_CONSTANTS, AGE_CONSTANTS, BusinessHelpers } from '@/constants/business';
+import { ColorHelpers } from '@/constants/colors';
 
 // TypeScript típusok (megmaradnak)
 interface Animal {
@@ -166,13 +169,10 @@ const PenSpecificAnimalTable: React.FC<PenSpecificAnimalTableProps> = ({
         }
     };
 
-    // Helper függvények (calves page-ből) - eredeti logika megmarad
-    const calculateCalfAge = (birthDate: string) => {
-        const birth = new Date(birthDate);
-        const now = new Date();
-        const diffTime = Math.abs(now.getTime() - birth.getTime());
-        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    };
+    // ✅ ÚJ - BusinessHelpers használata
+const calculateCalfAge = (birthDate: string): number => {
+  return BusinessHelpers.calculateAgeInDays(birthDate);
+};
 
     const getFatherDisplay = (calf: any) => {
         const vv = calf.vv_result;
@@ -181,20 +181,10 @@ const PenSpecificAnimalTable: React.FC<PenSpecificAnimalTableProps> = ({
         return vv.father_name ? `🐂 ${vv.father_name}` : '❓ Nincs adat';
     };
 
-    const getProtocolStatus = (birthDate: string) => {
-        const age = calculateCalfAge(birthDate);
-        if (age <= 15) {
-            return {
-                message: `${15 - age} nap múlva: BoviPast + fülszám`,
-                color: 'bg-yellow-100 text-yellow-800 border-yellow-200'
-            };
-        } else {
-            return {
-                message: `${age - 15} napja túllépte: Sürgős protokoll!`,
-                color: 'bg-red-100 text-red-800 border-red-200'
-            };
-        }
-    };
+    // ✅ ÚJ - Teljes BusinessHelpers használat (3 szintű riasztás)
+const getProtocolStatus = (birthDate: string) => {
+  return BusinessHelpers.getCalfProtocolStatus(birthDate);
+};
 
     // ✅ TÁBLÁZAT PROPS - minden komponensnek ugyanezek mennek át
     const tableProps = {

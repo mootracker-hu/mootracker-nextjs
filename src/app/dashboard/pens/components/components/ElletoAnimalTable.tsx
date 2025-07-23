@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { WeightCell } from '@/components/shared/WeightCell';
-import { AgeCell } from '@/components/shared/AgeCell';  // ← ÚJ IMPORT
+import AgeCell from '@/components/shared/AgeCell';  // ← ÚJ IMPORT
 
 // TypeScript típusok
 interface Animal {
@@ -181,10 +181,7 @@ export const ElletoAnimalTable: React.FC<AnimalTableProps> = ({
                                     
                                     {/* ✅ BORJÚ KORA OSZLOP - AgeCell komponens */}
                                     <td className="px-3 py-2 whitespace-nowrap text-xs">
-                                        <AgeCell 
-                                            birthDate={animal.birth_date || animal.szuletesi_datum}
-                                            className="text-xs"
-                                        />
+                                        <AgeCell birthDate={animal.szuletesi_datum || animal.birth_date || ''} />
                                     </td>
                                     
                                     {/* SÚLYMÉRÉS - WeightCell kompakt */}

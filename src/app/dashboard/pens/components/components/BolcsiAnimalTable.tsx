@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { WeightCell } from '@/components/shared/WeightCell';
-import { AgeCell } from '@/components/shared/AgeCell';  // ← ÚJ IMPORT
+import AgeCell from '@/components/shared/AgeCell';
 
 // TypeScript típusok
 interface Animal {
@@ -159,7 +159,7 @@ export const BolcsiAnimalTable: React.FC<AnimalTableProps> = ({
                                     
                                     {/* ✅ ÉLETKOR OSZLOP - AgeCell automatikus színezéssel */}
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        <AgeCell birthDate={animal.szuletesi_datum || animal.birth_date} />
+                                        <AgeCell birthDate={animal.szuletesi_datum || animal.birth_date || ''} />
                                     </td>
                                     
                                     {/* SÚLYMÉRÉS - WeightCell eredeti méret */}

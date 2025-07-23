@@ -22,6 +22,8 @@ import PenHistoryTab from '@/components/PenHistoryTab';
 // Ez a helyes import:
 import { QuickDuplicateFixButton } from '@/components/QuickDuplicateFixButton';
 import { AdminEszkozok } from '@/components/AdminEszkozok';
+import { ColorHelpers } from '@/constants/colors';
+import { VV_CONSTANTS } from '@/constants/business';
 
 // TypeScript interfaces - egyértelműen definiálva
 interface Animal {
@@ -645,34 +647,8 @@ const deletePeriod = async (periodId: string, functionType: string, isActive: bo
 
     // ✅ JAVÍTOTT SZÍNPALETTA - MINDEN FUNKCIÓ EGYSÉGESEN MINT A TÖBBI FÁJLBAN!
     const getFunctionColor = (functionType: string): string => {
-        const colorMap = {
-            // 🐮 BORJÚ FUNKCIÓK - Kék árnyalatok (fiatal állatok)
-            'bölcsi': 'bg-blue-100 text-blue-800 border-blue-200',
-
-            // 🐄 FEJLŐDÉSI FUNKCIÓK - Indigo (növekedés)  
-            'óvi': 'bg-indigo-100 text-indigo-800 border-indigo-200',
-
-            // 💕 TENYÉSZTÉSI FUNKCIÓK - Pink/Rose (KÜLÖNBÖZŐEK!)
-            'hárem': 'bg-pink-100 text-pink-800 border-pink-200',
-            'vemhes': 'bg-rose-100 text-rose-800 border-rose-200',
-
-            // 🍼 ANYASÁG FUNKCIÓK - Zöld árnyalatok (természet/élet)
-            'ellető': 'bg-emerald-100 text-emerald-800 border-emerald-200',
-            'tehén': 'bg-green-100 text-green-800 border-green-200',
-
-            // 🐂 HÍZÓBIKA - Narancs (erő/munka)
-            'hízóbika': 'bg-orange-100 text-orange-800 border-orange-200',
-
-            // ⭕ SPECIÁLIS FUNKCIÓK - ✅ ÖSSZES ÚJ TÍPUS HOZZÁADVA!
-            'üres': 'bg-gray-100 text-gray-800 border-gray-200',
-            'átmeneti': 'bg-teal-100 text-teal-800 border-teal-200',
-            'kórház': 'bg-red-100 text-red-800 border-red-200',
-            'karantén': 'bg-amber-100 text-amber-800 border-amber-200',
-            'selejt': 'bg-slate-100 text-slate-800 border-slate-200'
-        } as const;
-
-        return colorMap[functionType as keyof typeof colorMap] || 'bg-gray-100 text-gray-800 border-gray-200';
-    };
+    return ColorHelpers.getPenFunctionColor(functionType as any);
+};
 
     const getCapacityColor = (current: number, capacity: number): string => {
         const percentage = (current / capacity) * 100;
@@ -752,7 +728,7 @@ const deletePeriod = async (periodId: string, functionType: string, isActive: bo
                             if (animalHaremStart) {
                                 const haremDate = new Date(animalHaremStart);
                                 const vvDate = new Date(haremDate);
-                                vvDate.setDate(vvDate.getDate() + 75); // 75 nap hárem után VV
+                                vvDate.setDate(vvDate.getDate() + VV_CONSTANTS.DAYS_AFTER_PAIRING);
                                 vvEsedekesseg = vvDate.toLocaleDateString('hu-HU');
                             }
 

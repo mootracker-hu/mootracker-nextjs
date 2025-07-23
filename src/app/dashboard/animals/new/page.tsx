@@ -16,7 +16,7 @@ interface Animal {
   id?: number;
   enar: string;
   szuletesi_datum: string;
-  ivar: 'hímivar' | 'nőivar';
+  ivar: 'hím' | 'nő';
   kategoria: string;
   jelenlegi_karam?: string;
   statusz: string;
@@ -143,19 +143,19 @@ export default function NewAnimalPage() {
 
   // Potenciális anyák (nőivar + megfelelő kategória)
   const getPotentialMothers = (): Animal[] => {
-    return existingAnimals.filter(animal =>
-      animal.ivar === 'nőivar' &&
-      ['tehén', 'szűz_üsző', 'vemhes_üsző'].includes(animal.kategoria)
-    );
-  };
+  return existingAnimals.filter(animal =>
+    animal.ivar === 'nő' &&  // ✅ 'nőivar' → 'nő'
+    ['tehén', 'szűz_üsző', 'vemhes_üsző'].includes(animal.kategoria)
+  );
+};
 
   // Potenciális apák (hímivar + tenyészbika)
   const getPotentialFathers = (): Animal[] => {
-    return existingAnimals.filter(animal =>
-      animal.ivar === 'hímivar' &&
-      animal.kategoria === 'tenyészbika'
-    );
-  };
+  return existingAnimals.filter(animal =>
+    animal.ivar === 'hím' &&  // ✅ 'hímivar' → 'hím'
+    animal.kategoria === 'tenyészbika'
+  );
+};
 
   // Validációs függvények
   const validateStep1 = (): boolean => {
@@ -513,8 +513,8 @@ export default function NewAnimalPage() {
                       }`}
                   >
                     <option value="">Válasszon...</option>
-                    <option value="hímivar">♂️ hímivar</option>
-                    <option value="nőivar">♀️ nőivar</option>
+                    <option value="hím">♂️ hímivar</option>
+                    <option value="nő">♀️ nőivar</option>
                   </select>
                   {errors.ivar && <p className="text-red-500 text-sm mt-1">{errors.ivar}</p>}
                 </div>

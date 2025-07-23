@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { CalfWithDetails } from '@/types/calf-types';
 import EarTagModal from '@/components/ear-tag-modal';
+import { CALF_CONSTANTS } from '@/constants/business';
 
 export default function CalvesPage() {
     const [calves, setCalves] = useState<CalfWithDetails[]>([]);
@@ -135,19 +136,20 @@ export default function CalvesPage() {
 
     const getProtocolStatus = (birthDate: string) => {
         const age = calculateAge(birthDate);
-        if (age <= 15) {
-            return {
-                status: 'pending',
-                message: `${15 - age} nap múlva: BoviPast + fülszám`,
-                color: 'bg-yellow-100 text-yellow-800 border-yellow-200'
-            };
-        } else {
-            return {
-                status: 'overdue',
-                message: `${age - 15} napja túllépte: Sürgős protokoll!`,
-                color: 'bg-red-100 text-red-800 border-red-200'
-            };
-        }
+        // ✅ ÚJ - konstans használat:
+if (age <= CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS) {
+    return {
+        status: 'pending',
+        message: `${CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS - age} nap múlva: BoviPast + fülszám`,  // ← ÚJ
+        color: 'bg-yellow-100 text-yellow-800 border-yellow-200'
+    };
+} else {
+    return {
+        status: 'overdue',
+        message: `${age - CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS} napja túllépte: Sürgős protokoll!`,  // ← ÚJ
+        color: 'bg-red-100 text-red-800 border-red-200'
+    };
+}
     };
 
     const fetchAvailablePens = async () => {
