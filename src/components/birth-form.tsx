@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { CalendarDays, Clock, Baby, UserCheck, AlertTriangle, Save, X, Plus } from 'lucide-react';
-import { 
-  BirthFormData, 
-  CalfData, 
+import {
+  BirthFormData,
+  CalfData,
   FatherOption,
   BIRTH_TYPE_OPTIONS,
   BIRTH_OUTCOME_OPTIONS,
@@ -21,95 +21,95 @@ function generateTempId(anyaEnar: string, calfNumber: number): string {
   return `${lastFive}/${calfNumber}`;
 }
 
-export default function BirthForm({ 
-  motherEnar, 
-  onSuccess, 
-  onCancel, 
+export default function BirthForm({
+  motherEnar,
+  onSuccess,
+  onCancel,
   prefillFromVV,
   editMode = false,      // 🆕 EDIT MÓD TÁMOGATÁS
   editData               // 🆕 SZERKESZTENDŐ ADATOK
 }: BirthFormProps) {
 
-// 🆕 ANYA KATEGÓRIA LOGIKA FÜGGVÉNY
-const handleMotherCategoryLogic = async (motherEnar: string, hasLivingCalf: boolean) => {
-  try {
-    console.log('🔄 Anya kategória logika kezdete:', { motherEnar, hasLivingCalf });
+  // 🆕 ANYA KATEGÓRIA LOGIKA FÜGGVÉNY
+  const handleMotherCategoryLogic = async (motherEnar: string, hasLivingCalf: boolean) => {
+    try {
+      console.log('🔄 Anya kategória logika kezdete:', { motherEnar, hasLivingCalf });
 
-    // Lekérjük az anya jelenlegi adatait
-    const { data: mother, error: motherError } = await supabase
-      .from('animals')
-      .select('kategoria, has_given_birth')
-      .eq('enar', motherEnar)
-      .single();
+      // Lekérjük az anya jelenlegi adatait
+      const { data: mother, error: motherError } = await supabase
+        .from('animals')
+        .select('kategoria, has_given_birth')
+        .eq('enar', motherEnar)
+        .single();
 
-    if (motherError || !mother) {
-      console.error('❌ Anya adatok lekérdezése sikertelen:', motherError);
-      return;
-    }
-
-    console.log('📊 Anya jelenlegi adatok:', mother);
-
-    let newCategory = mother.kategoria;
-    let updates: any = {
-      last_birth_date: formData.birth_date,
-      pregnancy_status: null,
-      expected_birth_date: null
-    };
-
-    if (hasLivingCalf && formData.birth_outcome === 'successful' && formData.mother_survived) {
-      // ✅ ÉLŐ BORJÚ + SIKERES ELLÉS: Normál kategória váltás
-      if (mother.kategoria === 'vemhes_üsző') {
-        newCategory = 'tehén';
-        console.log('🐄 Élő borjú → vemhes_üsző → tehén');
-      } else if (mother.kategoria === 'szűz_üsző') {
-        newCategory = 'tehén';
-        console.log('🐄 Élő borjú → szűz_üsző → tehén (első ellés)');
+      if (motherError || !mother) {
+        console.error('❌ Anya adatok lekérdezése sikertelen:', motherError);
+        return;
       }
-      
-      updates.kategoria = newCategory;
-      updates.has_given_birth = true;
 
-    } else if (!hasLivingCalf) {
-      // 💀 HALOTT BORJÚ: Kategória visszaállítás
-      if (mother.kategoria === 'vemhes_üsző' && !mother.has_given_birth) {
-        newCategory = 'szűz_üsző';
-        console.log('💀 Halott borjú → vemhes_üsző → szűz_üsző (visszaállítás)');
-      } else if (mother.kategoria === 'vemhes_üsző' && mother.has_given_birth) {
-        newCategory = 'tehén';
-        console.log('💀 Halott borjú → vemhes_üsző → tehén (korábban már ellett)');
+      console.log('📊 Anya jelenlegi adatok:', mother);
+
+      let newCategory = mother.kategoria;
+      let updates: any = {
+        last_birth_date: formData.birth_date,
+        pregnancy_status: null,
+        expected_birth_date: null
+      };
+
+      if (hasLivingCalf && formData.birth_outcome === 'successful' && formData.mother_survived) {
+        // ✅ ÉLŐ BORJÚ + SIKERES ELLÉS: Normál kategória váltás
+        if (mother.kategoria === 'vemhes_üsző') {
+          newCategory = 'tehén';
+          console.log('🐄 Élő borjú → vemhes_üsző → tehén');
+        } else if (mother.kategoria === 'szűz_üsző') {
+          newCategory = 'tehén';
+          console.log('🐄 Élő borjú → szűz_üsző → tehén (első ellés)');
+        }
+
+        updates.kategoria = newCategory;
+        updates.has_given_birth = true;
+
+      } else if (!hasLivingCalf) {
+        // 💀 HALOTT BORJÚ: Kategória visszaállítás
+        if (mother.kategoria === 'vemhes_üsző' && !mother.has_given_birth) {
+          newCategory = 'szűz_üsző';
+          console.log('💀 Halott borjú → vemhes_üsző → szűz_üsző (visszaállítás)');
+        } else if (mother.kategoria === 'vemhes_üsző' && mother.has_given_birth) {
+          newCategory = 'tehén';
+          console.log('💀 Halott borjú → vemhes_üsző → tehén (korábban már ellett)');
+        }
+
+        updates.kategoria = newCategory;
       }
-      
-      updates.kategoria = newCategory;
+
+      // Anya túlélés ellenőrzése
+      if (!formData.mother_survived) {
+        updates.statusz = 'elhullott';
+        updates.kikerulesi_datum = formData.birth_date;
+        updates.exit_reason = 'elhullás';
+        updates.elhullas_datum = formData.birth_date;
+      }
+
+      // Adatbázis frissítése
+      const { error: updateError } = await supabase
+        .from('animals')
+        .update(updates)
+        .eq('enar', motherEnar);
+
+      if (updateError) {
+        console.error('❌ Anya frissítése sikertelen:', updateError);
+      } else {
+        console.log('✅ Anya kategória sikeresen frissítve:', {
+          from: mother.kategoria,
+          to: newCategory,
+          hasLivingCalf
+        });
+      }
+
+    } catch (error) {
+      console.error('❌ Anya kategória logika hiba:', error);
     }
-
-    // Anya túlélés ellenőrzése
-    if (!formData.mother_survived) {
-      updates.statusz = 'elhullott';
-      updates.kikerulesi_datum = formData.birth_date;
-      updates.exit_reason = 'elhullás';
-      updates.elhullas_datum = formData.birth_date;
-    }
-
-    // Adatbázis frissítése
-    const { error: updateError } = await supabase
-      .from('animals')
-      .update(updates)
-      .eq('enar', motherEnar);
-
-    if (updateError) {
-      console.error('❌ Anya frissítése sikertelen:', updateError);
-    } else {
-      console.log('✅ Anya kategória sikeresen frissítve:', {
-        from: mother.kategoria,
-        to: newCategory,
-        hasLivingCalf
-      });
-    }
-
-  } catch (error) {
-    console.error('❌ Anya kategória logika hiba:', error);
-  }
-};
+  };
 
   // 🆕 FORM INICIALIZÁLÁS FÜGGVÉNY (ÚJ/EDIT ALAPJÁN)
   const initializeFormData = (): BirthFormData => {
@@ -123,14 +123,14 @@ const handleMotherCategoryLogic = async (motherEnar: string, hasLivingCalf: bool
         birth_date: birth.birth_date,
         birth_time: birth.birth_time || '',
         historical: birth.historical || false,
-        
+
         father_type: birth.father_type || 'natural',
         uncertain_paternity: birth.uncertain_paternity || false,
         father_enar: birth.father_enar || '',
         father_kplsz: birth.father_kplsz || '',
         father_name: birth.father_name || '',
         possible_fathers: birth.possible_fathers || [],
-        
+
         birth_type: birth.birth_type,
         birth_outcome: birth.birth_outcome,
         mother_survived: birth.mother_survived,
@@ -138,7 +138,7 @@ const handleMotherCategoryLogic = async (motherEnar: string, hasLivingCalf: bool
         attendant_person: birth.attendant_person || '',
         notes: birth.notes || '',
         mother_notes: birth.mother_notes || '',
-        
+
         calf_count: (calves.length === 2 ? 2 : 1) as 1 | 2,
         calves: calves.map((calf: any) => ({
           calf_number: calf.calf_number,
@@ -154,14 +154,14 @@ const handleMotherCategoryLogic = async (motherEnar: string, hasLivingCalf: bool
         birth_date: prefillFromVV?.expectedBirthDate || new Date().toISOString().split('T')[0],
         birth_time: '',
         historical: false,
-        
+
         father_type: prefillFromVV?.fatherData?.type || 'natural',
         uncertain_paternity: !!prefillFromVV?.fatherData?.possibleFathers,
         father_enar: prefillFromVV?.fatherData?.enar || '',
         father_kplsz: prefillFromVV?.fatherData?.kplsz || '',
         father_name: prefillFromVV?.fatherData?.name || '',
         possible_fathers: prefillFromVV?.fatherData?.possibleFathers || [],
-        
+
         birth_type: 'easy_no_help',
         birth_outcome: 'successful',
         mother_survived: true,
@@ -169,17 +169,17 @@ const handleMotherCategoryLogic = async (motherEnar: string, hasLivingCalf: bool
         attendant_person: '',
         notes: '',
         mother_notes: '',
-        
+
         calf_count: 1,
         calves: [
-  {
-    calf_number: 1,
-    gender: 'male',
-    is_alive: false,  // ← JAVÍTOTT: Default halott
-    birth_weight: undefined,
-    temp_id: generateTempId(motherEnar, 1)
-  }
-]
+          {
+            calf_number: 1,
+            gender: 'male',
+            is_alive: false,  // ← JAVÍTOTT: Default halott
+            birth_weight: undefined,
+            temp_id: generateTempId(motherEnar, 1)
+          }
+        ]
       };
     }
   };
@@ -218,7 +218,7 @@ const handleMotherCategoryLogic = async (motherEnar: string, hasLivingCalf: bool
   const handleCalfChange = (calfIndex: number, field: keyof CalfData, value: any) => {
     setFormData(prev => ({
       ...prev,
-      calves: prev.calves.map((calf, index) => 
+      calves: prev.calves.map((calf, index) =>
         index === calfIndex ? { ...calf, [field]: value } : calf
       )
     }));
@@ -228,7 +228,7 @@ const handleMotherCategoryLogic = async (motherEnar: string, hasLivingCalf: bool
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     try {
       // 🛡️ SMART AUTH WITH FALLBACK (visszaállítva)
       let userId: string;
@@ -237,7 +237,7 @@ const handleMotherCategoryLogic = async (motherEnar: string, hasLivingCalf: bool
       try {
         // FIRST: Try real auth
         const { data: { user }, error: userError } = await supabase.auth.getUser();
-        
+
         if (user && !userError) {
           // SUCCESS: Use current logged in user
           const { data: userRole, error: roleError } = await supabase
@@ -245,7 +245,7 @@ const handleMotherCategoryLogic = async (motherEnar: string, hasLivingCalf: bool
             .select('farm_id')
             .eq('user_id', user.id)
             .single();
-          
+
           if (userRole && !roleError) {
             userId = user.id;
             farmId = userRole.farm_id;
@@ -319,7 +319,7 @@ const handleMotherCategoryLogic = async (motherEnar: string, hasLivingCalf: bool
               .eq('id', existingCalf.id);
 
             if (calfUpdateError) {
-              throw new Error(`Borjú #${i+1} frissítése sikertelen: ` + calfUpdateError.message);
+              throw new Error(`Borjú #${i + 1} frissítése sikertelen: ` + calfUpdateError.message);
             }
           } else {
             // INSERT új borjú (ha iker ellésre módosítottuk)
@@ -341,7 +341,7 @@ const handleMotherCategoryLogic = async (motherEnar: string, hasLivingCalf: bool
               });
 
             if (calfInsertError) {
-              throw new Error(`Új borjú #${i+1} hozzáadása sikertelen: ` + calfInsertError.message);
+              throw new Error(`Új borjú #${i + 1} hozzáadása sikertelen: ` + calfInsertError.message);
             }
           }
         }
@@ -400,99 +400,14 @@ const handleMotherCategoryLogic = async (motherEnar: string, hasLivingCalf: bool
 
         // 🔧 JAVÍTOTT BIRTHFORM TÖRTÉNETI ELLÉS LOGIKA
 
-if (formData.historical) {
-  // 📚 TÖRTÉNETI ELLÉS: EGYSZERŰ KERESÉS ÉS MANUAL ÖSSZEKAPCSOLÁS
-  console.log('📚 Történeti ellés mód aktiválva');
-  
-  // 🔥 ÚJ: MINDIG rögzítjük a borjakat calves táblába temp_id-val
-  console.log('✅ Történeti ellés - de CALVES rekord létrehozása temp_id-val');
-  
-  // 1. CALVES REKORDOK LÉTREHOZÁSA (mint új ellésnél)
-  const calvesToInsert = formData.calves.map(calf => ({
-    birth_id: birth.id,
-    calf_number: calf.calf_number,
-    temp_id: generateTempId(motherEnar, calf.calf_number),
-    gender: calf.gender,
-    is_alive: calf.is_alive,
-    birth_weight: calf.birth_weight,
-    
-    // Copy father data from birth
-    father_enar: formData.father_enar,
-    father_kplsz: formData.father_kplsz,
-    father_name: formData.father_name,
-    father_type: formData.father_type,
-    uncertain_paternity: formData.uncertain_paternity,
-    possible_fathers: formData.possible_fathers
-  }));
+        if (formData.historical) {
+          // 📚 TÖRTÉNETI ELLÉS: EGYSZERŰ KERESÉS ÉS MANUAL ÖSSZEKAPCSOLÁS
+          console.log('📚 Történeti ellés mód aktiválva');
 
-  const { data: calves, error: calvesError } = await supabase
-    .from('calves')
-    .insert(calvesToInsert)
-    .select();
+          // 🔥 ÚJ: MINDIG rögzítjük a borjakat calves táblába temp_id-val
+          console.log('✅ Történeti ellés - de CALVES rekord létrehozása temp_id-val');
 
-  if (calvesError) {
-    await supabase.from('births').delete().eq('id', birth.id);
-    throw new Error('Borjú adatok mentése sikertelen: ' + calvesError.message);
-  }
-  
-  console.log('✅ Történeti ellés - calves táblába mentve temp_id-val:', calves.length + ' borjú');
-  console.log('💡 Most a modal-ban meg fog jelenni a borjú és össze lehet kapcsolni!');
-  
-  // 2. ANYA STÁTUSZ FRISSÍTÉSE (csak ha sikeres ellés volt)
-  if (formData.birth_outcome === 'successful' && formData.mother_survived) {
-    const updates: any = {
-      last_birth_date: formData.birth_date,
-      pregnancy_status: null,
-      expected_birth_date: null,
-      // ✅ ÚJ: has_given_birth mező hozzáadása!
-      has_given_birth: true
-    };
-
-    // Kategória váltási logika
-    const { data: motherData } = await supabase
-      .from('animals')
-      .select('kategoria')
-      .eq('enar', motherEnar)
-      .single();
-    
-    if (motherData?.kategoria === 'vemhes_üsző' || motherData?.kategoria === 'szűz_üsző') {
-      updates.kategoria = 'tehén';
-      console.log('🐄 Kategória váltás: ' + motherData.kategoria + ' → tehén');
-    }
-
-    // ✅ JAVÍTOTT: hibakezeléssel és logolással
-    const { error: motherUpdateError } = await supabase
-      .from('animals')
-      .update(updates)
-      .eq('enar', motherEnar);
-
-    if (motherUpdateError) {
-      console.error('❌ Történeti ellés - anya frissítése sikertelen:', motherUpdateError);
-    } else {
-      console.log('✅ Történeti ellés - anya állapota sikeresen frissítve (has_given_birth=true)');
-    }
-  }
-
-  // 3. SUCCESS CALLBACK ÉS KILÉPÉS
-  console.log('📋 Történeti ellés befejezve - manual összekapcsolás a modal-ban!');
-  if (onSuccess) {
-    onSuccess(birth);
-  }
-  return; // 🚨 KRITIKUS: Kilépés történeti ellés után!
-
-
-
-// 🔍 KERESÉSI SEGÍTSÉG:
-// 1. Keressd meg: "if (formData.historical) {"
-// 2. Vagy: "📚 TÖRTÉNETI ELLÉS"
-// 3. A teljes if blokkot cseréld le erre az új verzióra
-// 4. Ez biztosítja, hogy történeti elléshez is létrejöjjön calves rekord
-          
-        } else {
-          // 🆕 ÚJ ELLÉS: calves insert temp_id-val
-          console.log('🆕 Új ellés mód: borjak rögzítése temp_id-val...');
-          
-          // Insert calves
+          // 1. CALVES REKORDOK LÉTREHOZÁSA (mint új ellésnél)
           const calvesToInsert = formData.calves.map(calf => ({
             birth_id: birth.id,
             calf_number: calf.calf_number,
@@ -500,7 +415,7 @@ if (formData.historical) {
             gender: calf.gender,
             is_alive: calf.is_alive,
             birth_weight: calf.birth_weight,
-            
+
             // Copy father data from birth
             father_enar: formData.father_enar,
             father_kplsz: formData.father_kplsz,
@@ -519,7 +434,92 @@ if (formData.historical) {
             await supabase.from('births').delete().eq('id', birth.id);
             throw new Error('Borjú adatok mentése sikertelen: ' + calvesError.message);
           }
-          
+
+          console.log('✅ Történeti ellés - calves táblába mentve temp_id-val:', calves.length + ' borjú');
+          console.log('💡 Most a modal-ban meg fog jelenni a borjú és össze lehet kapcsolni!');
+
+          // 2. ANYA STÁTUSZ FRISSÍTÉSE (csak ha sikeres ellés volt)
+          if (formData.birth_outcome === 'successful' && formData.mother_survived) {
+            const updates: any = {
+              last_birth_date: formData.birth_date,
+              pregnancy_status: null,
+              expected_birth_date: null,
+              // ✅ ÚJ: has_given_birth mező hozzáadása!
+              has_given_birth: true
+            };
+
+            // Kategória váltási logika
+            const { data: motherData } = await supabase
+              .from('animals')
+              .select('kategoria')
+              .eq('enar', motherEnar)
+              .single();
+
+            if (motherData?.kategoria === 'vemhes_üsző' || motherData?.kategoria === 'szűz_üsző') {
+              updates.kategoria = 'tehén';
+              console.log('🐄 Kategória váltás: ' + motherData.kategoria + ' → tehén');
+            }
+
+            // ✅ JAVÍTOTT: hibakezeléssel és logolással
+            const { error: motherUpdateError } = await supabase
+              .from('animals')
+              .update(updates)
+              .eq('enar', motherEnar);
+
+            if (motherUpdateError) {
+              console.error('❌ Történeti ellés - anya frissítése sikertelen:', motherUpdateError);
+            } else {
+              console.log('✅ Történeti ellés - anya állapota sikeresen frissítve (has_given_birth=true)');
+            }
+          }
+
+          // 3. SUCCESS CALLBACK ÉS KILÉPÉS
+          console.log('📋 Történeti ellés befejezve - manual összekapcsolás a modal-ban!');
+          if (onSuccess) {
+            onSuccess(birth);
+          }
+          return; // 🚨 KRITIKUS: Kilépés történeti ellés után!
+
+
+
+          // 🔍 KERESÉSI SEGÍTSÉG:
+          // 1. Keressd meg: "if (formData.historical) {"
+          // 2. Vagy: "📚 TÖRTÉNETI ELLÉS"
+          // 3. A teljes if blokkot cseréld le erre az új verzióra
+          // 4. Ez biztosítja, hogy történeti elléshez is létrejöjjön calves rekord
+
+        } else {
+          // 🆕 ÚJ ELLÉS: calves insert temp_id-val
+          console.log('🆕 Új ellés mód: borjak rögzítése temp_id-val...');
+
+          // Insert calves
+          const calvesToInsert = formData.calves.map(calf => ({
+            birth_id: birth.id,
+            calf_number: calf.calf_number,
+            temp_id: generateTempId(motherEnar, calf.calf_number),
+            gender: calf.gender,
+            is_alive: calf.is_alive,
+            birth_weight: calf.birth_weight,
+
+            // Copy father data from birth
+            father_enar: formData.father_enar,
+            father_kplsz: formData.father_kplsz,
+            father_name: formData.father_name,
+            father_type: formData.father_type,
+            uncertain_paternity: formData.uncertain_paternity,
+            possible_fathers: formData.possible_fathers
+          }));
+
+          const { data: calves, error: calvesError } = await supabase
+            .from('calves')
+            .insert(calvesToInsert)
+            .select();
+
+          if (calvesError) {
+            await supabase.from('births').delete().eq('id', birth.id);
+            throw new Error('Borjú adatok mentése sikertelen: ' + calvesError.message);
+          }
+
           console.log('✅ Calves táblába mentve:', calves.length + ' borjú');
 
           // 🆕 INTELLIGENS ANYA KATEGÓRIA LOGIKA (ÉLŐ/HALOTT BORJÚ ALAPJÁN)
@@ -527,14 +527,14 @@ if (formData.historical) {
           console.log('🔍 Van élő borjú?', hasLivingCalf);
 
           await handleMotherCategoryLogic(motherEnar, hasLivingCalf);
-          
+
           // Success callback
           if (onSuccess) {
             onSuccess(birth);
           }
         }
       }
-      
+
     } catch (error) {
       console.error('Error submitting birth:', error);
       setErrors({ submit: error instanceof Error ? error.message : 'Hiba történt az ellés mentése során' });
@@ -564,14 +564,14 @@ if (formData.historical) {
 
       <div className="p-6">
         <form onSubmit={handleSubmit} className="space-y-8">
-          
+
           {/* Alapadatok */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
             <h3 className="col-span-full text-lg font-semibold text-gray-800 flex items-center gap-2">
               <CalendarDays className="h-5 w-5" />
               📅 Alapadatok
             </h3>
-            
+
             <div>
               <label htmlFor="birth_date" className="block text-sm font-medium text-gray-700 mb-1">
                 Ellés dátuma *
@@ -695,7 +695,7 @@ if (formData.historical) {
             )}
           </div>
 
-            {/* Tenyészbika adatok - VV-ből átvéve */}
+          {/* Tenyészbika adatok - VV-ből átvéve */}
           {prefillFromVV?.fatherData && (
             <div className="p-4 bg-green-50 rounded-lg">
               <h3 className="text-lg font-semibold text-green-800 flex items-center gap-2 mb-4">
@@ -825,7 +825,7 @@ if (formData.historical) {
                   <h4 className="font-semibold text-gray-800 mb-3">
                     {index + 1}. borjú (ID: {calf.temp_id})
                   </h4>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Ivar *</label>
@@ -884,8 +884,8 @@ if (formData.historical) {
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-6 border-t">
             {onCancel && (
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={onCancel}
                 className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
               >
@@ -893,14 +893,14 @@ if (formData.historical) {
                 Mégsem
               </button>
             )}
-            
-            <button 
-              type="submit" 
+
+            <button
+              type="submit"
               disabled={isSubmitting}
               className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
             >
               <Save className="h-4 w-4 inline mr-2" />
-              {isSubmitting 
+              {isSubmitting
                 ? (editMode ? 'Frissítés...' : 'Mentés...')
                 : (editMode ? '✏️ Módosítások mentése' : '💾 Ellés mentése')
               }

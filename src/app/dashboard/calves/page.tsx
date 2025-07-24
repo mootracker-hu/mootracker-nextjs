@@ -137,19 +137,19 @@ export default function CalvesPage() {
     const getProtocolStatus = (birthDate: string) => {
         const age = calculateAge(birthDate);
         // ✅ ÚJ - konstans használat:
-if (age <= CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS) {
-    return {
-        status: 'pending',
-        message: `${CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS - age} nap múlva: BoviPast + fülszám`,  // ← ÚJ
-        color: 'bg-yellow-100 text-yellow-800 border-yellow-200'
-    };
-} else {
-    return {
-        status: 'overdue',
-        message: `${age - CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS} napja túllépte: Sürgős protokoll!`,  // ← ÚJ
-        color: 'bg-red-100 text-red-800 border-red-200'
-    };
-}
+        if (age <= CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS) {
+            return {
+                status: 'pending',
+                message: `${CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS - age} nap múlva: BoviPast + fülszám`,  // ← ÚJ
+                color: 'bg-yellow-100 text-yellow-800 border-yellow-200'
+            };
+        } else {
+            return {
+                status: 'overdue',
+                message: `${age - CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS} napja túllépte: Sürgős protokoll!`,  // ← ÚJ
+                color: 'bg-red-100 text-red-800 border-red-200'
+            };
+        }
     };
 
     const fetchAvailablePens = async () => {
@@ -186,7 +186,7 @@ if (age <= CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS) {
 
             const { error: calfError } = await supabase
                 .from('calves')
-                .update({ 
+                .update({
                     is_alive: false,
                     updated_at: new Date().toISOString()
                 })
@@ -195,25 +195,25 @@ if (age <= CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS) {
             if (calfError) throw calfError;
 
             // 🆕 ELLÉSI REKORD FRISSÍTÉSE - KÉSŐBB ELPUSZTULT JELÖLÉS
-        if (dyingCalf.birth?.id) {
-            const { error: birthUpdateError } = await supabase
-                .from('births')
-                .update({ 
-                    calf_died_later: true,
-                    calf_death_date: deathFormData.death_date,
-                    calf_death_reason: deathFormData.death_reason,
-                    calf_death_notes: deathFormData.death_notes,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', dyingCalf.birth.id);
+            if (dyingCalf.birth?.id) {
+                const { error: birthUpdateError } = await supabase
+                    .from('births')
+                    .update({
+                        calf_died_later: true,
+                        calf_death_date: deathFormData.death_date,
+                        calf_death_reason: deathFormData.death_reason,
+                        calf_death_notes: deathFormData.death_notes,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', dyingCalf.birth.id);
 
-            if (birthUpdateError) {
-                console.error('⚠️ Birth update hiba:', birthUpdateError);
-                // Folytatjuk, mert a fő művelet (calf update) sikerült
-            } else {
-                console.log('✅ Ellési rekord frissítve: később elpusztult');
+                if (birthUpdateError) {
+                    console.error('⚠️ Birth update hiba:', birthUpdateError);
+                    // Folytatjuk, mert a fő művelet (calf update) sikerült
+                } else {
+                    console.log('✅ Ellési rekord frissítve: később elpusztult');
+                }
             }
-        }
 
             // Anya kategória visszaállítás
             const motherEnar = dyingCalf.birth?.mother_enar;
@@ -225,7 +225,7 @@ if (age <= CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS) {
             setIsDeathModalOpen(false);
             setDyingCalf(null);
             fetchCalves();
-            
+
             alert(`✅ ${dyingCalf.temp_id} borjú elpusztulása rögzítve!`);
 
         } catch (error) {
@@ -275,7 +275,7 @@ if (age <= CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS) {
             }
 
             // Van-e élő borja ennek az anyának?
-            const hasLivingCalfFromThisMother = livingCalves?.some(calf => 
+            const hasLivingCalfFromThisMother = livingCalves?.some(calf =>
                 births?.some(birth => birth.id === calf.birth_id)
             );
 
@@ -362,7 +362,7 @@ if (age <= CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS) {
         if (vv.possible_fathers && Array.isArray(vv.possible_fathers) && vv.possible_fathers.length > 0) {
             return vv.possible_fathers.map((father: any, index: number) => (
                 <div key={`father-${index}`} className="bg-white p-2 rounded border mb-1">
-                    🐂 {father.name || father.father_name || 'Névtelen'} 
+                    🐂 {father.name || father.father_name || 'Névtelen'}
                     {father.enar || father.father_enar ? ` (${father.enar || father.father_enar})` : ''}
                     {father.kplsz || father.father_kplsz ? ` - KPLSZ: ${father.kplsz || father.father_kplsz}` : ''}
                 </div>
@@ -372,7 +372,7 @@ if (age <= CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS) {
         // ✅ EGYÉRTELMŰ APA ESETÉN
         return (
             <div className="bg-white p-2 rounded border">
-                🐂 {vv.father_name || 'Névtelen'} 
+                🐂 {vv.father_name || 'Névtelen'}
                 {vv.father_enar ? ` (${vv.father_enar})` : ''}
                 {vv.father_kplsz ? ` - KPLSZ: ${vv.father_kplsz}` : ''}
             </div>
@@ -565,16 +565,16 @@ if (age <= CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS) {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-    {calf.is_alive ? (
-        <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 border-green-200">
-            ✅ Aktív
-        </span>
-    ) : (
-        <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600 border-gray-200">
-            ⏸️ Inaktív
-        </span>
-    )}
-</td>
+                                                {calf.is_alive ? (
+                                                    <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 border-green-200">
+                                                        ✅ Aktív
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600 border-gray-200">
+                                                        ⏸️ Inaktív
+                                                    </span>
+                                                )}
+                                            </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="text-sm">
                                                     {calf.planned_enar ? (
@@ -609,35 +609,35 @@ if (age <= CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS) {
                                             </td>
 
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-    <div className="flex items-center gap-2">
-        <button
-            className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700 hover:bg-green-50 px-2 py-1 rounded-md transition-colors"
-            onClick={() => {
-                setSelectedCalf(calf);
-                setIsEarTagModalOpen(true);
-            }}
-            title="Fülszám kezelése"
-        >
-            🏷️ <span className="hidden sm:inline">Fülszám</span>
-        </button>
-        
-        <button
-            className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-orange-600 hover:bg-orange-50 px-2 py-1 rounded-md transition-colors"
-            onClick={() => handleCalfDeath(calf)}
-            title="Borjú státuszának frissítése"
-        >
-            🔄 <span className="hidden sm:inline">Státusz frissítés</span>
-        </button>
-        
-        <button
-            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded-md transition-colors"
-            onClick={() => setSelectedCalfDetails(calf)}
-            title="Részletek megtekintése"
-        >
-            👁️ <span className="hidden sm:inline">Részletek</span>
-        </button>
-    </div>
-</td>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700 hover:bg-green-50 px-2 py-1 rounded-md transition-colors"
+                                                        onClick={() => {
+                                                            setSelectedCalf(calf);
+                                                            setIsEarTagModalOpen(true);
+                                                        }}
+                                                        title="Fülszám kezelése"
+                                                    >
+                                                        🏷️ <span className="hidden sm:inline">Fülszám</span>
+                                                    </button>
+
+                                                    <button
+                                                        className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-orange-600 hover:bg-orange-50 px-2 py-1 rounded-md transition-colors"
+                                                        onClick={() => handleCalfDeath(calf)}
+                                                        title="Borjú státuszának frissítése"
+                                                    >
+                                                        🔄 <span className="hidden sm:inline">Státusz frissítés</span>
+                                                    </button>
+
+                                                    <button
+                                                        className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded-md transition-colors"
+                                                        onClick={() => setSelectedCalfDetails(calf)}
+                                                        title="Részletek megtekintése"
+                                                    >
+                                                        👁️ <span className="hidden sm:inline">Részletek</span>
+                                                    </button>
+                                                </div>
+                                            </td>
                                         </tr>
                                     );
                                 })}
@@ -756,15 +756,15 @@ if (age <= CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS) {
                                         </h4>
                                         <div className="text-sm space-y-2">
                                             {/* ✅ POSSIBLE FATHERS ARRAY MEGJELENÍTÉS */}
-                                            {selectedCalfDetails.vv_result.possible_fathers && 
-                                             Array.isArray(selectedCalfDetails.vv_result.possible_fathers) && 
-                                             selectedCalfDetails.vv_result.possible_fathers.length > 1 ? (
+                                            {selectedCalfDetails.vv_result.possible_fathers &&
+                                                Array.isArray(selectedCalfDetails.vv_result.possible_fathers) &&
+                                                selectedCalfDetails.vv_result.possible_fathers.length > 1 ? (
                                                 <div>
                                                     <span className="text-gray-600">Lehetséges apák ({selectedCalfDetails.vv_result.possible_fathers.length}):</span>
                                                     <div className="font-medium space-y-1 mt-1">
                                                         {selectedCalfDetails.vv_result.possible_fathers.map((father: any, index: number) => (
                                                             <div key={`modal-father-${index}`} className="bg-white p-2 rounded border">
-                                                                🐂 {father.name || father.father_name || 'Névtelen'} 
+                                                                🐂 {father.name || father.father_name || 'Névtelen'}
                                                                 {father.enar || father.father_enar ? ` (${father.enar || father.father_enar})` : ''}
                                                                 {father.kplsz || father.father_kplsz ? ` - KPLSZ: ${father.kplsz || father.father_kplsz}` : ''}
                                                             </div>
@@ -774,42 +774,42 @@ if (age <= CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS) {
                                             ) : (
                                                 // ✅ EGYÉRTELMŰ APA VAGY ELSŐ APA
                                                 <>
-                                                    {(selectedCalfDetails.vv_result.father_name || 
-                                                      (selectedCalfDetails.vv_result.possible_fathers && selectedCalfDetails.vv_result.possible_fathers[0]?.name)) && (
-                                                        <div>
-                                                            <span className="text-gray-600">Tenyészbika név:</span>
-                                                            <div className="font-medium">
-                                                                {selectedCalfDetails.vv_result.father_name || 
-                                                                 selectedCalfDetails.vv_result.possible_fathers?.[0]?.name || 
-                                                                 selectedCalfDetails.vv_result.possible_fathers?.[0]?.father_name}
+                                                    {(selectedCalfDetails.vv_result.father_name ||
+                                                        (selectedCalfDetails.vv_result.possible_fathers && selectedCalfDetails.vv_result.possible_fathers[0]?.name)) && (
+                                                            <div>
+                                                                <span className="text-gray-600">Tenyészbika név:</span>
+                                                                <div className="font-medium">
+                                                                    {selectedCalfDetails.vv_result.father_name ||
+                                                                        selectedCalfDetails.vv_result.possible_fathers?.[0]?.name ||
+                                                                        selectedCalfDetails.vv_result.possible_fathers?.[0]?.father_name}
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    )}
-                                                    {(selectedCalfDetails.vv_result.father_enar || 
-                                                      (selectedCalfDetails.vv_result.possible_fathers && selectedCalfDetails.vv_result.possible_fathers[0]?.enar)) && (
-                                                        <div>
-                                                            <span className="text-gray-600">Tenyészbika ENAR:</span>
-                                                            <div className="font-medium">
-                                                                {selectedCalfDetails.vv_result.father_enar || 
-                                                                 selectedCalfDetails.vv_result.possible_fathers?.[0]?.enar ||
-                                                                 selectedCalfDetails.vv_result.possible_fathers?.[0]?.father_enar}
+                                                        )}
+                                                    {(selectedCalfDetails.vv_result.father_enar ||
+                                                        (selectedCalfDetails.vv_result.possible_fathers && selectedCalfDetails.vv_result.possible_fathers[0]?.enar)) && (
+                                                            <div>
+                                                                <span className="text-gray-600">Tenyészbika ENAR:</span>
+                                                                <div className="font-medium">
+                                                                    {selectedCalfDetails.vv_result.father_enar ||
+                                                                        selectedCalfDetails.vv_result.possible_fathers?.[0]?.enar ||
+                                                                        selectedCalfDetails.vv_result.possible_fathers?.[0]?.father_enar}
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    )}
-                                                    {(selectedCalfDetails.vv_result.father_kplsz || 
-                                                      (selectedCalfDetails.vv_result.possible_fathers && selectedCalfDetails.vv_result.possible_fathers[0]?.kplsz)) && (
-                                                        <div>
-                                                            <span className="text-gray-600">KPLSZ:</span>
-                                                            <div className="font-medium">
-                                                                {selectedCalfDetails.vv_result.father_kplsz || 
-                                                                 selectedCalfDetails.vv_result.possible_fathers?.[0]?.kplsz ||
-                                                                 selectedCalfDetails.vv_result.possible_fathers?.[0]?.father_kplsz}
+                                                        )}
+                                                    {(selectedCalfDetails.vv_result.father_kplsz ||
+                                                        (selectedCalfDetails.vv_result.possible_fathers && selectedCalfDetails.vv_result.possible_fathers[0]?.kplsz)) && (
+                                                            <div>
+                                                                <span className="text-gray-600">KPLSZ:</span>
+                                                                <div className="font-medium">
+                                                                    {selectedCalfDetails.vv_result.father_kplsz ||
+                                                                        selectedCalfDetails.vv_result.possible_fathers?.[0]?.kplsz ||
+                                                                        selectedCalfDetails.vv_result.possible_fathers?.[0]?.father_kplsz}
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    )}
+                                                        )}
                                                 </>
                                             )}
-                                            
+
                                             {selectedCalfDetails.vv_result.vv_date && (
                                                 <div>
                                                     <span className="text-gray-600">VV dátum:</span>
@@ -910,30 +910,30 @@ if (age <= CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS) {
                     </div>
                 </div>
             )}
-           {/* 🆕 Modern Státusz Frissítés Modal */}
+            {/* 🆕 Modern Státusz Frissítés Modal */}
             {isDeathModalOpen && dyingCalf && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white rounded-lg shadow-xl border max-w-md w-full mx-4">
                         <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-6 rounded-t-lg border-b">
-    <div className="flex items-center gap-3">
-        <span className="text-2xl">🔄</span>
-        <h3 className="text-xl font-bold text-orange-900">Borjú Státusz Frissítése</h3>
-    </div>
-    <p className="text-orange-700 mt-2">
-        {dyingCalf.temp_id} • Anya: {dyingCalf.birth?.mother_enar}
-    </p>
-</div>
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl">🔄</span>
+                                <h3 className="text-xl font-bold text-orange-900">Borjú Státusz Frissítése</h3>
+                            </div>
+                            <p className="text-orange-700 mt-2">
+                                {dyingCalf.temp_id} • Anya: {dyingCalf.birth?.mother_enar}
+                            </p>
+                        </div>
 
                         <div className="p-6 space-y-4">
                             {/* Dátum */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-    📅 Státusz változás dátuma *
-</label>
+                                    📅 Státusz változás dátuma *
+                                </label>
                                 <input
                                     type="date"
                                     value={deathFormData.death_date}
-                                    onChange={(e) => setDeathFormData(prev => ({...prev, death_date: e.target.value}))}
+                                    onChange={(e) => setDeathFormData(prev => ({ ...prev, death_date: e.target.value }))}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                                     required
                                 />
@@ -942,11 +942,11 @@ if (age <= CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS) {
                             {/* Ok */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-    ⚠️ Státusz változás oka *
-</label>
+                                    ⚠️ Státusz változás oka *
+                                </label>
                                 <select
                                     value={deathFormData.death_reason}
-                                    onChange={(e) => setDeathFormData(prev => ({...prev, death_reason: e.target.value}))}
+                                    onChange={(e) => setDeathFormData(prev => ({ ...prev, death_reason: e.target.value }))}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                                     required
                                 >
@@ -967,7 +967,7 @@ if (age <= CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS) {
                                 </label>
                                 <textarea
                                     value={deathFormData.death_notes}
-                                    onChange={(e) => setDeathFormData(prev => ({...prev, death_notes: e.target.value}))}
+                                    onChange={(e) => setDeathFormData(prev => ({ ...prev, death_notes: e.target.value }))}
                                     placeholder="További részletek a státusz változásról..."
                                     rows={3}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-none"
@@ -975,14 +975,14 @@ if (age <= CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS) {
                             </div>
 
                             <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-    <div className="flex items-start gap-2">
-        <span className="text-orange-600 text-lg">⚠️</span>
-        <div className="text-orange-800 text-sm">
-            <p className="font-medium">Figyelem!</p>
-            <p>Ez a művelet visszavonhatatlan. A borjú eltűnik a listából és az anya kategóriája visszaállhat.</p>
-        </div>
-    </div>
-</div>
+                                <div className="flex items-start gap-2">
+                                    <span className="text-orange-600 text-lg">⚠️</span>
+                                    <div className="text-orange-800 text-sm">
+                                        <p className="font-medium">Figyelem!</p>
+                                        <p>Ez a művelet visszavonhatatlan. A borjú eltűnik a listából és az anya kategóriája visszaállhat.</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Gombok */}
@@ -997,12 +997,12 @@ if (age <= CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS) {
                                 ❌ Mégsem
                             </button>
                             <button
-    onClick={executeCalfDeath}
-    disabled={!deathFormData.death_date || !deathFormData.death_reason}
-    className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
->
-    🔄 Státusz frissítése
-</button>
+                                onClick={executeCalfDeath}
+                                disabled={!deathFormData.death_date || !deathFormData.death_reason}
+                                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                🔄 Státusz frissítése
+                            </button>
                         </div>
                     </div>
                 </div>
