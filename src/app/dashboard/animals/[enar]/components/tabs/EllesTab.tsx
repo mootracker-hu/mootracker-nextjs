@@ -200,19 +200,21 @@ export default function EllesTab({ animal }: { animal: Animal }) {
     }
 
     try {
-      // 1. Borjú elpusztulásának rögzítése
-      await supabase
+      // 1. JAVÍTOTT - Borjú elpusztulásának rögzítése (CSAK is_alive!)
+      const { error: calfError } = await supabase
         .from('calves')
         .update({
-          is_alive: false,
-          death_date: deathDate,
-          death_reason: deathReason,
-          death_notes: deathNotes
+          is_alive: false  // ← CSAK EZ! A többi mező nem létezik!
         })
         .eq('id', dyingCalf.id);
 
+      if (calfError) {
+        console.error('❌ Calves update hiba:', calfError);
+        throw calfError;
+      }
+
       // 2. Ellés frissítése a "később elpusztult" jelzéssel
-      await supabase
+      const { error: birthError } = await supabase
         .from('births')
         .update({
           calf_died_later: true,
@@ -222,13 +224,25 @@ export default function EllesTab({ animal }: { animal: Animal }) {
         })
         .eq('id', dyingCalf.birth_id);
 
-      alert('✅ Borjú elpusztulása sikeresen rögzítve!');
+      if (birthError) {
+        console.error('❌ Births update hiba:', birthError);
+        throw birthError;
+      }
+
+      console.log('✅ Borjú státusz frissítve:', {
+        calfId: dyingCalf.id,
+        tempId: dyingCalf.temp_id,
+        newStatus: 'is_alive = false',
+        birthUpdated: 'calf_died_later = true'
+      });
+
+      alert('✅ Borjú státusza sikeresen frissítve!');
       setDyingCalf(null);
       refreshData();
 
     } catch (err) {
-      console.error('❌ Hiba az elpusztulás rögzítésekor:', err);
-      alert('❌ Hiba történt a rögzítés során!');
+      console.error('❌ Hiba a státusz frissítésekor:', err);
+      alert('❌ Hiba történt a státusz frissítése során!');
     }
   };
 
@@ -355,9 +369,9 @@ export default function EllesTab({ animal }: { animal: Animal }) {
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${birth.birth_type === 'easy_no_help' ? 'bg-green-100 text-green-800' :
-                          birth.birth_type === 'easy_with_help' ? 'bg-yellow-100 text-yellow-800' :
-                            birth.birth_type === 'difficult_help' ? 'bg-orange-100 text-orange-800' :
-                              'bg-red-100 text-red-800'
+                        birth.birth_type === 'easy_with_help' ? 'bg-yellow-100 text-yellow-800' :
+                          birth.birth_type === 'difficult_help' ? 'bg-orange-100 text-orange-800' :
+                            'bg-red-100 text-red-800'
                         }`}>
                         {birth.birth_type === 'easy_no_help' ? '🟢 Könnyű' :
                           birth.birth_type === 'easy_with_help' ? '🟡 Könnyű, segítséggel' :
@@ -367,8 +381,8 @@ export default function EllesTab({ animal }: { animal: Animal }) {
                     </td>
                     <td className="px-4 py-4">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${birth.birth_outcome === 'successful' ? 'bg-green-100 text-green-800' :
-                          birth.birth_outcome === 'stillborn' ? 'bg-red-100 text-red-800' :
-                            'bg-orange-100 text-orange-800'
+                        birth.birth_outcome === 'stillborn' ? 'bg-red-100 text-red-800' :
+                          'bg-orange-100 text-orange-800'
                         }`}>
                         {birth.birth_outcome === 'successful' ? '✅ Sikeres' :
                           birth.birth_outcome === 'stillborn' ? '💀 Halva születés' :
@@ -472,8 +486,8 @@ export default function EllesTab({ animal }: { animal: Animal }) {
                     <div>
                       <strong>Eredmény:</strong>
                       <span className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${selectedBirth.birth_outcome === 'successful' ? 'bg-green-100 text-green-800' :
-                          selectedBirth.birth_outcome === 'stillborn' ? 'bg-red-100 text-red-800' :
-                            'bg-orange-100 text-orange-800'
+                        selectedBirth.birth_outcome === 'stillborn' ? 'bg-red-100 text-red-800' :
+                          'bg-orange-100 text-orange-800'
                         }`}>
                         {selectedBirth.birth_outcome === 'successful' ? '✅ Sikeres' :
                           selectedBirth.birth_outcome === 'stillborn' ? '💀 Halva születés' :
@@ -769,7 +783,23 @@ export default function EllesTab({ animal }: { animal: Animal }) {
 
                       if (animalError) throw animalError;
 
-                      // 3. Siker!
+                      // 3. HIÁNYZÓ RÉSZ: Anya has_given_birth = true beállítása
+                      const motherEnar = selectedBirth?.mother_enar;
+                      if (motherEnar) {
+                        const { error: motherError } = await supabase
+                          .from('animals')
+                          .update({ has_given_birth: true })
+                          .eq('enar', motherEnar);
+
+                        if (motherError) {
+                          console.error('⚠️ Anya has_given_birth update hiba:', motherError);
+                          // Folytatjuk, mert a fő művelet sikerült
+                        } else {
+                          console.log('✅ Anya has_given_birth = true beállítva:', motherEnar);
+                        }
+                      }
+
+                      // 4. Siker!
                       alert(`✅ Sikeresen összekapcsoltad!\n${assigningEarTag.temp_id} → ${selectedAnimalEnar}`);
                       setAssigningEarTag(null);
                       refreshData();
