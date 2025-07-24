@@ -599,17 +599,17 @@ export default function EllesTab({ animal }: { animal: Animal }) {
                           </div>
                         )}
 
-                        {/* 🆕 KÉSŐBB ELPUSZTULT GOMB */}
-                        {calf.is_alive && (
-                          <div className="mt-3 pt-2 border-t">
-                            <button 
-                              onClick={() => handleCalfDeath(calf)} 
-                              className="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1 rounded"
-                            >
-                              💀 Elpusztult
-                            </button>
-                          </div>
-                        )}
+                        {/* 🆕 STÁTUSZ FRISSÍTÉS GOMB */}
+{calf.is_alive && (
+  <div className="mt-3 pt-2 border-t">
+    <button 
+      onClick={() => handleCalfDeath(calf)} 
+      className="bg-orange-500 hover:bg-orange-600 text-white text-xs px-3 py-1 rounded"
+    >
+      🔄 Státusz frissítés
+    </button>
+  </div>
+)}
                       </div>
                     ))}
                   </div>
@@ -793,15 +793,15 @@ export default function EllesTab({ animal }: { animal: Animal }) {
         </div>
       )}
 
-      {/* 🆕 KÉSŐBB ELPUSZTULT MODAL */}
-      {dyingCalf && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-sm border max-w-md w-full mx-4">
-            <div className="p-6">
-              <div className="flex items-center mb-4">
-                <span className="text-2xl mr-3">💀</span>
-                <h3 className="text-lg font-semibold text-gray-900">Borjú Elpusztulása</h3>
-              </div>
+      {/* 🆕 STÁTUSZ FRISSÍTÉS MODAL */}
+{dyingCalf && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white rounded-lg shadow-sm border max-w-md w-full mx-4">
+      <div className="p-6">
+        <div className="flex items-center mb-4">
+          <span className="text-2xl mr-3">🔄</span>
+          <h3 className="text-lg font-semibold text-gray-900">Borjú Státusz Frissítése</h3>
+        </div>
               
               <div className="mb-4">
                 <p className="text-sm text-gray-600 mb-2">
@@ -859,11 +859,11 @@ export default function EllesTab({ animal }: { animal: Animal }) {
                   Mégse
                 </button>
                 <button 
-                  onClick={confirmCalfDeath} 
-                  className="bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-lg"
-                >
-                  💀 Elpusztulás rögzítése
-                </button>
+  onClick={confirmCalfDeath} 
+  className="bg-orange-600 hover:bg-orange-700 text-white font-medium px-4 py-2 rounded-lg"
+>
+  🔄 Státusz frissítése
+</button>
               </div>
             </div>
           </div>

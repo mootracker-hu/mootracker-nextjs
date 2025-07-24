@@ -565,16 +565,16 @@ if (age <= CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS) {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                {calf.is_alive ? (
-                                                    <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 border-green-200">
-                                                        ✅ Élő
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 border-red-200">
-                                                        💀 Elpusztult
-                                                    </span>
-                                                )}
-                                            </td>
+    {calf.is_alive ? (
+        <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 border-green-200">
+            ✅ Aktív
+        </span>
+    ) : (
+        <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600 border-gray-200">
+            ⏸️ Inaktív
+        </span>
+    )}
+</td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="text-sm">
                                                     {calf.planned_enar ? (
@@ -609,29 +609,35 @@ if (age <= CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS) {
                                             </td>
 
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                <button
-                                                    className="text-green-600 hover:text-green-900 mr-3"
-                                                    onClick={() => {
-                                                        setSelectedCalf(calf);
-                                                        setIsEarTagModalOpen(true);
-                                                    }}
-                                                >
-                                                    🏷️ Fülszám
-                                                </button>
-                                                <button
-                                                    className="text-red-600 hover:text-red-900 mr-3"
-                                                    onClick={() => handleCalfDeath(calf)}
-                                                    title="Borjú elpusztulásának rögzítése"
-                                                >
-                                                    💀 Elpusztult
-                                                </button>
-                                                <button
-                                                    className="text-blue-600 hover:text-blue-900"
-                                                    onClick={() => setSelectedCalfDetails(calf)}
-                                                >
-                                                    👁️ Részletek
-                                                </button>
-                                            </td>
+    <div className="flex items-center gap-2">
+        <button
+            className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700 hover:bg-green-50 px-2 py-1 rounded-md transition-colors"
+            onClick={() => {
+                setSelectedCalf(calf);
+                setIsEarTagModalOpen(true);
+            }}
+            title="Fülszám kezelése"
+        >
+            🏷️ <span className="hidden sm:inline">Fülszám</span>
+        </button>
+        
+        <button
+            className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-orange-600 hover:bg-orange-50 px-2 py-1 rounded-md transition-colors"
+            onClick={() => handleCalfDeath(calf)}
+            title="Borjú státuszának frissítése"
+        >
+            🔄 <span className="hidden sm:inline">Státusz frissítés</span>
+        </button>
+        
+        <button
+            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded-md transition-colors"
+            onClick={() => setSelectedCalfDetails(calf)}
+            title="Részletek megtekintése"
+        >
+            👁️ <span className="hidden sm:inline">Részletek</span>
+        </button>
+    </div>
+</td>
                                         </tr>
                                     );
                                 })}
@@ -904,31 +910,31 @@ if (age <= CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS) {
                     </div>
                 </div>
             )}
-            {/* 🆕 Modern Elpusztulás Modal */}
+           {/* 🆕 Modern Státusz Frissítés Modal */}
             {isDeathModalOpen && dyingCalf && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white rounded-lg shadow-xl border max-w-md w-full mx-4">
-                        <div className="bg-gradient-to-r from-red-50 to-orange-50 p-6 rounded-t-lg border-b">
-                            <div className="flex items-center gap-3">
-                                <span className="text-2xl">💀</span>
-                                <h3 className="text-xl font-bold text-red-900">Borjú Elpusztulása</h3>
-                            </div>
-                            <p className="text-red-700 mt-2">
-                                {dyingCalf.temp_id} • Anya: {dyingCalf.birth?.mother_enar}
-                            </p>
-                        </div>
+                        <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-6 rounded-t-lg border-b">
+    <div className="flex items-center gap-3">
+        <span className="text-2xl">🔄</span>
+        <h3 className="text-xl font-bold text-orange-900">Borjú Státusz Frissítése</h3>
+    </div>
+    <p className="text-orange-700 mt-2">
+        {dyingCalf.temp_id} • Anya: {dyingCalf.birth?.mother_enar}
+    </p>
+</div>
 
                         <div className="p-6 space-y-4">
                             {/* Dátum */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    📅 Elpusztulás dátuma *
-                                </label>
+    📅 Státusz változás dátuma *
+</label>
                                 <input
                                     type="date"
                                     value={deathFormData.death_date}
                                     onChange={(e) => setDeathFormData(prev => ({...prev, death_date: e.target.value}))}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                                     required
                                 />
                             </div>
@@ -936,12 +942,12 @@ if (age <= CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS) {
                             {/* Ok */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    ⚠️ Elpusztulás oka *
-                                </label>
+    ⚠️ Státusz változás oka *
+</label>
                                 <select
                                     value={deathFormData.death_reason}
                                     onChange={(e) => setDeathFormData(prev => ({...prev, death_reason: e.target.value}))}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                                     required
                                 >
                                     <option value="">Válassz okot...</option>
@@ -962,22 +968,21 @@ if (age <= CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS) {
                                 <textarea
                                     value={deathFormData.death_notes}
                                     onChange={(e) => setDeathFormData(prev => ({...prev, death_notes: e.target.value}))}
-                                    placeholder="További részletek az elpusztulásról..."
+                                    placeholder="További részletek a státusz változásról..."
                                     rows={3}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-none"
                                 />
                             </div>
 
-                            {/* Figyelmeztetés */}
-                            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                                <div className="flex items-start gap-2">
-                                    <span className="text-red-600 text-lg">⚠️</span>
-                                    <div className="text-red-800 text-sm">
-                                        <p className="font-medium">Figyelem!</p>
-                                        <p>Ez a művelet visszavonhatatlan. A borjú eltűnik a listából és az anya kategóriája visszaállhat.</p>
-                                    </div>
-                                </div>
-                            </div>
+                            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+    <div className="flex items-start gap-2">
+        <span className="text-orange-600 text-lg">⚠️</span>
+        <div className="text-orange-800 text-sm">
+            <p className="font-medium">Figyelem!</p>
+            <p>Ez a művelet visszavonhatatlan. A borjú eltűnik a listából és az anya kategóriája visszaállhat.</p>
+        </div>
+    </div>
+</div>
                         </div>
 
                         {/* Gombok */}
@@ -992,12 +997,12 @@ if (age <= CALF_CONSTANTS.PROTOCOL_DEADLINE_DAYS) {
                                 ❌ Mégsem
                             </button>
                             <button
-                                onClick={executeCalfDeath}
-                                disabled={!deathFormData.death_date || !deathFormData.death_reason}
-                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            >
-                                💀 Elpusztulás rögzítése
-                            </button>
+    onClick={executeCalfDeath}
+    disabled={!deathFormData.death_date || !deathFormData.death_reason}
+    className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+>
+    🔄 Státusz frissítése
+</button>
                         </div>
                     </div>
                 </div>
