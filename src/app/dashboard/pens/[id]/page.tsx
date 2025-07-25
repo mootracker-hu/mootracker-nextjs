@@ -15,7 +15,8 @@ import { useAlertsNew } from '@/hooks/useAlertsNew';
 import { PenAlertsWidget } from '../components/pen-alerts-widget';
 import * as XLSX from 'xlsx';
 // A többi import után, körülbelül a 12. sor környékén:
-import TeljesKaramTortenelem from '@/components/TeljesKaramTortenelem';
+//import TeljesKaramTortenelem from '@/components/TeljesKaramTortenelem';
+// Add hozzá ezt a többi import után:
 import HaremDashboard from '@/components/HaremDashboard';
 import PenEventsTab from '@/components/PenEventsTab';
 import PenHistoryTab from '@/components/PenHistoryTab';
@@ -122,6 +123,8 @@ export default function PenDetailsPage() {
         loading,
         hasData: !!pen
     });
+
+    // És a komponens használata előtt inicializáld:
 
     // Data loading effects
     useEffect(() => {

@@ -6,6 +6,8 @@ import { supabase } from '@/lib/supabase';
 import PenHistoryCard from './PenHistoryCard';
 import AddHistoricalPeriod from './AddHistoricalPeriod';
 import EditHistoricalPeriod from './EditHistoricalPeriod'; // ÚJ IMPORT
+//import SmartTeljesKaramTortenelem from './SmartTeljesKaramTortenelem';
+
 import { 
   broadcastManualPeriodAdded, 
   broadcastPenHistoryUpdate,
@@ -153,7 +155,7 @@ export default function PenHistoryTab({
     );
   }
 
-  return (
+return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
