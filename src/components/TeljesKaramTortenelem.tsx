@@ -36,6 +36,13 @@ interface TenyeszBika {
     active: boolean;
 }
 
+interface AssignmentResult {
+    success: boolean;
+    message: string;
+    addedBulls: number;
+    errors?: string[];
+}
+
 interface FormData {
     datum: string;
     idopont: string;
@@ -63,143 +70,174 @@ interface TeljesKaramTortenelemProps {
 // 🚀 1. LÉPÉS: Illeszd be ezt a funkciót a TeljesKaramTortenelem.tsx fájlba
 // HELYE: A komponens ELŐTT, de az interface-ek UTÁN
 
-// ✅ ÚJ FUNKCIÓ - FIZIKAI TENYÉSZBIKA HOZZÁRENDELÉS
+/**
+ * 🐂 FIZIKAI TENYÉSZBIKA HOZZÁRENDELÉS KARÁMHOZ
+ * 
+ * Automatikus tenyészbika fizikai jelenlét biztosítása a megadott karámban.
+ * Kezeli a régi hozzárendelések lezárását és új hozzárendelések létrehozását.
+ * 
+ * @param selectedBulls - Kiválasztott tenyészbikák listája (TenyeszBika[])
+ * @param penId - Célkarám azonosítója (string)
+ * @param isHistorical - Történeti esemény jelzője (boolean, default: false)
+ * @returns Promise<AssignmentResult> - Hozzárendelés eredménye
+ */
 const handleBullPhysicalAssignment = async (
-  selectedBulls: any[], 
-  penId: string,
-  isHistorical: boolean = false
-): Promise<{ success: boolean; message: string; addedBulls: number }> => {
-  try {
-    console.log('🐂 Karám történet: Tenyészbika fizikai hozzárendelés...', {
-      bulls: selectedBulls.length,
-      penId,
-      isHistorical
-    });
+    selectedBulls: TenyeszBika[],
+    penId: string,
+    isHistorical: boolean = false
+): Promise<AssignmentResult> => {
+    try {
 
-    if (selectedBulls.length === 0) {
-      return { success: true, message: 'Nincs kiválasztott tenyészbika', addedBulls: 0 };
-    }
+        if (selectedBulls.length === 0) {
+            return {
+                success: true,
+                message: 'Nincs kiválasztott tenyészbika',
+                addedBulls: 0
+            } as AssignmentResult;
+        }
 
-    let addedCount = 0;
+        let successfullyAddedCount = 0;
+        const errors: string[] = [];
 
-    // Minden kiválasztott bika fizikai hozzárendelése
-    for (const bull of selectedBulls) {
-      try {
-        // 1. Ellenőrizzük, hogy már hozzá van-e rendelve
-        const { data: existingAssignment, error: checkError } = await supabase
-          .from('animal_pen_assignments')
-          .select(`
+        // 🔥 OPTIMALIZÁLÁS: Minden bika ID-ját egy lekérdezésben szerezzük meg
+        const bullEnars = selectedBulls.map(bull => bull.enar);
+        const { data: allBullData, error: bullDataError } = await supabase
+            .from('animals')
+            .select('id, enar')
+            .in('enar', bullEnars)
+            .eq('kategoria', 'tenyészbika');
+
+        if (bullDataError) {
+            console.error('❌ Bikák batch lekérdezési hiba:', bullDataError);
+            return {
+                success: false,
+                message: `Bikák lekérdezési hiba: ${bullDataError.message}`,
+                addedBulls: 0
+            } as AssignmentResult;
+        }
+
+        // Enar -> ID mapping létrehozása
+        const enarToIdMap = new Map<string, number>();
+        allBullData?.forEach(bull => {
+            enarToIdMap.set(bull.enar, bull.id);
+        });
+
+        // Minden kiválasztott bika fizikai hozzárendelése
+        for (const bull of selectedBulls) {
+            try {
+                // 1. Ellenőrizzük, hogy már hozzá van-e rendelve
+                const { data: existingAssignment, error: checkError } = await supabase
+                    .from('animal_pen_assignments')
+                    .select(`
             id,
             animals!inner(enar)
           `)
-          .eq('pen_id', penId)
-          .eq('animals.enar', bull.enar)
-          .is('removed_at', null)
-          .limit(1);
+                    .eq('pen_id', penId)
+                    .eq('animals.enar', bull.enar)
+                    .is('removed_at', null)
+                    .limit(1);
 
-        if (checkError) {
-          console.error(`❌ Bika ellenőrzési hiba: ${bull.name}`, checkError);
-          continue;
+                if (checkError) {
+                    const errorMsg = `Bika ellenőrzési hiba: ${bull.name} - ${checkError.message}`;
+                    console.error('❌', errorMsg);
+                    errors.push(errorMsg);
+                    continue; // Folytatjuk a többi bikával
+                }
+
+                if (existingAssignment && existingAssignment.length > 0) {
+                    continue;
+                }
+
+                // 2. Tenyészbika ID megkeresése (optimalizált)
+                const animalId = enarToIdMap.get(bull.enar);
+                if (!animalId) {
+                    const error = `Tenyészbika nem található: ${bull.enar}`;
+                    console.error('❌', error);
+                    errors.push(error);
+                    continue;
+                }
+
+                // 3. Régi assignment-ok lezárása (más karámokból)
+                const { error: removeError } = await supabase
+                    .from('animal_pen_assignments')
+                    .update({
+                        removed_at: new Date().toISOString(),
+                        removal_reason: 'karám_történet_áthelyezés'
+                    })
+                    .eq('animal_id', animalId)
+                    .is('removed_at', null);
+
+                if (removeError) {
+                    console.error(`❌ Régi assignment lezárási hiba: ${bull.name}`, removeError);
+                }
+
+                // 4. Új fizikai assignment létrehozása
+                const { error: assignError } = await supabase
+                    .from('animal_pen_assignments')
+                    .insert({
+                        animal_id: animalId,
+                        pen_id: penId,
+                        assigned_at: new Date().toISOString(),
+                        assignment_reason: isHistorical ? 'karám_történet_rögzítés' : 'tenyészbika_hozzárendelés',
+                        notes: `Karám történetből hozzárendelve: ${bull.name} (${bull.enar})`
+                    });
+
+                if (assignError) {
+                    console.error(`❌ Fizikai assignment hiba: ${bull.name}`, assignError);
+                    continue;
+                }
+
+                // 5. Animals tábla frissítése
+                const { data: penData } = await supabase
+                    .from('pens')
+                    .select('pen_number')
+                    .eq('id', penId)
+                    .single();
+
+                if (penData) {
+                    await supabase
+                        .from('animals')
+                        .update({ jelenlegi_karam: penData.pen_number })
+                        .eq('id', animalId);
+                }
+
+                // 6. Esemény rögzítése
+                await supabase
+                    .from('animal_events')
+                    .insert({
+                        animal_id: animalId,
+                        event_type: 'pen_movement',
+                        event_date: new Date().toISOString().split('T')[0],
+                        event_time: new Date().toISOString().split('T')[1].substring(0, 8),
+                        pen_id: penId,
+                        reason: 'Karám történet rögzítés',
+                        notes: `Tenyészbika hozzárendelés karám történetből: ${bull.name}`,
+                        is_historical: isHistorical
+                    });
+
+                successfullyAddedCount++;
+
+            } catch (bullError) {
+                console.error(`💥 Bika hozzárendelési exception: ${bull.name}`, bullError);
+            }
         }
 
-        if (existingAssignment && existingAssignment.length > 0) {
-          console.log(`ℹ️ Bika már hozzárendelve: ${bull.name}`);
-          continue;
-        }
+        return {
+            success: true,
+            message: `${successfullyAddedCount}/${selectedBulls.length} tenyészbika fizikailag hozzárendelve`,
+            addedBulls: successfullyAddedCount,
+            errors: errors.length > 0 ? errors : undefined
+        };
 
-        // 2. Tenyészbika ID megkeresése
-        const { data: animalData, error: animalError } = await supabase
-          .from('animals')
-          .select('id')
-          .eq('enar', bull.enar)
-          .eq('kategoria', 'tenyészbika')
-          .single();
-
-        if (animalError || !animalData) {
-          console.error(`❌ Tenyészbika nem található: ${bull.enar}`, animalError);
-          continue;
-        }
-
-        // 3. Régi assignment-ok lezárása (más karámokból)
-        const { error: removeError } = await supabase
-          .from('animal_pen_assignments')
-          .update({ 
-            removed_at: new Date().toISOString(),
-            removal_reason: 'karám_történet_áthelyezés'
-          })
-          .eq('animal_id', animalData.id)
-          .is('removed_at', null);
-
-        if (removeError) {
-          console.error(`❌ Régi assignment lezárási hiba: ${bull.name}`, removeError);
-        }
-
-        // 4. Új fizikai assignment létrehozása
-        const { error: assignError } = await supabase
-          .from('animal_pen_assignments')
-          .insert({
-            animal_id: animalData.id,
-            pen_id: penId,
-            assigned_at: new Date().toISOString(),
-            assignment_reason: isHistorical ? 'karám_történet_rögzítés' : 'tenyészbika_hozzárendelés',
-            notes: `Karám történetből hozzárendelve: ${bull.name} (${bull.enar})`
-          });
-
-        if (assignError) {
-          console.error(`❌ Fizikai assignment hiba: ${bull.name}`, assignError);
-          continue;
-        }
-
-        // 5. Animals tábla frissítése
-        const { data: penData } = await supabase
-          .from('pens')
-          .select('pen_number')
-          .eq('id', penId)
-          .single();
-
-        if (penData) {
-          await supabase
-            .from('animals')
-            .update({ jelenlegi_karam: penData.pen_number })
-            .eq('id', animalData.id);
-        }
-
-        // 6. Esemény rögzítése
-        await supabase
-          .from('animal_events')
-          .insert({
-            animal_id: animalData.id,
-            event_type: 'pen_movement',
-            event_date: new Date().toISOString().split('T')[0],
-            event_time: new Date().toISOString().split('T')[1].substring(0, 8),
-            pen_id: penId,
-            reason: 'Karám történet rögzítés',
-            notes: `Tenyészbika hozzárendelés karám történetből: ${bull.name}`,
-            is_historical: isHistorical
-          });
-
-        addedCount++;
-        console.log(`✅ Tenyészbika fizikailag hozzárendelve: ${bull.name}`);
-
-      } catch (bullError) {
-        console.error(`💥 Bika hozzárendelési exception: ${bull.name}`, bullError);
-      }
+    } catch (error) {
+        console.error('💥 handleBullPhysicalAssignment hiba:', error);
+        return {
+            success: false,
+            message: `Tenyészbika hozzárendelési hiba: ${(error as Error).message}`,
+            addedBulls: 0,
+            errors: [`Kritikus hiba: ${(error as Error).message}`]
+        } as AssignmentResult;
     }
-
-    return {
-      success: true,
-      message: `${addedCount}/${selectedBulls.length} tenyészbika fizikailag hozzárendelve`,
-      addedBulls: addedCount
-    };
-
-  } catch (error) {
-    console.error('💥 handleBullPhysicalAssignment hiba:', error);
-    return {
-      success: false,
-      message: `Tenyészbika hozzárendelési hiba: ${(error as Error).message}`,
-      addedBulls: 0
-    };
-  }
 };
 
 const TeljesKaramTortenelem: React.FC<TeljesKaramTortenelemProps> = ({
@@ -236,22 +274,15 @@ const TeljesKaramTortenelem: React.FC<TeljesKaramTortenelemProps> = ({
 
     // 🔹 LOAD DATA ON MOUNT
     // ÚJ:
-useEffect(() => {
-    console.log('🔄 TeljesKaramTortenelem mount - egyszeri betöltés', { animalId, mode });
-    loadAllData();
-}, []); // ← ÜRES dependency array!
+    useEffect(() => {
+        loadAllData();
+    }, []); // ← ÜRES dependency array!
 
     // 🔹 COMPREHENSIVE DATA LOADING
     const loadAllData = async () => {
         try {
             setLoading(true);
             setError(null);
-
-            console.log('🔄 Teljes adatbetöltés kezdése...', {
-                penId,
-                animalId,
-                mode
-            });
 
             // KRITIKUS DEBUG: Ha nincs animalId, ne futassunk semmit!
             if (!animalId && mode === 'animal') {
@@ -288,23 +319,13 @@ useEffect(() => {
 
             // KRITIKUS DEBUG: Karám szűrés
             if (penId) {
-                console.log('🔍 Karám szűrés aktív, penId:', penId);
                 eventsQuery = eventsQuery.eq('pen_id', penId);
             }
             if (animalId) {
-                console.log('🔍 Állat szűrés aktív, animalId:', animalId);
                 eventsQuery = eventsQuery.eq('animal_id', animalId);
             }
 
             const { data: events, error: eventsError } = await eventsQuery;
-
-            console.log('📊 Animal events lekérdezés eredménye (egyszerűsített):', {
-                penId,
-                animalId,
-                eventsCount: events?.length || 0,
-                error: eventsError?.message || 'nincs',
-                sampleEvent: events?.[0] // Első esemény debug-hoz
-            });
 
             if (!eventsError && events) {
                 // KÜLÖN lekérdezések az állat és karám nevekhez
@@ -383,23 +404,13 @@ useEffect(() => {
 
             // KRITIKUS DEBUG: Movements szűrés
             if (penId) {
-                console.log('🔍 Movements karám szűrés, penId:', penId);
                 movementsQuery = movementsQuery.or(`from_pen_id.eq.${penId},to_pen_id.eq.${penId}`);
             }
             if (animalId) {
-                console.log('🔍 Movements állat szűrés, animalId:', animalId);
                 movementsQuery = movementsQuery.eq('animal_id', animalId);
             }
 
             const { data: movements, error: movementsError } = await movementsQuery;
-
-            console.log('📊 Animal movements lekérdezés eredménye:', {
-                penId,
-                animalId,
-                movementsCount: movements?.length || 0,
-                error: movementsError?.message || 'nincs',
-                movements: movements?.slice(0, 3) // Első 3 mozgatás debug-hoz
-            });
 
             if (!movementsError && movements) {
                 // Karám nevek betöltése a movements-hez
@@ -457,7 +468,6 @@ useEffect(() => {
                     // 1. animal_events prioritást élvez movements-hez képest
                     if (event.forrás === 'animal_events' && existing.forrás === 'animal_movements') {
                         uniqueEvents.set(uniqueKey, event);
-                        console.log('🔄 Duplikátum felülírva (events > movements):', uniqueKey);
                     }
                     // 2. Újabb esemény prioritást élvez régebbivel szemben
                     else if (event.forrás === existing.forrás) {
@@ -466,26 +476,16 @@ useEffect(() => {
 
                         if (eventId > existingId) {
                             uniqueEvents.set(uniqueKey, event);
-                            console.log('🔄 Duplikátum felülírva (újabb esemény):', uniqueKey);
                         } else {
-                            console.log('🚫 Duplikátum eldobva (régebbi esemény):', uniqueKey);
                         }
                     }
                     // 3. Movements eldobása ha events van
                     else {
-                        console.log('🚫 Duplikátum eldobva (movements < events):', uniqueKey);
                     }
                 }
             });
 
             const finalEvents = Array.from(uniqueEvents.values());
-
-            console.log('✅ DUPLIKÁTUM SZŰRÉS EREDMÉNYE:', {
-                totalEvents: kombinalt.length,
-                uniqueEvents: finalEvents.length,
-                duplicatesRemoved: kombinalt.length - finalEvents.length
-            });
-
 
             // Időrendi rendezés - LEGFRISSEBB ELSŐ!
             finalEvents.sort((a, b) => {
@@ -498,20 +498,6 @@ useEffect(() => {
             await loadVVResults(kombinalt);
 
             setKombinaltEsemenyek(kombinalt);
-
-            console.log('✅ FINAL KOMBINÁLT ESEMÉNYEK:', {
-                totalEvents: kombinalt.length,
-                penId,
-                animalId,
-                mode,
-                sampleEvents: kombinalt.slice(0, 2).map(e => ({
-                    id: e.id,
-                    datum: e.datum,
-                    animal_enar: e.animal_enar,
-                    pen_number: e.pen_number,
-                    funkci: e.funkci
-                }))
-            });
 
             // Jelenlegi karám frissítése
             updateCurrentPen(kombinalt);
@@ -533,14 +519,6 @@ useEffect(() => {
     const startIndex = (currentPage - 1) * eventsPerPage;
     const currentEvents = filteredEvents.slice(startIndex, startIndex + eventsPerPage);
 
-    console.log('📊 Pagination info:', {
-        total: kombinaltEsemenyek.length,
-        filtered: filteredEvents.length,
-        currentPage,
-        totalPages,
-        showing: currentEvents.length
-    });
-
     // 🔬 VV EREDMÉNYEK BETÖLTÉSE
     const loadVVResults = async (events: KombinaltEsemeny[]) => {
         if (!animalId) return;
@@ -554,12 +532,10 @@ useEffect(() => {
                 .single();
 
             if (animalError || !animalData) {
-                console.log('❌ Állat ENAR nem található:', animalError);
                 return;
             }
 
             const animalEnar = animalData.enar as string;
-            console.log('🐄 Állat ENAR:', animalEnar);
 
             // VV eredmények lekérdezése ENAR alapján
             const { data: vvResults, error } = await supabase
@@ -569,11 +545,8 @@ useEffect(() => {
                 .order('vv_date', { ascending: false });
 
             if (error || !vvResults) {
-                console.log('❌ VV eredmények nem találhatók:', error);
                 return;
             }
-
-            console.log('📊 VV eredmények betöltve:', vvResults);
 
             // VV eredmények hozzárendelése a hárem eseményekhez
             events.forEach(event => {
@@ -583,18 +556,14 @@ useEffect(() => {
                         new Date(event.function_metadata.pairing_start_date) :
                         new Date(event.datum);
 
-                    console.log(`🔍 Hárem esemény ${event.datum}, hárem kezdete: ${haremKezdete.toISOString().split('T')[0]}`);
-
                     // Hárem kezdete után első VV eredmény keresése
                     const relevantVV = vvResults.find((vv: any) => {
                         const vvDate = new Date(vv.vv_date);
                         const isAfterStart = vvDate >= haremKezdete;
-                        console.log(`  VV ${vv.vv_date}: ${isAfterStart ? 'RELEVÁNS' : 'korábbi'} (${vv.pregnancy_status})`);
                         return isAfterStart;
                     });
 
                     if (relevantVV) {
-                        console.log(`✅ VV eredmény találva: ${relevantVV.vv_date} - ${relevantVV.pregnancy_status}`);
                         // VV eredmény hozzáadása a metadata-hoz
                         if (!event.function_metadata) event.function_metadata = {};
                         event.function_metadata.vv_result = {
@@ -603,7 +572,6 @@ useEffect(() => {
                             days: relevantVV.vv_result_days
                         };
                     } else {
-                        console.log('❌ Nincs releváns VV eredmény ehhez a háremhez');
                     }
                 }
             });
@@ -614,49 +582,39 @@ useEffect(() => {
     };
 
     // 🔹 UPDATE CURRENT PEN - LOOP FIX
-const updateCurrentPen = async (events: KombinaltEsemeny[]) => {
-    // KARÁM MÓDBAN: Nem frissítjük az állat jelenlegi karám mezőjét
-    // mert az végtelen loop-ot okoz a szülő komponens újratöltésével
+    const updateCurrentPen = async (events: KombinaltEsemeny[]) => {
+        // KARÁM MÓDBAN: Nem frissítjük az állat jelenlegi karám mezőjét
+        // mert az végtelen loop-ot okoz a szülő komponens újratöltésével
 
-    if (events.length > 0 && mode === 'animal' && animalId) {
-        // EGYSZERI FUTTATÁS BIZTOSÍTÁSA
-        if ((window as any).karamUpdateRunning) {
-            console.log('⚠️ updateCurrentPen már fut - kihagyva a duplikáció elkerülése érdekében');
-            return;
-        }
-
-        try {
-            (window as any).karamUpdateRunning = true;
-            const latestEvent = events[0];
-
-            const { error } = await supabase
-                .from('animals')
-                .update({
-                    jelenlegi_karam: latestEvent.pen_number
-                })
-                .eq('id', animalId);
-
-            if (!error) {
-                console.log('✅ Állat jelenlegi karám frissítve (állat mód):', latestEvent.animal_enar, '→', latestEvent.pen_number);
-                
-                // 🔥 KRITIKUS VÁLTOZTATÁS: onDataChange ELTÁVOLÍTÁSA vagy KÉSLELTETÉSE
-                // onDataChange(); // ← TÖRÖLD EZT A SORT!
-                
-                // OPCIONÁLIS: Késleltetett frissítés (ha szükséges)
-                // setTimeout(() => {
-                //     if (onDataChange) onDataChange();
-                // }, 2000);
+        if (events.length > 0 && mode === 'animal' && animalId) {
+            // EGYSZERI FUTTATÁS BIZTOSÍTÁSA
+            if ((window as any).karamUpdateRunning) {
+                return;
             }
-        } catch (error) {
-            console.warn('⚠️ Állat jelenlegi karám frissítési exception:', error);
-        } finally {
-            (window as any).karamUpdateRunning = false;
-        }
-    }
 
-    // KARÁM MÓDBAN: Nincs szülő frissítés - elkerüljük a loop-ot
-    console.log('ℹ️ updateCurrentPen befejezve, mode:', mode, 'events:', events.length);
-};
+            try {
+                (window as any).karamUpdateRunning = true;
+                const latestEvent = events[0];
+
+                const { error } = await supabase
+                    .from('animals')
+                    .update({
+                        jelenlegi_karam: latestEvent.pen_number
+                    })
+                    .eq('id', animalId);
+
+                if (!error) {
+
+
+                    // 🔥 KRITIKUS VÁLTOZTATÁS: onDataChange ELTÁVOLÍTÁSA vagy KÉSLELTETÉSE
+                }
+            } catch (error) {
+                console.warn('⚠️ Állat jelenlegi karám frissítési exception:', error);
+            } finally {
+                (window as any).karamUpdateRunning = false;
+            }
+        }
+    };
 
     // 🔍 ÁLLAT AKTUÁLIS STÁTUSZ DETEKTÁLÁS
     const getCurrentAnimalStatus = async (animalId: number) => {
@@ -794,127 +752,116 @@ const updateCurrentPen = async (events: KombinaltEsemeny[]) => {
 
             let metadata = {};
 
-// ⭐ HÁREM METADATA - HIBRID LOGIKA!
-if (formData.funkci === 'hárem' && formData.kivalasztottBikak.length > 0) {
-    console.log('💕 Hárem esemény - hibrid snapshot logika');
+            // ⭐ HÁREM METADATA - HIBRID LOGIKA!
+            if (formData.funkci === 'hárem' && formData.kivalasztottBikak.length > 0) {
 
-    const haremKezdete = formData.haremKezdete || formData.datum;
-    const vvDatum = new Date(haremKezdete);
-    vvDatum.setDate(vvDatum.getDate() + 75);
+                const haremKezdete = formData.haremKezdete || formData.datum;
+                const vvDatum = new Date(haremKezdete);
+                vvDatum.setDate(vvDatum.getDate() + 75);
 
-    const selectedBulls = availableBulls.filter(bika =>
-        formData.kivalasztottBikak.includes(bika.id)
-    );
+                const selectedBulls = availableBulls.filter(bika =>
+                    formData.kivalasztottBikak.includes(bika.id)
+                );
 
-    // 🔥 KRITIKUS DÖNTÉS: Történeti vs Aktív esemény
-    if (formData.torteneti) {
-        // ✅ TÖRTÉNETI ESEMÉNY - TELJES SNAPSHOT KÉSZÍTÉSE
-        console.log('📚 Történeti hárem esemény - teljes snapshot készítés');
-        
-        try {
-            // Kiválasztott állatok adatainak lekérdezése
-            let specificAnimals: any[] = [];
-            if (formData.selectedAnimals.length > 0) {
-                const { data: selectedAnimalsData } = await supabase
-                    .from('animals')
-                    .select('enar, kategoria, ivar')
-                    .in('id', formData.selectedAnimals);
-                
-                specificAnimals = selectedAnimalsData || [];
-            }
+                // 🔥 KRITIKUS DÖNTÉS: Történeti vs Aktív esemény
+                if (formData.torteneti) {
+                    // ✅ TÖRTÉNETI ESEMÉNY - TELJES SNAPSHOT KÉSZÍTÉSE
 
-            // Történeti snapshot készítése
-            const fullSnapshot = await createHistoricalSnapshot(
-                formData.hovaPen,
-                selectedBulls,
-                haremKezdete,
-                vvDatum.toISOString().split('T')[0],
-                specificAnimals
-            );
+                    try {
+                        // Kiválasztott állatok adatainak lekérdezése
+                        let specificAnimals: any[] = [];
+                        if (formData.selectedAnimals.length > 0) {
+                            const { data: selectedAnimalsData } = await supabase
+                                .from('animals')
+                                .select('enar, kategoria, ivar')
+                                .in('id', formData.selectedAnimals);
 
-            metadata = {
-                ...fullSnapshot,
-                historical_entry: true,
-                created_via: 'manual_historical_event',
-                snapshot_date: formData.datum
-            };
+                            specificAnimals = selectedAnimalsData || [];
+                        }
 
-            console.log('✅ Történeti hárem snapshot elkészítve:', {
-                bulls: fullSnapshot?.bulls?.length || 0,
-                females: (fullSnapshot as any)?.females?.length || 0,
-                total: (fullSnapshot as any)?.total_animals || 0
-            });
+                        // Történeti snapshot készítése
+                        const fullSnapshot = await createHistoricalSnapshot(
+                            formData.hovaPen,
+                            selectedBulls,
+                            haremKezdete,
+                            vvDatum.toISOString().split('T')[0],
+                            specificAnimals
+                        );
 
-        } catch (snapshotError) {
-            console.warn('⚠️ Történeti snapshot hiba, egyszerű metadata használata:', snapshotError);
-            
-            // Fallback egyszerű metadata
-            metadata = {
-                bulls: selectedBulls.map(bika => ({
-                    id: bika.id,
-                    name: bika.name,
-                    enar: bika.enar,
-                    kplsz: bika.kplsz
-                })),
-                pairing_start_date: haremKezdete,
-                expected_vv_date: vvDatum.toISOString().split('T')[0],
-                breeding_method: 'natural',
-                historical_entry: true,
-                created_via: 'manual_event_fallback'
-            };
-        }
+                        metadata = {
+                            ...fullSnapshot,
+                            historical_entry: true,
+                            created_via: 'manual_historical_event',
+                            snapshot_date: formData.datum
+                        };
 
-    } else {
-        // ✅ AKTÍV ESEMÉNY - EGYSZERŰ METADATA (duplikáció elkerülése)
-        console.log('🔄 Aktív hárem esemény - egyszerű metadata');
-        
-        metadata = {
-            bulls: selectedBulls.map(bika => ({
-                id: bika.id,
-                name: bika.name,
-                enar: bika.enar,
-                kplsz: bika.kplsz
-            })),
-            pairing_start_date: haremKezdete,
-            expected_vv_date: vvDatum.toISOString().split('T')[0],
-            breeding_method: 'natural',
-            historical_entry: false,
-            created_via: 'manual_active_event'
-        };
-    }
-    // ✅ ÚJ: FIZIKAI JELENLÉT BIZTOSÍTÁSA (csak aktív eseményeknél)
-    if (!formData.torteneti && formData.kivalasztottBikak.length > 0) {
-        try {
-            console.log('🔧 Fizikai jelenlét biztosítása a mentés során...');
-            
-            const physicalResult = await handleBullPhysicalAssignment(
-                selectedBulls, 
-                formData.hovaPen, 
-                false
-            );
-            
-            if (physicalResult.success && physicalResult.addedBulls > 0) {
-                console.log(`✅ ${physicalResult.addedBulls} tenyészbika fizikailag biztosítva`);
-                
-                // Toast értesítés
-                const toast = document.createElement('div');
-                toast.className = 'fixed top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm';
-                toast.textContent = `🐂 ${physicalResult.addedBulls} tenyészbika fizikailag hozzárendelve!`;
-                document.body.appendChild(toast);
-                
-                setTimeout(() => {
-                    if (document.body.contains(toast)) {
-                        document.body.removeChild(toast);
+                    } catch (snapshotError) {
+                        console.warn('⚠️ Történeti snapshot hiba, egyszerű metadata használata:', snapshotError);
+
+                        // Fallback egyszerű metadata
+                        metadata = {
+                            bulls: selectedBulls.map(bika => ({
+                                id: bika.id,
+                                name: bika.name,
+                                enar: bika.enar,
+                                kplsz: bika.kplsz
+                            })),
+                            pairing_start_date: haremKezdete,
+                            expected_vv_date: vvDatum.toISOString().split('T')[0],
+                            breeding_method: 'natural',
+                            historical_entry: true,
+                            created_via: 'manual_event_fallback'
+                        };
                     }
-                }, 3000);
-            }
-            
-        } catch (physicalError) {
-            console.warn('⚠️ Fizikai jelenlét biztosítása hiba:', physicalError);
-        }
-    }
 
-}
+                } else {
+                    // ✅ AKTÍV ESEMÉNY - EGYSZERŰ METADATA (duplikáció elkerülése)
+
+                    metadata = {
+                        bulls: selectedBulls.map(bika => ({
+                            id: bika.id,
+                            name: bika.name,
+                            enar: bika.enar,
+                            kplsz: bika.kplsz
+                        })),
+                        pairing_start_date: haremKezdete,
+                        expected_vv_date: vvDatum.toISOString().split('T')[0],
+                        breeding_method: 'natural',
+                        historical_entry: false,
+                        created_via: 'manual_active_event'
+                    };
+                }
+                // ✅ ÚJ: FIZIKAI JELENLÉT BIZTOSÍTÁSA (csak aktív eseményeknél)
+                if (!formData.torteneti && formData.kivalasztottBikak.length > 0) {
+                    try {
+
+                        const physicalResult = await handleBullPhysicalAssignment(
+                            selectedBulls,
+                            formData.hovaPen,
+                            false
+                        );
+
+                        if (physicalResult.success && physicalResult.addedBulls > 0) {
+
+                            // Toast értesítés
+                            const toast = document.createElement('div');
+                            toast.className = 'fixed top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm';
+                            toast.textContent = `🐂 ${physicalResult.addedBulls} tenyészbika fizikailag hozzárendelve!`;
+                            document.body.appendChild(toast);
+
+                            setTimeout(() => {
+                                if (document.body.contains(toast)) {
+                                    document.body.removeChild(toast);
+                                }
+                            }, 3000);
+                        }
+
+                    } catch (physicalError) {
+                        console.warn('⚠️ Fizikai jelenlét biztosítása hiba:', physicalError);
+                    }
+                }
+
+            }
 
             if (editingEvent) {
                 // SZERKESZTÉS - UPDATE
@@ -933,8 +880,6 @@ if (formData.funkci === 'hárem' && formData.kivalasztottBikak.length > 0) {
                     if (formData.funkci === 'hárem') {
                         updateData.function_metadata = metadata;
                     }
-
-                    console.log('🔄 UPDATE adatok:', updateData);
 
                     const { error } = await supabase
                         .from('animal_events')
@@ -956,8 +901,6 @@ if (formData.funkci === 'hárem' && formData.kivalasztottBikak.length > 0) {
                     if (formData.funkci === 'hárem') {
                         updateData.function_metadata = metadata;
                     }
-
-                    console.log('🔄 MOVEMENT UPDATE adatok:', updateData);
 
                     const { error } = await supabase
                         .from('animal_movements')
@@ -1045,31 +988,27 @@ if (formData.funkci === 'hárem' && formData.kivalasztottBikak.length > 0) {
                     if (assignError) {
                         console.warn('⚠️ Új hozzárendelések létrehozása hiba:', assignError);
                     } else {
-                        console.log('✅ Fizikai karám hozzárendelések frissítve:', newAssignments.length, 'állat');
                     }
                 }
             }
 
             // ⭐ SZINKRONIZÁCIÓ LOGIKA - HIBRID
-if (formData.funkci === 'hárem' && !editingEvent) {
-    if (formData.torteneti) {
-        // TÖRTÉNETI: Nincs szinkronizáció (nem zavarja a jelenlegi állapotot)
-        console.log('📚 Történeti hárem esemény - szinkronizáció kihagyva');
-    } else {
-        // AKTÍV: Szinkronizáció szükséges
-        console.log('🔄 Aktív hárem szinkronizáció indítása...');
-        
-        setTimeout(async () => {
-            const syncResult = await syncHaremData(formData.hovaPen);
-            if (syncResult.success) {
-                console.log('✅ Hárem szinkronizáció sikeres:', syncResult.message);
-            }
-        }, 1000);
-    }
-}
+            if (formData.funkci === 'hárem' && !editingEvent) {
+                if (formData.torteneti) {
+                    // TÖRTÉNETI: Nincs szinkronizáció (nem zavarja a jelenlegi állapotot)
+                } else {
+                    // AKTÍV: Szinkronizáció szükséges
 
-// ✅ FOKOZOTT FRISSÍTÉS - MINDEN ÚJRATÖLTÉSE
-alert(`✅ Esemény sikeresen ${editingEvent ? 'frissítve' : 'rögzítve'}!`);
+                    setTimeout(async () => {
+                        const syncResult = await syncHaremData(formData.hovaPen);
+                        if (syncResult.success) {
+                        }
+                    }, 1000);
+                }
+            }
+
+            // ✅ FOKOZOTT FRISSÍTÉS - MINDEN ÚJRATÖLTÉSE
+            alert(`✅ Esemény sikeresen ${editingEvent ? 'frissítve' : 'rögzítve'}!`);
 
             // Modal bezárása
             setShowModal(false);
@@ -1077,20 +1016,17 @@ alert(`✅ Esemény sikeresen ${editingEvent ? 'frissítve' : 'rögzítve'}!`);
 
             // 🔥 ÚJ - SZÜLŐ KOMPONENS AZONNALI FRISSÍTÉSE
             if (onDataChange) {
-                console.log('🔄 Szülő komponens frissítése...');
                 onDataChange(); // ← Ez fogja frissíteni a karám állat listáját
             }
 
             // 🔥 EXTRA - OLDAL ÚJRATÖLTÉS HA KARÁM MÓDBAN VAGYUNK
             if (mode === 'pen') {
-                console.log('🔄 Karám oldal teljes frissítése...');
                 setTimeout(() => {
                     window.location.reload(); // ← Brutális, de biztosan működik
                 }, 1000);
             }
 
             // TELJES adatok újratöltése kényszerített módon
-            console.log('🔄 TELJES adatok újratöltése kényszerítve...');
 
             // 1. Komponens state reset
             setKombinaltEsemenyek([]);
@@ -1098,7 +1034,6 @@ alert(`✅ Esemény sikeresen ${editingEvent ? 'frissítve' : 'rögzítve'}!`);
             // 2. Kis késleltetés és teljes újratöltés
             setTimeout(async () => {
                 await loadAllData(); // Teljes újratöltés
-                console.log('✅ Teljes újratöltés befejezve');
             }, 200);
 
             // 3. Szülő komponens értesítése
@@ -1123,14 +1058,6 @@ alert(`✅ Esemény sikeresen ${editingEvent ? 'frissítve' : 'rögzítve'}!`);
             const tableName = event.forrás === 'animal_events' ? 'animal_events' : 'animal_movements';
             const realId = event.id.replace('event_', '').replace('movement_', '');
 
-            console.log('🗑️ Törlés megkezdése:', {
-                tableName,
-                realId,
-                animal_id: event.animal_id,
-                pen_id: event.to_pen,
-                mode
-            });
-
             // 1. ✅ ESEMÉNY TÖRLÉSE (eredeti)
             const { error: eventError } = await supabase
                 .from(tableName)
@@ -1138,7 +1065,6 @@ alert(`✅ Esemény sikeresen ${editingEvent ? 'frissítve' : 'rögzítve'}!`);
                 .eq('id', realId);
 
             if (eventError) throw eventError;
-            console.log('✅ Esemény sikeresen törölve az adatbázisból');
 
             // 2. 🔥 KRITIKUS - FIZIKAI KARÁM HOZZÁRENDELÉS TÖRLÉSE
             // Ez a legutóbbi hozzárendelést keresve törli!
@@ -1157,7 +1083,7 @@ alert(`✅ Esemény sikeresen ${editingEvent ? 'frissítve' : 'rögzítve'}!`);
             if (assignmentError) {
                 console.warn('⚠️ Fizikai hozzárendelés törlése hiba:', assignmentError);
             } else {
-                console.log('✅ Fizikai karám hozzárendelés is törölve');
+
 
                 // 🔥 ÚJ - ANIMALS TÁBLA FRISSÍTÉSE (TypeScript safe)
                 const { data: currentAssignment } = await supabase
@@ -1182,8 +1108,6 @@ alert(`✅ Esemény sikeresen ${editingEvent ? 'frissítve' : 'rögzítve'}!`);
                     .from('animals')
                     .update({ jelenlegi_karam: newKaram })
                     .eq('id', event.animal_id);
-
-                console.log('✅ Animals tábla frissítve:', newKaram);
             }
 
             // 3. 🔥 KORÁBBI KARÁM VISSZAÁLLÍTÁSA - JAVÍTOTT LOGIKA
@@ -1212,7 +1136,7 @@ alert(`✅ Esemény sikeresen ${editingEvent ? 'frissítve' : 'rögzítve'}!`);
                 if (restoreError) {
                     console.warn('⚠️ Korábbi karám visszaállítása hiba:', restoreError);
                 } else {
-                    console.log('✅ Állat visszaállítva korábbi karámba');
+
 
                     // 🔥 ÚJ - ANIMALS TÁBLA FRISSÍTÉSE IS!
                     const { data: penData } = await supabase
@@ -1226,24 +1150,16 @@ alert(`✅ Esemény sikeresen ${editingEvent ? 'frissítve' : 'rögzítve'}!`);
                             .from('animals')
                             .update({ jelenlegi_karam: penData.pen_number })
                             .eq('id', event.animal_id);
-                        console.log('✅ Animals tábla is frissítve korábbi karámmal:', penData.pen_number);
                     }
                 }
             } else {
-                console.log('⚠️ Nincs korábbi karám - állat "szabadon" marad');
             }
-
-            alert('✅ Esemény ÉS fizikai karám hozzárendelés sikeresen törölve!');
-
-            // 4. 🔥 FOKOZOTT FRISSÍTÉS - MINDEN LEHETSÉGES MÓRÓN!
-            console.log('🔄 Teljes frissítés indítása...');
 
             // A. Helyi adatok frissítése
             await loadAllData();
 
             // B. Szülő komponens frissítése (karám oldal)
             if (onDataChange) {
-                console.log('🔄 Szülő komponens frissítése...');
                 setTimeout(() => {
                     onDataChange();
                 }, 100);
@@ -1251,9 +1167,7 @@ alert(`✅ Esemény sikeresen ${editingEvent ? 'frissítve' : 'rögzítve'}!`);
 
             // C. BRUTÁLIS MEGOLDÁS - Ha karám módban vagyunk, oldal újratöltés
             if (mode === 'pen') {
-                console.log('🔄 Karám oldal erőltetett frissítése...');
                 setTimeout(() => {
-                    console.log('🔄 Oldal újratöltés...');
                     window.location.reload();
                 }, 1500);
             }
@@ -1855,100 +1769,95 @@ alert(`✅ Esemény sikeresen ${editingEvent ? 'frissítve' : 'rögzítve'}!`);
                                                     id={`bika-${bika.id}`}
                                                     checked={formData.kivalasztottBikak.includes(bika.id)}
                                                     onChange={async (e) => {
-    const isChecked = e.target.checked;
-    
-    if (isChecked) {
-        // Hozzáadás a kiválasztottakhoz
-        setFormData({
-            ...formData,
-            kivalasztottBikak: [...formData.kivalasztottBikak, bika.id]
-        });
-        
-        // ✅ ÚJ: FIZIKAI HOZZÁRENDELÉS AZONNAL (csak ha nem történeti)
-        if (!formData.torteneti && formData.hovaPen) {
-            try {
-                console.log('🔄 Azonnali fizikai hozzárendelés:', bika.name);
-                
-                const result = await handleBullPhysicalAssignment([bika], formData.hovaPen, false);
-                
-                if (result.success && result.addedBulls > 0) {
-                    console.log(`✅ ${bika.name} fizikailag hozzárendelve`);
-                    
-                    // Helyi értesítés
-                    const toast = document.createElement('div');
-                    toast.className = 'fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm';
-                    toast.textContent = `✅ ${bika.name} hozzárendelve a karámhoz!`;
-                    document.body.appendChild(toast);
-                    
-                    setTimeout(() => {
-                        if (document.body.contains(toast)) {
-                            document.body.removeChild(toast);
-                        }
-                    }, 2000);
-                    
-                    // Szülő komponens frissítése
-                    if (onDataChange) {
-                        setTimeout(() => {
-                            onDataChange();
-                        }, 500);
-                    }
-                    
-                } else {
-                    console.warn(`⚠️ ${bika.name} fizikai hozzárendelés sikertelen:`, result.message);
-                }
-                
-            } catch (error) {
-                console.error('❌ Azonnali hozzárendelési hiba:', error);
-            }
-        }
-        
-    } else {
-        // Eltávolítás a kiválasztottakból
-        setFormData({
-            ...formData,
-            kivalasztottBikak: formData.kivalasztottBikak.filter(id => id !== bika.id)
-        });
-        
-        // ✅ ÚJ: FIZIKAI ELTÁVOLÍTÁS AZONNAL (csak ha nem történeti)
-        if (!formData.torteneti && formData.hovaPen) {
-            try {
-                console.log('🗑️ Azonnali fizikai eltávolítás:', bika.name);
-                
-                // Animal ID megkeresése
-                const { data: animalData } = await supabase
-                    .from('animals')
-                    .select('id')
-                    .eq('enar', bika.enar)
-                    .single();
+                                                        const isChecked = e.target.checked;
 
-                if (animalData) {
-                    // Assignment lezárása
-                    await supabase
-                        .from('animal_pen_assignments')
-                        .update({ 
-                            removed_at: new Date().toISOString(),
-                            removal_reason: 'karám_történet_eltávolítás'
-                        })
-                        .eq('animal_id', animalData.id)
-                        .eq('pen_id', formData.hovaPen)
-                        .is('removed_at', null);
+                                                        if (isChecked) {
+                                                            // Hozzáadás a kiválasztottakhoz
+                                                            setFormData({
+                                                                ...formData,
+                                                                kivalasztottBikak: [...formData.kivalasztottBikak, bika.id]
+                                                            });
 
-                    console.log(`✅ ${bika.name} fizikailag eltávolítva`);
-                    
-                    // Szülő komponens frissítése
-                    if (onDataChange) {
-                        setTimeout(() => {
-                            onDataChange();
-                        }, 500);
-                    }
-                }
-                
-            } catch (error) {
-                console.error('❌ Azonnali eltávolítási hiba:', error);
-            }
-        }
-    }
-}}
+                                                            // ✅ ÚJ: FIZIKAI HOZZÁRENDELÉS AZONNAL (csak ha nem történeti)
+                                                            if (!formData.torteneti && formData.hovaPen) {
+                                                                try {
+
+                                                                    const result = await handleBullPhysicalAssignment([bika], formData.hovaPen, false);
+
+                                                                    if (result.success && result.addedBulls > 0) {
+
+                                                                        // Helyi értesítés
+                                                                        const toast = document.createElement('div');
+                                                                        toast.className = 'fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm';
+                                                                        toast.textContent = `✅ ${bika.name} hozzárendelve a karámhoz!`;
+                                                                        document.body.appendChild(toast);
+
+                                                                        setTimeout(() => {
+                                                                            if (document.body.contains(toast)) {
+                                                                                document.body.removeChild(toast);
+                                                                            }
+                                                                        }, 2000);
+
+                                                                        // Szülő komponens frissítése
+                                                                        if (onDataChange) {
+                                                                            setTimeout(() => {
+                                                                                onDataChange();
+                                                                            }, 500);
+                                                                        }
+
+                                                                    } else {
+                                                                        console.warn(`⚠️ ${bika.name} fizikai hozzárendelés sikertelen:`, result.message);
+                                                                    }
+
+                                                                } catch (error) {
+                                                                    console.error('❌ Azonnali hozzárendelési hiba:', error);
+                                                                }
+                                                            }
+
+                                                        } else {
+                                                            // Eltávolítás a kiválasztottakból
+                                                            setFormData({
+                                                                ...formData,
+                                                                kivalasztottBikak: formData.kivalasztottBikak.filter(id => id !== bika.id)
+                                                            });
+
+                                                            // ✅ ÚJ: FIZIKAI ELTÁVOLÍTÁS AZONNAL (csak ha nem történeti)
+                                                            if (!formData.torteneti && formData.hovaPen) {
+                                                                try {
+
+                                                                    // Animal ID megkeresése
+                                                                    const { data: animalData } = await supabase
+                                                                        .from('animals')
+                                                                        .select('id')
+                                                                        .eq('enar', bika.enar)
+                                                                        .single();
+
+                                                                    if (animalData) {
+                                                                        // Assignment lezárása
+                                                                        await supabase
+                                                                            .from('animal_pen_assignments')
+                                                                            .update({
+                                                                                removed_at: new Date().toISOString(),
+                                                                                removal_reason: 'karám_történet_eltávolítás'
+                                                                            })
+                                                                            .eq('animal_id', animalId)
+                                                                            .eq('pen_id', formData.hovaPen)
+                                                                            .is('removed_at', null);
+
+                                                                        // Szülő komponens frissítése
+                                                                        if (onDataChange) {
+                                                                            setTimeout(() => {
+                                                                                onDataChange();
+                                                                            }, 500);
+                                                                        }
+                                                                    }
+
+                                                                } catch (error) {
+                                                                    console.error('❌ Azonnali eltávolítási hiba:', error);
+                                                                }
+                                                            }
+                                                        }
+                                                    }}
                                                     className="mr-3 h-4 w-4 text-pink-600 border-gray-300 rounded focus:ring-pink-500"
                                                 />
                                                 <label htmlFor={`bika-${bika.id}`} className="text-sm cursor-pointer">
