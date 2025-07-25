@@ -2,6 +2,7 @@
 'use client';
 
 import { useState } from 'react';
+import { displayEnar } from '@/constants/enar-formatter';
 
 interface Animal {
   id: number;
@@ -87,39 +88,43 @@ export default function PenHistoryCard({ period, onClick }: PenHistoryCardProps)
   };
 
   // Speciális információk
-  const getSpecialInfo = () => {
-    const { metadata } = period;
-    
-    if (period.function_type === 'hárem') {
-      // Tenyészbikák nevei
-      if (metadata?.bulls && Array.isArray(metadata.bulls)) {
-        const bullNames = metadata.bulls.map((bull: any) => bull.name || bull.enar).join(', ');
-        return `🐂 Tenyészbikák: ${bullNames}`;
-      } else if (metadata?.tenyeszbika_name) {
-        return `🐂 Tenyészbika: ${metadata.tenyeszbika_name}`;
-      }
-      
-      // Fogamzási ráta
-      if (metadata?.pregnancy_rate) {
-        return `📊 Fogamzási ráta: ${metadata.pregnancy_rate}%`;
-      }
+const getSpecialInfo = () => {
+  const { metadata } = period;
+  
+  if (period.function_type === 'hárem') {
+    // Tenyészbikák nevei FORMÁZOTT ENAR-ral
+    if (metadata?.bulls && Array.isArray(metadata.bulls)) {
+      const bullNames = metadata.bulls.map((bull: any) => {
+        const formattedEnar = displayEnar(bull.enar);
+        const name = bull.name || 'Névtelen';
+        return `${formattedEnar} (${name})`;
+      }).join(', ');
+      return `🐂 Tenyészbikák: ${bullNames}`;
+    } else if (metadata?.tenyeszbika_name) {
+      return `🐂 Tenyészbika: ${metadata.tenyeszbika_name}`;
     }
     
-    if (period.function_type === 'vemhes') {
-      const pregnantCount = period.animals_snapshot?.length || 0;
-      return `📊 ${pregnantCount} vemhes állat`;
+    // Fogamzási ráta
+    if (metadata?.pregnancy_rate) {
+      return `📊 Fogamzási ráta: ${metadata.pregnancy_rate}%`;
     }
-    
-    if (period.function_type === 'bölcsi') {
-      return `🐮 Borjú nevelés`;
-    }
-    
-    if (period.function_type === 'óvi') {
-      return `🐄 Üsző fejlesztés`;
-    }
-    
-    return null;
-  };
+  }
+  
+  if (period.function_type === 'vemhes') {
+    const pregnantCount = period.animals_snapshot?.length || 0;
+    return `📊 ${pregnantCount} vemhes állat`;
+  }
+  
+  if (period.function_type === 'bölcsi') {
+    return `🐮 Borjú nevelés`;
+  }
+  
+  if (period.function_type === 'óvi') {
+    return `🐄 Üsző fejlesztés`;
+  }
+  
+  return null;
+};
 
   const display = getFunctionDisplay(period.function_type);
   const duration = calculateDuration();

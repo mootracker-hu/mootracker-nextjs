@@ -25,6 +25,7 @@ import { QuickDuplicateFixButton } from '@/components/QuickDuplicateFixButton';
 import { AdminEszkozok } from '@/components/AdminEszkozok';
 import { ColorHelpers } from '@/constants/colors';
 import { VV_CONSTANTS } from '@/constants/business';
+import AnimalSelector from '@/components/AnimalSelector';
 
 // TypeScript interfaces - egyértelműen definiálva
 interface Animal {
@@ -74,6 +75,7 @@ export default function PenDetailsPage() {
     const [selectedAnimals, setSelectedAnimals] = useState<number[]>([]);
     const [showMovementPanel, setShowMovementPanel] = useState(false);
     const [showFunctionManager, setShowFunctionManager] = useState(false);
+    const [showAddAnimalsPanel, setShowAddAnimalsPanel] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [showHaremHistory, setShowHaremHistory] = useState(false);
     const [haremHistory, setHaremHistory] = useState<any[]>([]);
@@ -86,15 +88,12 @@ export default function PenDetailsPage() {
     // Ha van dashboard default, akkor events-re változtatni:
     // A useState típus javítása:
     const [activeTab, setActiveTab] = useState<'animals' | 'events' | 'harem' | 'timeline'>('animals');
-
-
-
+    const [selectedAnimalsForAdd, setSelectedAnimalsForAdd] = useState<number[]>([]);
 
     // Riasztások hook hozzáadása
     const { alerts, animalPenMap } = useAlertsNew();
 
     // Állat alertek hozzárendelése ehhez a karámhoz (ugyanaz mint pen-card.tsx-ben)
-    // Állat alertek hozzárendelése ehhez a karámhoz
     const penSpecificAlerts = alerts.filter(alert => {
         if (!pen?.id) return false;
 
@@ -1411,6 +1410,22 @@ export default function PenDetailsPage() {
                                     Mind kiválaszt
                                 </button>
                                 <button
+                                    onClick={() => setShowAddAnimalsPanel(true)}
+                                    className="bg-green-600 hover:bg-green-700 text-white font-medium px-3 py-2 rounded-lg transition-colors inline-flex items-center text-sm ml-3"
+                                >
+                                    <span className="mr-1">➕</span>
+                                    Hozzáadás
+                                </button>
+                                {selectedAnimals.length > 0 && (
+                                    <button
+                                        onClick={() => setShowMovementPanel(true)}
+                                        className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-3 py-2 rounded-lg transition-colors inline-flex items-center text-sm ml-2"
+                                    >
+                                        <span className="mr-1">🔄</span>
+                                        Mozgatás ({selectedAnimals.length})
+                                    </button>
+                                )}
+                                <button
                                     onClick={exportToExcel}
                                     className="bg-white hover:bg-gray-50 text-gray-700 font-medium px-4 py-2 rounded-lg border border-gray-300 transition-colors inline-flex items-center"
                                 >
@@ -1494,7 +1509,6 @@ export default function PenDetailsPage() {
                 animals={filteredAnimals}
                 availablePens={allPens}
                 currentPenId={penId}
-
 
                 // ⭐ CSAK AZ onMove FUNKCIÓ FRISSÍTÉSE - METADATA TÁMOGATÁSSAL
                 // Keresd meg ezt a részt a fájlban (787. sor környékén) és cseréld le:
@@ -1688,6 +1702,23 @@ export default function PenDetailsPage() {
                         const errorMessage = error instanceof Error ? error.message : 'Ismeretlen hiba';
                         alert(`❌ Mozgatási hiba: ${errorMessage}`);
                     }
+                }}
+            />
+
+            {/* ÚJ: Add Animals Panel */}
+            <AnimalMovementPanel
+                isOpen={showAddAnimalsPanel}
+                onClose={() => setShowAddAnimalsPanel(false)}
+                selectedAnimals={[]}
+                animals={[]}
+                availablePens={allPens}
+                currentPenId={penId}
+                isAddMode={true}
+                selectedAnimalsForAdd={selectedAnimalsForAdd}
+                setSelectedAnimalsForAdd={setSelectedAnimalsForAdd}
+                onMove={(targetPenId, reason, notes) => {
+                    alert(`Állatok hozzáadása a karámhoz!`);
+                    setShowAddAnimalsPanel(false);
                 }}
             />
 

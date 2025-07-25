@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import AnimalSelector from './AnimalSelector';
 import { broadcastManualPeriodAdded, broadcastPenHistoryUpdate, broadcastAnimalHistoryUpdate } from '@/lib/penHistorySync';
+import { displayEnar } from '@/constants/enar-formatter';
 
 interface AddHistoricalPeriodProps {
   penId: string;
@@ -192,49 +193,7 @@ if (formData.function_type === 'hárem' && selectedBulls.length > 0) {
 
       console.log('✅ Történeti periódus sikeresen mentve');
 
-      // ✅ ÚJ: Fizikai állat szinkronizáció (csak folyamatban lévő periódusokhoz és csak aktív állatokhoz)
-if (!formData.end_date) {
-  try {
-    console.log('🔄 Folyamatban lévő periódus - állatok fizikai szinkronizálása...');
-    
-    // Csak az aktív állatok fizikai mozgatása
-    const activeAnimals = selectedAnimalsData.filter(a => a.statusz === 'aktív');
-    
-    for (const animal of activeAnimals) {
-      // Régi hozzárendelések lezárása
-      await supabase
-        .from('animal_pen_assignments')
-        .update({ removed_at: new Date().toISOString() })
-        .eq('animal_id', animal.id)
-        .is('removed_at', null);
-      
-      // Új hozzárendelés
-      await supabase
-        .from('animal_pen_assignments')
-        .insert({
-          animal_id: animal.id,
-          pen_id: penId,
-          assigned_at: new Date().toISOString(),
-          assignment_reason: 'Folyamatban lévő periódus szinkronizáció'
-        });
-      
-      // Animals tábla frissítése
-      await supabase
-        .from('animals')
-        .update({ jelenlegi_karam: penNumber })
-        .eq('id', animal.id);
-    }
-    
-    console.log('✅ Aktív állatok fizikailag szinkronizálva:', activeAnimals.length);
-    if (soldAnimals.length > 0) {
-      console.log('ℹ️ Eladott állatok kihagyva a fizikai szinkronizációból:', soldAnimals.length);
-    }
-  } catch (syncError) {
-    console.error('❌ Fizikai szinkronizáció hiba:', syncError);
-  }
-} else {
-  console.log('📚 Lezárt periódus - csak történeti kártya, nincs fizikai mozgatás');
-}
+      // AddHistoricalPeriod.tsx - A handleSave függvény javított része
 
       // ✅ ÚJ: Broadcast értesítések
       broadcastPenHistoryUpdate(penId, 'period_added', { 
@@ -353,6 +312,19 @@ Időszak: ${formData.start_date} - ${formData.end_date || 'folyamatban'}${soldIn
             placeholder="Keresés ENAR, kategória alapján... (eladott és elhullott állatok is megjelennek)"
             maxHeight="max-h-80"
           />
+          {/* ⚠️ ÚJ FIGYELMEZTETÉS */}
+<div className="bg-amber-50 p-4 rounded-lg border border-amber-200 mt-3">
+  <div className="flex items-start">
+    <span className="text-xl mr-3">📚</span>
+    <div>
+      <h4 className="font-medium text-amber-800">Történeti Rögzítés</h4>
+      <p className="text-sm text-amber-700 mt-1">
+        Ez csak történeti dokumentációra szolgál. A kiválasztott állatok jelenlegi karám hozzárendelése <strong>nem változik</strong>.
+        Valódi állat mozgatáshoz használd a karám oldal "Mozgatás" gombját.
+      </p>
+    </div>
+  </div>
+</div>
           <p className="text-xs text-gray-600 mt-2">
             💡 <strong>Eladott és elhullott állatok is kiválaszthatók</strong> történeti karámtörténet rögzítéséhez. 
             Ezek az állatok csak a történeti kártyában szerepelnek, fizikai mozgatás nem történik.
