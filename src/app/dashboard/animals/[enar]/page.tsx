@@ -15,6 +15,9 @@ import DetailsTab from './components/tabs/DetailsTab';
 import FamilyTab from './components/tabs/FamilyTab';
 import EventLogTab from './components/tabs/EventLogTab';
 import HybridAnimalPenHistory from '@/components/HybridAnimalPenHistory';
+//import TeljesKaramTortenelem from '@/components/TeljesKaramTortenelem';
+
+
 
 // --- GLOBÁLIS SEGÉDFÜGGVÉNYEK ---
 const calculateAge = (birthDate: string) => {
@@ -46,7 +49,7 @@ export default function AnimalDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [currentPen, setCurrentPen] = useState<string | null>(null);
-  
+
   // --- KÖZPONTI ADATKEZELŐ FÜGGVÉNYEK ---
 
   const fetchAnimal = async (enar: string) => {
@@ -73,14 +76,14 @@ export default function AnimalDetailPage() {
         console.log('🔍 Apa adatok keresése az anya alapján:', animalData.anya_enar);
         const { data: birthData } = await supabase.from('births').select(`father_enar, father_name, father_kplsz, uncertain_paternity, possible_fathers`).eq('mother_enar', animalData.anya_enar).order('birth_date', { ascending: false }).limit(1);
         if (birthData && birthData.length > 0 && birthData[0].father_enar) {
-            enhancedAnimal = { ...enhancedAnimal, ...birthData[0], father_source: 'birth_record' };
-            console.log('✅ Apa adatok hozzáadva ellési rekordból.');
+          enhancedAnimal = { ...enhancedAnimal, ...birthData[0], father_source: 'birth_record' };
+          console.log('✅ Apa adatok hozzáadva ellési rekordból.');
         } else {
-            const { data: vvData } = await supabase.from('vv_results').select(`father_enar, father_name, father_kplsz, uncertain_paternity, possible_fathers`).eq('animal_enar', animalData.anya_enar).eq('pregnancy_status', 'vemhes').order('vv_date', { ascending: false }).limit(1);
-            if(vvData && vvData.length > 0 && vvData[0].father_enar) {
-                enhancedAnimal = { ...enhancedAnimal, ...vvData[0], father_source: 'vv_record' };
-                console.log('✅ Apa adatok hozzáadva VV rekordból.');
-            }
+          const { data: vvData } = await supabase.from('vv_results').select(`father_enar, father_name, father_kplsz, uncertain_paternity, possible_fathers`).eq('animal_enar', animalData.anya_enar).eq('pregnancy_status', 'vemhes').order('vv_date', { ascending: false }).limit(1);
+          if (vvData && vvData.length > 0 && vvData[0].father_enar) {
+            enhancedAnimal = { ...enhancedAnimal, ...vvData[0], father_source: 'vv_record' };
+            console.log('✅ Apa adatok hozzáadva VV rekordból.');
+          }
         }
       }
       console.log('🏁 Végső állat objektum:', enhancedAnimal);
@@ -94,57 +97,68 @@ export default function AnimalDetailPage() {
     }
   };
 
-  const handleSave = async () => {
-  if (!editedAnimal || !animal) return;
-  try {
-    setSaving(true);
-    
-    // Ellenőrizzük, hogy változott-e a születési dátum
-    const birthDateChanged = editedAnimal.szuletesi_datum !== animal.szuletesi_datum;
-    
-    const { error } = await supabase.from('animals').update({
-      name: editedAnimal.name,
-      kategoria: editedAnimal.kategoria,
-      ivar: editedAnimal.ivar,
-      statusz: editedAnimal.statusz,
-      breed: editedAnimal.breed,
-      birth_location: editedAnimal.birth_location,
-      szuletesi_datum: editedAnimal.szuletesi_datum,
-      bekerules_datum: editedAnimal.bekerules_datum,
-      anya_enar: editedAnimal.anya_enar,
-      kplsz: editedAnimal.kplsz,
-      notes: editedAnimal.notes
-    }).eq('enar', animal.enar);
+  // Add hozzá ezt a fetchAnimal függvény UTÁN:
 
-    if (error) throw error;
-
-    // 🔄 HA VÁLTOZOTT A SZÜLETÉSI DÁTUM, SZINKRONIZÁLJUK A BIRTHS TÁBLÁT IS
-    if (birthDateChanged && animal.birth_id) {
-      console.log('🔄 Születési dátum változott, births tábla frissítése...');
-      
-      const { error: birthSyncError } = await supabase
-        .from('births')
-        .update({ birth_date: editedAnimal.szuletesi_datum })
-        .eq('id', animal.birth_id);
-
-      if (birthSyncError) {
-        console.error('⚠️ Birth tábla szinkronizálási hiba:', birthSyncError);
-        alert('⚠️ Állat mentve, de az ellési dátum frissítése sikertelen!');
-      } else {
-        console.log('✅ Birth tábla is frissítve');
+  const onUpdate = async () => {
+    try {
+      console.log('🔄 Adatok frissítése...');
+      if (animal?.enar) {
+        await fetchAnimal(animal.enar);
       }
+    } catch (error) {
+      console.error('❌ Hiba az adatok frissítésekor:', error);
     }
+  };
 
-    alert('✅ Állat adatok sikeresen mentve és szinkronizálva!');
-    setIsEditing(false);
-    await fetchAnimal(animal.enar);
-  } catch (error: any) {
-    console.error('❌ Mentési hiba:', error);
-    alert(`❌ Hiba történt a mentés során: ${error.message}`);
-  } finally {
-    setSaving(false);
-  }
-};
+  const handleSave = async () => {
+    if (!editedAnimal || !animal) return;
+
+    try {
+      setSaving(true);
+
+      // ALAPADATOK FRISSÍTÉSE (NOTES-TAL)
+      const { error } = await supabase
+        .from('animals')
+        .update({
+          name: editedAnimal.name,
+          kategoria: editedAnimal.kategoria,
+          ivar: editedAnimal.ivar,
+          statusz: editedAnimal.statusz,
+          breed: editedAnimal.breed,
+          birth_location: editedAnimal.birth_location,
+          szuletesi_datum: editedAnimal.szuletesi_datum,
+          bekerules_datum: editedAnimal.bekerules_datum,
+          anya_enar: editedAnimal.anya_enar,
+          kplsz: editedAnimal.kplsz,
+          notes: editedAnimal.notes  // 🆕 NOTES MENTÉSE
+        })
+        .eq('enar', animal.enar);
+
+      if (error) {
+        console.error('❌ Mentési hiba:', error);
+        alert('❌ Hiba történt a mentés során!');
+        return;
+      }
+
+      console.log('✅ Állat adatok sikeresen mentve');
+      alert('✅ Állat adatok sikeresen mentve!');
+
+      // STATE FRISSÍTÉS
+      setIsEditing(false);
+
+      // Adatok újratöltése
+      if (animal.enar) {
+        await fetchAnimal(animal.enar);
+        console.log('✅ Állat adatok automatikusan frissítve');
+      }
+
+    } catch (error) {
+      console.error('❌ Mentési hiba:', error);
+      alert('❌ Váratlan hiba történt!');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const fetchCurrentPen = async () => {
     if (!animal?.id) return;
@@ -161,14 +175,14 @@ export default function AnimalDetailPage() {
         setCurrentPen(periodData.pens.pen_number);
         return;
       }
-      
+
       const { data: assignmentData } = await supabase
         .from('animal_pen_assignments')
         .select(`pens(pen_number)`)
         .eq('animal_id', animal.id)
         .is('removed_at', null)
         .single();
-      
+
       // @ts-ignore
       if (assignmentData) setCurrentPen(assignmentData.pens.pen_number);
       else setCurrentPen('Nincs hozzárendelve');
@@ -178,14 +192,14 @@ export default function AnimalDetailPage() {
       setCurrentPen('Hiba történt');
     }
   };
-  
+
   const updateField = (field: keyof Animal, value: any) => {
     if (editedAnimal === null) return;
     setEditedAnimal({ ...editedAnimal, [field]: value });
   };
-  
+
   const forceUpdate = () => {
-    if(animal?.enar) fetchAnimal(animal.enar);
+    if (animal?.enar) fetchAnimal(animal.enar);
   }
 
   // --- ADATBETÖLTÉS (LIFECYCLE HOOKS) ---
@@ -238,10 +252,10 @@ export default function AnimalDetailPage() {
 
   const tabs = [
     { id: 'reszletek', name: '📋 Részletek' },
+    { id: 'karam-tortenelem', name: '🏠 Karám Történelem' },  // ← Előre hozva
+    { id: 'csalad', name: '🐄💕🐂 Család' },
     { id: 'szaporitas', name: '🔬 Szaporítás' },
     { id: 'elles', name: '🐄 Ellés' },
-    { id: 'karam-tortenelem', name: '📚 Karám Történelem' },
-    { id: 'csalad', name: '🐄💕🐂 Család' },
     { id: 'esemenynaplo', name: '📊 Eseménynapló' },
     { id: 'egeszseg', name: '❤️ Egészség' },
   ];
@@ -249,31 +263,35 @@ export default function AnimalDetailPage() {
   const renderContent = () => {
     switch (activeTab) {
       case 'reszletek':
-        return <DetailsTab 
-                  animal={animal} 
-                  editedAnimal={editedAnimal} 
-                  isEditing={isEditing} 
-                  updateField={updateField}
-                  currentPen={currentPen}
-                  fetchCurrentPen={fetchCurrentPen}
-                  calculateAge={calculateAge}
-                  getShortId={getShortId}
-                />;
+        return <DetailsTab
+          animal={animal}
+          editedAnimal={editedAnimal}
+          isEditing={isEditing}
+          updateField={updateField}
+          onUpdate={onUpdate}
+          calculateAge={calculateAge}
+          getShortId={getShortId}
+        />;
       case 'csalad':
         return <FamilyTab
-                  animal={animal}
-                  isEditing={isEditing}
-                  updateField={updateField}
-                  onUpdate={forceUpdate}
-                />;
+          animal={animal}
+          isEditing={isEditing}
+          updateField={updateField}
+          onUpdate={forceUpdate}
+        />;
       case 'szaporitas':
         return <SzaporitasTab animal={animal} />;
       case 'elles':
         return <EllesTab animal={animal} />;
       case 'karam-tortenelem':
         return (
-          <div className="p-6 bg-white rounded-lg shadow-sm border">
-            <HybridAnimalPenHistory 
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center mb-6">
+              <span className="text-2xl mr-3">🏠</span>
+              <h3 className="text-lg font-semibold text-gray-900">Karám Történelem</h3>
+            </div>
+            {/* VISSZA A RÉGI KOMPONENSHEZ */}
+            <HybridAnimalPenHistory
               animalEnar={animal.enar}
               animalId={animal.id.toString()}
             />
@@ -283,11 +301,11 @@ export default function AnimalDetailPage() {
         return <EventLogTab animal={animal} onUpdate={forceUpdate} />;
       default:
         return (
-            <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
-                <div className="text-gray-400 text-6xl mb-4">🚧</div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Fejlesztés alatt</h3>
-                <p className="text-gray-500">Ez a funkció hamarosan elérhető lesz.</p>
-            </div>
+          <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
+            <div className="text-gray-400 text-6xl mb-4">🚧</div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Fejlesztés alatt</h3>
+            <p className="text-gray-500">Ez a funkció hamarosan elérhető lesz.</p>
+          </div>
         );
     }
   };
@@ -316,7 +334,7 @@ export default function AnimalDetailPage() {
                 </button>
               )}
               <button onClick={isEditing ? handleSave : () => setIsEditing(true)} disabled={saving} className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg transition-colors disabled:opacity-50 inline-flex items-center">
-                {saving ? (<> <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div> Mentés... </> ) : isEditing ? (<> <span className="mr-2">💾</span> Mentés </> ) : (<> <span className="mr-2">✏️</span> Szerkesztés </>)}
+                {saving ? (<> <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div> Mentés... </>) : isEditing ? (<> <span className="mr-2">💾</span> Mentés </>) : (<> <span className="mr-2">✏️</span> Szerkesztés </>)}
               </button>
             </div>
           </div>
@@ -331,7 +349,7 @@ export default function AnimalDetailPage() {
             ))}
           </div>
         </div>
-        
+
         <div>
           {renderContent()}
         </div>

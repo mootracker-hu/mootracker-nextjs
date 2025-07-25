@@ -45,7 +45,7 @@ export default function PensPage() {
   // ✅ JAVÍTOTT SZÍNPALETTA - MINDEN FUNKCIÓ EGYSÉGESEN!
   const getFunctionColor = (functionType: string): string => {
     return ColorHelpers.getPenFunctionColor(functionType as any);
-};
+  };
 
   // Kapacitás kihasználtság színek
   const getCapacityColor = (current: number, capacity: number): string => {
@@ -140,20 +140,20 @@ export default function PensPage() {
         const pensWithData = await Promise.all(realPens.map(async pen => {
           // Állatok betöltése ENAR-ral együtt
           const { data: assignments, count } = await supabase
-  .from('animal_pen_assignments')
-  .select(`
+            .from('animal_pen_assignments')
+            .select(`
     animals!inner(enar)
   `, { count: 'exact' })
-  .eq('pen_id', pen.id)
-  .is('removed_at', null);
+            .eq('pen_id', pen.id)
+            .is('removed_at', null);
 
-// ÚJ: Temp ID borjak számolása
-const { count: tempCalfCount } = await supabase
-  .from('calves')
-  .select('*', { count: 'exact', head: true })
-  .eq('current_pen_id', pen.id)
-  .eq('is_alive', true)
-  .is('enar', null);
+          // ÚJ: Temp ID borjak számolása
+          const { count: tempCalfCount } = await supabase
+            .from('calves')
+            .select('*', { count: 'exact', head: true })
+            .eq('current_pen_id', pen.id)
+            .eq('is_alive', true)
+            .is('enar', null);
 
           return {
             id: pen.id,
@@ -302,7 +302,7 @@ const { count: tempCalfCount } = await supabase
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
-        
+
         {/* Header - DESIGN SYSTEM */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
@@ -337,7 +337,7 @@ const { count: tempCalfCount } = await supabase
             <span className="text-2xl mr-3">🔍</span>
             <h2 className="text-lg font-semibold text-gray-900">Szűrők és Keresés</h2>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
             {/* Keresés - ENAR + Karám szám + Helyszín */}
             <div className="relative md:col-span-2">
@@ -456,8 +456,8 @@ const { count: tempCalfCount } = await supabase
                 key={funcType}
                 onClick={() => setSelectedType(funcType === selectedType ? 'mind' : funcType)}
                 className={`px-3 py-2 rounded-lg text-sm font-medium cursor-pointer transition-all hover:scale-105 ${selectedType === funcType
-                    ? 'ring-2 ring-green-500 ' + getFunctionColor(funcType)
-                    : getFunctionColor(funcType)
+                  ? 'ring-2 ring-green-500 ' + getFunctionColor(funcType)
+                  : getFunctionColor(funcType)
                   }`}
               >
                 {getFunctionEmoji(funcType)} {funcType}: {count as number}
@@ -466,16 +466,16 @@ const { count: tempCalfCount } = await supabase
           </div>
         </div>
 
-   {/* Karám Grid */}
-<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-  {sortedFilteredPens.map((pen: any) => (
-    <PenCard 
-      key={pen.id} 
-      pen={pen} 
-      {...(alerts && { alerts })}
-    />
-  ))}
-</div>
+        {/* Karám Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {sortedFilteredPens.map((pen: any) => (
+            <PenCard
+              key={pen.id}
+              pen={pen}
+              {...(alerts && { alerts })}
+            />
+          ))}
+        </div>
 
         {/* No Results State */}
         {sortedFilteredPens.length === 0 && (

@@ -179,18 +179,18 @@ export default function CalvesPage() {
 
     // 🆕 ELPUSZTULÁS VÉGREHAJTÁSA
     const executeCalfDeath = async () => {
-  if (!dyingCalf) return;
+        if (!dyingCalf) return;
 
-  try {
-    console.log('🔄 Borjú státusz frissítése:', dyingCalf.temp_id);
+        try {
+            console.log('🔄 Borjú státusz frissítése:', dyingCalf.temp_id);
 
-    const { error: calfError } = await supabase
-      .from('calves')
-      .update({ 
-        is_alive: false,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', dyingCalf.id);
+            const { error: calfError } = await supabase
+                .from('calves')
+                .update({
+                    is_alive: false,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', dyingCalf.id);
 
             if (calfError) throw calfError;
 

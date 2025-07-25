@@ -31,8 +31,8 @@ interface VVFormProps {
   animalEnar: string;
   onSubmit: () => void;
   onCancel: () => void;
-  editMode?: boolean;        // ← Cseréld `;`-t `,`-ra
-  editData?: any;            // ← Ez maradhat `;`
+  editMode?: boolean;
+  editData?: any;
 }
 
 const VVForm: React.FC<VVFormProps> = ({
@@ -45,25 +45,45 @@ const VVForm: React.FC<VVFormProps> = ({
   const [loading, setLoading] = useState(false);
   const [isHistorical, setIsHistorical] = useState(false);
   const [availableBulls, setAvailableBulls] = useState<TenyeszbikaOption[]>([]);
+
+  // 🔥 SEGÉDFÜGGVÉNY: possible_fathers normalizálása
+  const normalizePossibleFathers = (possibleFathers: any): string[] => {
+    if (!possibleFathers || !Array.isArray(possibleFathers)) {
+      return [];
+    }
+
+    return possibleFathers.map((father: any) => {
+      if (typeof father === 'string') {
+        return father;
+      }
+      if (father && typeof father === 'object' && father.enar) {
+        return father.enar;
+      }
+      return '';
+    }).filter(enar => enar !== '');
+  };
+
   const [formData, setFormData] = useState<VVFormData>(() => {
     // Edit mode esetén előre kitöltjük a form-ot
     if (editMode && editData) {
+      console.log('🔍 EDIT DATA POSSIBLE FATHERS RAW:', editData.possible_fathers);
+
+      const normalizedPossibleFathers = normalizePossibleFathers(editData.possible_fathers);
+      console.log('🔍 NORMALIZED POSSIBLE FATHERS:', normalizedPossibleFathers);
+
       return {
         vv_date: editData.vv_date ? new Date(editData.vv_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         vv_result_days: editData.vv_result_days || 0,
         pregnancy_status: editData.pregnancy_status || 'ures',
-        father_enar: editData.father_enar || '',              // ← HIÁNYZIK
-        father_kplsz: editData.father_kplsz || '',            // ← HIÁNYZIK  
-        father_name: editData.father_name || '',              // ← HIÁNYZIK
+        father_enar: editData.father_enar || '',
+        father_kplsz: editData.father_kplsz || '',
+        father_name: editData.father_name || '',
         uncertain_paternity: editData.uncertain_paternity || false,
-        possible_fathers: editData.possible_fathers ?
-          editData.possible_fathers.map((father: any) =>
-            typeof father === 'string' ? father : father.enar
-          ) : [],
+        possible_fathers: normalizedPossibleFathers,
         blood_test_required: editData.blood_test_required || false,
-        blood_test_date: editData.blood_test_date || '',      // ← HIÁNYZIK
-        expected_birth_date: editData.expected_birth_date || '', // ← HIÁNYZIK
-        veterinarian: editData.veterinarian || '',            // ← HIÁNYZIK
+        blood_test_date: editData.blood_test_date || '',
+        expected_birth_date: editData.expected_birth_date || '',
+        veterinarian: editData.veterinarian || '',
         notes: editData.notes || ''
       };
     }
@@ -73,19 +93,18 @@ const VVForm: React.FC<VVFormProps> = ({
       vv_date: new Date().toISOString().split('T')[0],
       vv_result_days: 0,
       pregnancy_status: 'ures',
-      father_enar: '',                  // ← HIÁNYZIK
-      father_kplsz: '',                // ← HIÁNYZIK
-      father_name: '',                 // ← HIÁNYZIK
+      father_enar: '',
+      father_kplsz: '',
+      father_name: '',
       uncertain_paternity: false,
       possible_fathers: [],
       blood_test_required: false,
-      blood_test_date: '',             // ← HIÁNYZIK
-      expected_birth_date: '',         // ← HIÁNYZIK
-      veterinarian: '',                // ← HIÁNYZIK
+      blood_test_date: '',
+      expected_birth_date: '',
+      veterinarian: '',
       notes: ''
     };
   });
-
 
   // Tenyészbikák betöltése
   useEffect(() => {
@@ -100,6 +119,8 @@ const VVForm: React.FC<VVFormProps> = ({
 
         if (error) throw error;
         setAvailableBulls(data || []);
+
+        console.log('🐂 AVAILABLE BULLS LOADED:', data);
       } catch (error) {
         console.error('Tenyészbikák betöltési hiba:', error);
       }
@@ -107,6 +128,25 @@ const VVForm: React.FC<VVFormProps> = ({
 
     fetchBulls();
   }, []);
+
+  // 🔥 EDIT MODE: Amikor a bikák betöltődtek, frissítsük a father adatokat
+  useEffect(() => {
+    if (editMode && editData && availableBulls.length > 0) {
+      const fatherEnar = editData.father_enar;
+      if (fatherEnar) {
+        const bullInfo = availableBulls.find(bull => bull.enar === fatherEnar);
+        if (bullInfo) {
+          console.log('🔍 UPDATING FATHER INFO FROM BULLS:', bullInfo);
+          setFormData(prev => ({
+            ...prev,
+            father_enar: bullInfo.enar,
+            father_kplsz: bullInfo.kplsz,
+            father_name: bullInfo.name
+          }));
+        }
+      }
+    }
+  }, [availableBulls, editMode, editData]);
 
   // Ellési dátum automatikus számítása
   useEffect(() => {
@@ -180,7 +220,9 @@ const VVForm: React.FC<VVFormProps> = ({
   };
 
   const getBullInfo = (enar: string) => {
-    return availableBulls.find(bull => bull.enar === enar);
+    const bull = availableBulls.find(bull => bull.enar === enar);
+    console.log(`🔍 getBullInfo(${enar}):`, bull);
+    return bull;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -188,13 +230,13 @@ const VVForm: React.FC<VVFormProps> = ({
     setLoading(true);
 
     try {
-      console.log('🔍 FORMDATA POSSIBLE FATHERS RÉSZLETES:', formData.possible_fathers);
+      console.log('🔍 SUBMIT - FORMDATA POSSIBLE FATHERS:', formData.possible_fathers);
+      console.log('🔍 SUBMIT - AVAILABLE BULLS:', availableBulls);
+
       formData.possible_fathers.forEach((enar, index) => {
         console.log(`🔍 ${index}. apa ENAR:`, enar);
         console.log(`🔍 ${index}. apa getBullInfo:`, getBullInfo(enar));
       });
-      console.log('🔍 FORMDATA POSSIBLE FATHERS:', formData.possible_fathers);
-      console.log('🔍 FORMDATA LENGTH:', formData.possible_fathers.length);
 
       // Adatok előkészítése mentéshez
       const dataToSave = {
@@ -227,11 +269,10 @@ const VVForm: React.FC<VVFormProps> = ({
         veterinarian: formData.veterinarian || null,
         notes: formData.notes || null
       };
+
       console.log('🔍 DATASAVE TELJES:', dataToSave);
       console.log('🔍 POSSIBLE FATHERS KÜLÖN:', dataToSave.possible_fathers);
-      console.log('🔍 UNCERTAIN PATERNITY:', dataToSave.uncertain_paternity);
 
-      // VV eredmény mentése az adatbázisba
       // VV eredmény mentése/frissítése az adatbázisba
       let error;
 
@@ -254,6 +295,62 @@ const VVForm: React.FC<VVFormProps> = ({
         console.error('Supabase hiba:', error);
         alert(`Adatbázis hiba: ${error.message}`);
         throw error;
+      }
+
+      // 🆕 ANIMALS TÁBLA FRISSÍTÉSE APA ADATOKKAL (vemhes esetén)
+      if (formData.pregnancy_status === 'vemhes' && formData.father_enar) {
+        console.log('🐂 Animals tábla frissítése apa adatokkal...');
+
+        const animalUpdateData = {
+          father_enar: formData.father_enar,
+          father_name: formData.father_name,
+          father_kplsz: formData.father_kplsz,
+          father_source: 'vv_record',
+          uncertain_paternity: formData.uncertain_paternity,
+          possible_fathers: formData.possible_fathers.length > 0
+            ? formData.possible_fathers.map(enar => {
+              const bullInfo = getBullInfo(enar);
+              return {
+                enar: String(enar),
+                name: String(bullInfo?.name || ''),
+                kplsz: String(bullInfo?.kplsz || '')
+              };
+            })
+            : null
+        };
+
+        const { error: animalError } = await supabase
+          .from('animals')
+          .update(animalUpdateData)
+          .eq('enar', animalEnar);
+
+        if (animalError) {
+          console.error('❌ Animals tábla apa adatok frissítési hiba:', animalError);
+        } else {
+          console.log('✅ Animals tábla apa adatok frissítve:', animalUpdateData);
+        }
+      }
+      // 🆕 ÜRES/CSÍRA esetén apa adatok törlése
+      else if (formData.pregnancy_status !== 'vemhes') {
+        console.log('❌ Nem vemhes - apa adatok törlése animals táblából...');
+
+        const { error: animalError } = await supabase
+          .from('animals')
+          .update({
+            father_enar: null,
+            father_name: null,
+            father_kplsz: null,
+            father_source: null,
+            uncertain_paternity: false,
+            possible_fathers: null
+          })
+          .eq('enar', animalEnar);
+
+        if (animalError) {
+          console.error('❌ Animals tábla apa adatok törlési hiba:', animalError);
+        } else {
+          console.log('✅ Animals tábla apa adatok törölve');
+        }
       }
 
       // Állat adatok frissítése (nem történeti VV esetén)

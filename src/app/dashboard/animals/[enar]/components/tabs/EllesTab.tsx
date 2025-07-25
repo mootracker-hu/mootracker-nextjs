@@ -236,6 +236,20 @@ export default function EllesTab({ animal }: { animal: Animal }) {
         birthUpdated: 'calf_died_later = true'
       });
 
+      // 🆕 3. ANYA KATEGÓRIA ELLENŐRZÉS BORJÚ ELPUSZTULÁS UTÁN
+      if (dyingCalf.birth_id) {
+        const { data: birthData } = await supabase
+          .from('births')
+          .select('mother_enar')
+          .eq('id', dyingCalf.birth_id)
+          .single();
+
+        if (birthData?.mother_enar) {
+          console.log('🔄 Kategória ellenőrzés borjú elpusztulás után:', birthData.mother_enar);
+          await handleMotherCategoryReset(birthData.mother_enar);
+        }
+      }
+
       alert('✅ Borjú státusza sikeresen frissítve!');
       setDyingCalf(null);
       refreshData();
@@ -247,71 +261,71 @@ export default function EllesTab({ animal }: { animal: Animal }) {
   };
 
   // 🆕 ANYA KATEGÓRIA VISSZAÁLLÍTÁS ELLÉS SZERKESZTÉS UTÁN
-const handleMotherCategoryReset = async (motherEnar: string) => {
-  try {
-    console.log('🔄 Anya kategória ellenőrzés ellés szerkesztés után:', motherEnar);
+  const handleMotherCategoryReset = async (motherEnar: string) => {
+    try {
+      console.log('🔄 Anya kategória ellenőrzés ellés szerkesztés után:', motherEnar);
 
-    // Ellenőrizzük: van-e még ENAR-os élő borja
-    const { data: enarCalves } = await supabase
-      .from('calves')
-      .select(`
+      // Ellenőrizzük: van-e még ENAR-os élő borja
+      const { data: enarCalves } = await supabase
+        .from('calves')
+        .select(`
         id, 
         enar,
         birth:births!inner(mother_enar)
       `)
-      .eq('is_alive', true)
-      .eq('births.mother_enar', motherEnar)
-      .not('enar', 'is', null);
+        .eq('is_alive', true)
+        .eq('births.mother_enar', motherEnar)
+        .not('enar', 'is', null);
 
-    // Anya adatok
-    const { data: mother } = await supabase
-      .from('animals')
-      .select('kategoria, has_given_birth')
-      .eq('enar', motherEnar)
-      .single();
-
-    if (!mother) {
-      console.log('❌ Anya nem található:', motherEnar);
-      return;
-    }
-
-    const hasEnarCalves = enarCalves && enarCalves.length > 0;
-    console.log(`🐄 ${motherEnar} anya ENAR-os élő borjai: ${hasEnarCalves ? enarCalves.length : 0} db`);
-    console.log('🔍 Anya jelenlegi állapot:', {
-      kategoria: mother.kategoria,
-      has_given_birth: mother.has_given_birth
-    });
-
-    // VISSZAÁLLÍTÁSI LOGIKA
-    if (!hasEnarCalves && 
-        mother.kategoria === 'tehén' && 
-        mother.has_given_birth === false) {
-      
-      console.log('🔄 VISSZAÁLLÍTÁS: tehén → szűz_üsző (nincs ENAR-os borjú)');
-      
-      const { error: updateError } = await supabase
+      // Anya adatok
+      const { data: mother } = await supabase
         .from('animals')
-        .update({ kategoria: 'szűz_üsző' })
-        .eq('enar', motherEnar);
+        .select('kategoria, has_given_birth')
+        .eq('enar', motherEnar)
+        .single();
 
-      if (!updateError) {
-        console.log('✅ Anya kategória visszaállítva: tehén → szűz_üsző');
-        alert(`🔄 ${motherEnar} anya kategóriája visszaállítva szűz üszőre (nincs hatóságilag bejelentett ellés)`);
-      } else {
-        console.error('❌ Kategória visszaállítás hiba:', updateError);
+      if (!mother) {
+        console.log('❌ Anya nem található:', motherEnar);
+        return;
       }
-    } else {
-      console.log('🐄 Anya kategória változatlan marad', {
-        reason: hasEnarCalves ? 'Van ENAR-os borja' : 
-                mother.has_given_birth ? 'Már volt bejelentett ellése' :
-                mother.kategoria !== 'tehén' ? 'Nem tehén kategóriában' : 'Egyéb ok'
-      });
-    }
 
-  } catch (error) {
-    console.error('❌ Anya kategória ellenőrzés hiba:', error);
-  }
-};
+      const hasEnarCalves = enarCalves && enarCalves.length > 0;
+      console.log(`🐄 ${motherEnar} anya ENAR-os élő borjai: ${hasEnarCalves ? enarCalves.length : 0} db`);
+      console.log('🔍 Anya jelenlegi állapot:', {
+        kategoria: mother.kategoria,
+        has_given_birth: mother.has_given_birth
+      });
+
+      // VISSZAÁLLÍTÁSI LOGIKA
+      if (!hasEnarCalves &&
+        mother.kategoria === 'tehén' &&
+        mother.has_given_birth === false) {
+
+        console.log('🔄 VISSZAÁLLÍTÁS: tehén → szűz_üsző (nincs ENAR-os borjú)');
+
+        const { error: updateError } = await supabase
+          .from('animals')
+          .update({ kategoria: 'szűz_üsző' })
+          .eq('enar', motherEnar);
+
+        if (!updateError) {
+          console.log('✅ Anya kategória visszaállítva: tehén → szűz_üsző');
+          alert(`🔄 ${motherEnar} anya kategóriája visszaállítva szűz üszőre (nincs hatóságilag bejelentett ellés)`);
+        } else {
+          console.error('❌ Kategória visszaállítás hiba:', updateError);
+        }
+      } else {
+        console.log('🐄 Anya kategória változatlan marad', {
+          reason: hasEnarCalves ? 'Van ENAR-os borja' :
+            mother.has_given_birth ? 'Már volt bejelentett ellése' :
+              mother.kategoria !== 'tehén' ? 'Nem tehén kategóriában' : 'Egyéb ok'
+        });
+      }
+
+    } catch (error) {
+      console.error('❌ Anya kategória ellenőrzés hiba:', error);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -556,40 +570,40 @@ const handleMotherCategoryReset = async (motherEnar: string) => {
                             '🔴 Nehéz, állatorvosi beavatkozással'
                     }</p>
 
-                     {/* 🆕 MEGJEGYZÉSEK BLOKK */}
-  {(selectedBirth.notes || selectedBirth.mother_notes || selectedBirth.comments) && (
-    <div className="mt-4 space-y-3">
-      <div className="border-t pt-3">
-        <h5 className="font-medium text-gray-800 mb-2 flex items-center">
-          <span className="mr-2">💬</span>Megjegyzések
-        </h5>
-        
-        {/* Anya megjegyzések */}
-        {selectedBirth.mother_notes && (
-          <div className="bg-green-50 border-l-4 border-green-400 p-3 rounded-r-lg mb-2">
-            <p className="text-green-700 text-sm font-medium mb-1">🐄 Megjegyzés az anyáról:</p>
-            <p className="text-green-800 text-sm italic">"{selectedBirth.mother_notes}"</p>
-          </div>
-        )}
+                    {/* 🆕 MEGJEGYZÉSEK BLOKK */}
+                    {(selectedBirth.notes || selectedBirth.mother_notes || selectedBirth.comments) && (
+                      <div className="mt-4 space-y-3">
+                        <div className="border-t pt-3">
+                          <h5 className="font-medium text-gray-800 mb-2 flex items-center">
+                            <span className="mr-2">💬</span>Megjegyzések
+                          </h5>
 
-        {/* Általános megjegyzések */}
-        {selectedBirth.comments && (
-          <div className="bg-blue-50 border-l-4 border-blue-400 p-3 rounded-r-lg mb-2">
-            <p className="text-blue-700 text-sm font-medium mb-1">📋 Általános megjegyzés az ellésről:</p>
-            <p className="text-blue-800 text-sm italic">"{selectedBirth.comments}"</p>
-          </div>
-        )}
+                          {/* Anya megjegyzések */}
+                          {selectedBirth.mother_notes && (
+                            <div className="bg-green-50 border-l-4 border-green-400 p-3 rounded-r-lg mb-2">
+                              <p className="text-green-700 text-sm font-medium mb-1">🐄 Megjegyzés az anyáról:</p>
+                              <p className="text-green-800 text-sm italic">"{selectedBirth.mother_notes}"</p>
+                            </div>
+                          )}
 
-        {/* Ellési megjegyzések (ha van notes mező) */}
-        {selectedBirth.notes && (
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded-r-lg mb-2">
-            <p className="text-yellow-700 text-sm font-medium mb-1">📝 Ellési jegyzet:</p>
-            <p className="text-yellow-800 text-sm italic">"{selectedBirth.notes}"</p>
-          </div>
-        )}
-      </div>
-    </div>
-  )}
+                          {/* Általános megjegyzések */}
+                          {selectedBirth.comments && (
+                            <div className="bg-blue-50 border-l-4 border-blue-400 p-3 rounded-r-lg mb-2">
+                              <p className="text-blue-700 text-sm font-medium mb-1">📋 Általános megjegyzés az ellésről:</p>
+                              <p className="text-blue-800 text-sm italic">"{selectedBirth.comments}"</p>
+                            </div>
+                          )}
+
+                          {/* Ellési megjegyzések (ha van notes mező) */}
+                          {selectedBirth.notes && (
+                            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded-r-lg mb-2">
+                              <p className="text-yellow-700 text-sm font-medium mb-1">📝 Ellési jegyzet:</p>
+                              <p className="text-yellow-800 text-sm italic">"{selectedBirth.notes}"</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {/* EREDMÉNY + KÉSŐBB ELPUSZTULT */}
                     <div>

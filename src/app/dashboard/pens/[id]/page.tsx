@@ -85,7 +85,7 @@ export default function PenDetailsPage() {
     // Ha van dashboard default, akkor events-re változtatni:
     // A useState típus javítása:
     const [activeTab, setActiveTab] = useState<'animals' | 'events' | 'harem' | 'timeline'>('animals');
-    
+
 
 
 
@@ -94,26 +94,26 @@ export default function PenDetailsPage() {
 
     // Állat alertek hozzárendelése ehhez a karámhoz (ugyanaz mint pen-card.tsx-ben)
     // Állat alertek hozzárendelése ehhez a karámhoz
-const penSpecificAlerts = alerts.filter(alert => {
-    if (!pen?.id) return false;
+    const penSpecificAlerts = alerts.filter(alert => {
+        if (!pen?.id) return false;
 
-    console.log('🔍 Checking alert:', alert.id, 'animal_id:', alert.animal_id, 'pen_id:', alert.pen_id);
+        console.log('🔍 Checking alert:', alert.id, 'animal_id:', alert.animal_id, 'pen_id:', alert.pen_id);
 
-    // 1. Karám-specifikus alertek
-    if (alert.pen_id === pen.id) {
-        console.log('✅ Pen alert match!');
-        return true;
-    }
+        // 1. Karám-specifikus alertek
+        if (alert.pen_id === pen.id) {
+            console.log('✅ Pen alert match!');
+            return true;
+        }
 
-    // 2. Állat alertek - JAVÍTOTT: karám szám alapú mapping
-    if (alert.animal_id && animalPenMap) {
-        const animalPenId = animalPenMap[alert.animal_id];
-        console.log('🗺️ Animal', alert.animal_id, 'is in pen:', animalPenId, 'current pen:', pen.pen_number); // ← pen.pen_number a log-ban is
-        return animalPenId === pen.pen_number; // ← JAVÍTVA!
-    }
+        // 2. Állat alertek - JAVÍTOTT: karám szám alapú mapping
+        if (alert.animal_id && animalPenMap) {
+            const animalPenId = animalPenMap[alert.animal_id];
+            console.log('🗺️ Animal', alert.animal_id, 'is in pen:', animalPenId, 'current pen:', pen.pen_number); // ← pen.pen_number a log-ban is
+            return animalPenId === pen.pen_number; // ← JAVÍTVA!
+        }
 
-    return false;
-});
+        return false;
+    });
 
     console.log('FILTERED ALERTS for pen detail', penId, ':', penSpecificAlerts);
 
@@ -128,12 +128,12 @@ const penSpecificAlerts = alerts.filter(alert => {
         fetchPenDetails();
     }, [penId]);
 
-   // CSERÉLD LE ERRE:
-useEffect(() => {
-    if (pen?.id) {
-        fetchAnimalsInPen();
-    }
-}, [pen?.id, pen?.current_function?.metadata, pen?.current_function?.id]);
+    // CSERÉLD LE ERRE:
+    useEffect(() => {
+        if (pen?.id) {
+            fetchAnimalsInPen();
+        }
+    }, [pen?.id, pen?.current_function?.metadata, pen?.current_function?.id]);
 
     // Összes karám betöltése
     useEffect(() => {
@@ -273,8 +273,8 @@ useEffect(() => {
 
             // 1. ✅ VALÓDI ÁLLATOK LEKÉRDEZÉSE (eredeti)
             const { data: assignments, error: assignError } = await supabase
-    .from('animal_pen_assignments')
-    .select(`
+                .from('animal_pen_assignments')
+                .select(`
     animal_id,
     assigned_at,
     assignment_reason,
@@ -378,89 +378,89 @@ useEffect(() => {
 
     // JAVÍTOTT deletePeriod funkció - page.tsx-ben cseréld le
 
-const deletePeriod = async (periodId: string, functionType: string, isActive: boolean) => {
-  const confirmMessage = isActive
-    ? `🚨 AKTÍV ${functionType.toUpperCase()} periódus törlése?\n\nEz visszaállítja a karamot ÜRES állapotba!\n\n⚠️ FIGYELEM: Az állatokat is el fogja távolítani a karámból!\n\nBiztosan folytatod?`
-    : `🗑️ ${functionType.toUpperCase()} periódus törlése?\n\nEz a művelet nem vonható vissza!\n\n⚠️ Ha vannak hozzárendelt állatok, azokat is eltávolítja!\n\nBiztosan törlöd?`;
+    const deletePeriod = async (periodId: string, functionType: string, isActive: boolean) => {
+        const confirmMessage = isActive
+            ? `🚨 AKTÍV ${functionType.toUpperCase()} periódus törlése?\n\nEz visszaállítja a karamot ÜRES állapotba!\n\n⚠️ FIGYELEM: Az állatokat is el fogja távolítani a karámból!\n\nBiztosan folytatod?`
+            : `🗑️ ${functionType.toUpperCase()} periódus törlése?\n\nEz a művelet nem vonható vissza!\n\n⚠️ Ha vannak hozzárendelt állatok, azokat is eltávolítja!\n\nBiztosan törlöd?`;
 
-  if (!confirm(confirmMessage)) return;
+        if (!confirm(confirmMessage)) return;
 
-  try {
-    console.log('🗑️ Periódus törlése és assignments szinkronizálás...', periodId);
+        try {
+            console.log('🗑️ Periódus törlése és assignments szinkronizálás...', periodId);
 
-    // 1. ✅ ASSIGNMENTS LEZÁRÁSA ELŐBB
-    if (isActive) {
-      console.log('🔒 Aktív periódus assignments lezárása...');
-      
-      const { error: assignmentsError } = await supabase
-        .from('animal_pen_assignments')
-        .update({ removed_at: new Date().toISOString() })
-        .eq('pen_id', pen?.id)
-        .is('removed_at', null);
+            // 1. ✅ ASSIGNMENTS LEZÁRÁSA ELŐBB
+            if (isActive) {
+                console.log('🔒 Aktív periódus assignments lezárása...');
 
-      if (assignmentsError) {
-        console.error('❌ Assignments lezárási hiba:', assignmentsError);
-        alert('❌ Hiba az állatok eltávolításakor: ' + assignmentsError.message);
-        return;
-      }
-      
-      console.log('✅ Assignments lezárva');
-    }
+                const { error: assignmentsError } = await supabase
+                    .from('animal_pen_assignments')
+                    .update({ removed_at: new Date().toISOString() })
+                    .eq('pen_id', pen?.id)
+                    .is('removed_at', null);
 
-    // 2. ✅ PERIÓDUS TÖRLÉSE
-    const { error } = await supabase
-      .from('pen_functions')
-      .delete()
-      .eq('id', periodId);
+                if (assignmentsError) {
+                    console.error('❌ Assignments lezárási hiba:', assignmentsError);
+                    alert('❌ Hiba az állatok eltávolításakor: ' + assignmentsError.message);
+                    return;
+                }
 
-    if (error) throw error;
+                console.log('✅ Assignments lezárva');
+            }
 
-    console.log('✅ Periódus sikeresen törölve');
+            // 2. ✅ PERIÓDUS TÖRLÉSE
+            const { error } = await supabase
+                .from('pen_functions')
+                .delete()
+                .eq('id', periodId);
 
-    // 3. ✅ KONZISZTENCIA ELLENŐRZÉS - árva assignments keresése
-    console.log('🔍 Árva assignments ellenőrzése...');
-    const { data: orphanedAssignments, error: orphanError } = await supabase
-      .from('animal_pen_assignments')
-      .select('id, animal_id, assigned_at')
-      .eq('pen_id', pen?.id)
-      .is('removed_at', null);
+            if (error) throw error;
 
-    if (!orphanError && orphanedAssignments && orphanedAssignments.length > 0) {
-      console.log('🚨 Árva assignments találva:', orphanedAssignments.length);
-      
-      // Automatikus javítás
-      const { error: cleanupError } = await supabase
-        .from('animal_pen_assignments')
-        .update({ removed_at: new Date().toISOString() })
-        .in('id', orphanedAssignments.map(a => a.id));
+            console.log('✅ Periódus sikeresen törölve');
 
-      if (cleanupError) {
-        console.error('❌ Árva assignments cleanup hiba:', cleanupError);
-      } else {
-        console.log('✅ Árva assignments megtisztítva:', orphanedAssignments.length);
-      }
-    }
+            // 3. ✅ KONZISZTENCIA ELLENŐRZÉS - árva assignments keresése
+            console.log('🔍 Árva assignments ellenőrzése...');
+            const { data: orphanedAssignments, error: orphanError } = await supabase
+                .from('animal_pen_assignments')
+                .select('id, animal_id, assigned_at')
+                .eq('pen_id', pen?.id)
+                .is('removed_at', null);
 
-    // 4. ✅ SIKERÜZENET
-    const resultMessage = isActive
-      ? '✅ Aktív periódus törölve!\n\n🔄 A karám most ÜRES állapotba került\n🐄 Az állatok eltávolítva'
-      : '✅ Periódus sikeresen törölve!';
-    
-    alert(resultMessage);
+            if (!orphanError && orphanedAssignments && orphanedAssignments.length > 0) {
+                console.log('🚨 Árva assignments találva:', orphanedAssignments.length);
 
-    if (isActive) {
-      // Teljes oldal újratöltés aktív periódus törlésekor
-      setTimeout(() => window.location.reload(), 1000);
-    } else {
-      // Lista frissítése régi periódus törlésekor
-      fetchFullPenHistory();
-    }
+                // Automatikus javítás
+                const { error: cleanupError } = await supabase
+                    .from('animal_pen_assignments')
+                    .update({ removed_at: new Date().toISOString() })
+                    .in('id', orphanedAssignments.map(a => a.id));
 
-  } catch (error) {
-    console.error('❌ Törlési hiba:', error);
-    alert('❌ Hiba a törlés során: ' + (error instanceof Error ? error.message : 'Ismeretlen hiba'));
-  }
-};
+                if (cleanupError) {
+                    console.error('❌ Árva assignments cleanup hiba:', cleanupError);
+                } else {
+                    console.log('✅ Árva assignments megtisztítva:', orphanedAssignments.length);
+                }
+            }
+
+            // 4. ✅ SIKERÜZENET
+            const resultMessage = isActive
+                ? '✅ Aktív periódus törölve!\n\n🔄 A karám most ÜRES állapotba került\n🐄 Az állatok eltávolítva'
+                : '✅ Periódus sikeresen törölve!';
+
+            alert(resultMessage);
+
+            if (isActive) {
+                // Teljes oldal újratöltés aktív periódus törlésekor
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                // Lista frissítése régi periódus törlésekor
+                fetchFullPenHistory();
+            }
+
+        } catch (error) {
+            console.error('❌ Törlési hiba:', error);
+            alert('❌ Hiba a törlés során: ' + (error instanceof Error ? error.message : 'Ismeretlen hiba'));
+        }
+    };
 
     // Periódus szerkesztése - ÚJ FUNKCIÓ  
     const editPeriod = async (period: any) => {
@@ -647,8 +647,8 @@ const deletePeriod = async (periodId: string, functionType: string, isActive: bo
 
     // ✅ JAVÍTOTT SZÍNPALETTA - MINDEN FUNKCIÓ EGYSÉGESEN MINT A TÖBBI FÁJLBAN!
     const getFunctionColor = (functionType: string): string => {
-    return ColorHelpers.getPenFunctionColor(functionType as any);
-};
+        return ColorHelpers.getPenFunctionColor(functionType as any);
+    };
 
     const getCapacityColor = (current: number, capacity: number): string => {
         const percentage = (current / capacity) * 100;
@@ -840,27 +840,27 @@ const deletePeriod = async (periodId: string, functionType: string, isActive: bo
     };
 
     const exportPenHistory = async () => {
-    try {
-        console.log('📊 Karámtörténet export kezdése...', {
-            penId: pen?.id,
-            penNumber: pen?.pen_number
-        });
+        try {
+            console.log('📊 Karámtörténet export kezdése...', {
+                penId: pen?.id,
+                penNumber: pen?.pen_number
+            });
 
-        // 1. Történeti periódusok lekérdezése
-        const { data: periodsData, error: periodsError } = await supabase
-            .from('pen_history_periods')
-            .select('*')
-            .eq('pen_id', pen?.id)
-            .order('start_date', { ascending: false });
+            // 1. Történeti periódusok lekérdezése
+            const { data: periodsData, error: periodsError } = await supabase
+                .from('pen_history_periods')
+                .select('*')
+                .eq('pen_id', pen?.id)
+                .order('start_date', { ascending: false });
 
-        if (periodsError) {
-            console.error('❌ Periódusok lekérdezési hiba:', periodsError);
-        }
+            if (periodsError) {
+                console.error('❌ Periódusok lekérdezési hiba:', periodsError);
+            }
 
-        // 2. Állat események lekérdezése
-        const { data: eventsData, error: eventsError } = await supabase
-            .from('animal_events')
-            .select(`
+            // 2. Állat események lekérdezése
+            const { data: eventsData, error: eventsError } = await supabase
+                .from('animal_events')
+                .select(`
                 event_date,
                 event_type,
                 reason,
@@ -872,17 +872,17 @@ const deletePeriod = async (periodId: string, functionType: string, isActive: bo
                     ivar
                 )
             `)
-            .order('event_date', { ascending: false })
-            .limit(1000);
+                .order('event_date', { ascending: false })
+                .limit(1000);
 
-        if (eventsError) {
-            console.error('❌ Események lekérdezési hiba:', eventsError);
-        }
+            if (eventsError) {
+                console.error('❌ Események lekérdezési hiba:', eventsError);
+            }
 
-        // 3. Mozgatási adatok lekérdezése
-        const { data: movementsData, error: movementsError } = await supabase
-            .from('animal_pen_assignments')
-            .select(`
+            // 3. Mozgatási adatok lekérdezése
+            const { data: movementsData, error: movementsError } = await supabase
+                .from('animal_pen_assignments')
+                .select(`
                 assigned_at,
                 removed_at,
                 assignment_reason,
@@ -895,110 +895,110 @@ const deletePeriod = async (periodId: string, functionType: string, isActive: bo
                     pen_number
                 )
             `)
-            .eq('pen_id', pen?.id)
-            .order('assigned_at', { ascending: false })
-            .limit(1000);
+                .eq('pen_id', pen?.id)
+                .order('assigned_at', { ascending: false })
+                .limit(1000);
 
-        if (movementsError) {
-            console.error('❌ Mozgatások lekérdezési hiba:', movementsError);
-        }
+            if (movementsError) {
+                console.error('❌ Mozgatások lekérdezési hiba:', movementsError);
+            }
 
-        // EXCEL ADATOK FORMÁZÁSA
+            // EXCEL ADATOK FORMÁZÁSA
 
-        // 1. Történeti periódusok worksheet
-        const periodsExportData = periodsData?.map((period: any) => {
-            const startDate = new Date(period.start_date).toLocaleDateString('hu-HU');
-            const endDate = period.end_date ? new Date(period.end_date).toLocaleDateString('hu-HU') : 'Folyamatban';
-            const duration = period.end_date 
-                ? Math.ceil((new Date(period.end_date).getTime() - new Date(period.start_date).getTime()) / (1000 * 60 * 60 * 24))
-                : Math.ceil((new Date().getTime() - new Date(period.start_date).getTime()) / (1000 * 60 * 60 * 24));
+            // 1. Történeti periódusok worksheet
+            const periodsExportData = periodsData?.map((period: any) => {
+                const startDate = new Date(period.start_date).toLocaleDateString('hu-HU');
+                const endDate = period.end_date ? new Date(period.end_date).toLocaleDateString('hu-HU') : 'Folyamatban';
+                const duration = period.end_date
+                    ? Math.ceil((new Date(period.end_date).getTime() - new Date(period.start_date).getTime()) / (1000 * 60 * 60 * 24))
+                    : Math.ceil((new Date().getTime() - new Date(period.start_date).getTime()) / (1000 * 60 * 60 * 24));
 
-            return {
-                'Kezdet': startDate,
-                'Vég': endDate,
-                'Időtartam (nap)': duration,
-                'Funkció': period.function_type,
-                'Állatok száma': period.animals_snapshot?.length || 0,
-                'Tenyészbikák': period.metadata?.bulls?.map((b: any) => b.name).join(', ') || '-',
-                'Rögzítés': period.historical ? 'Kézi' : 'Automatikus',
-                'Megjegyzések': period.notes || '-'
-            };
-        }) || [];
+                return {
+                    'Kezdet': startDate,
+                    'Vég': endDate,
+                    'Időtartam (nap)': duration,
+                    'Funkció': period.function_type,
+                    'Állatok száma': period.animals_snapshot?.length || 0,
+                    'Tenyészbikák': period.metadata?.bulls?.map((b: any) => b.name).join(', ') || '-',
+                    'Rögzítés': period.historical ? 'Kézi' : 'Automatikus',
+                    'Megjegyzések': period.notes || '-'
+                };
+            }) || [];
 
-        // 2. Események worksheet
-        const eventsExportData = eventsData?.map((event: any) => {
-            return {
-                'Dátum': new Date(event.event_date).toLocaleDateString('hu-HU'),
-                'Esemény': event.event_type === 'function_change' ? 'Funkció váltás' :
-                          event.event_type === 'pen_movement' ? 'Mozgatás' :
-                          event.event_type === 'pen_assignment' ? 'Bekerülés' :
-                          event.event_type === 'health_event' ? 'Egészségügyi esemény' :
-                          event.event_type,
-                'ENAR': event.animals?.enar || '-',
-                'Kategória': event.animals?.kategoria || '-',
-                'Indoklás': event.reason || '-',
-                'Részletek': event.notes || '-'
-            };
-        }) || [];
+            // 2. Események worksheet
+            const eventsExportData = eventsData?.map((event: any) => {
+                return {
+                    'Dátum': new Date(event.event_date).toLocaleDateString('hu-HU'),
+                    'Esemény': event.event_type === 'function_change' ? 'Funkció váltás' :
+                        event.event_type === 'pen_movement' ? 'Mozgatás' :
+                            event.event_type === 'pen_assignment' ? 'Bekerülés' :
+                                event.event_type === 'health_event' ? 'Egészségügyi esemény' :
+                                    event.event_type,
+                    'ENAR': event.animals?.enar || '-',
+                    'Kategória': event.animals?.kategoria || '-',
+                    'Indoklás': event.reason || '-',
+                    'Részletek': event.notes || '-'
+                };
+            }) || [];
 
-        // 3. Mozgatások worksheet
-        const movementsExportData = movementsData?.map((movement: any) => {
-            const assignedDate = new Date(movement.assigned_at).toLocaleDateString('hu-HU');
-            const removedDate = movement.removed_at ? new Date(movement.removed_at).toLocaleDateString('hu-HU') : 'Jelenleg itt';
-            const daysInPen = movement.removed_at 
-                ? Math.ceil((new Date(movement.removed_at).getTime() - new Date(movement.assigned_at).getTime()) / (1000 * 60 * 60 * 24))
-                : Math.ceil((new Date().getTime() - new Date(movement.assigned_at).getTime()) / (1000 * 60 * 60 * 24));
+            // 3. Mozgatások worksheet
+            const movementsExportData = movementsData?.map((movement: any) => {
+                const assignedDate = new Date(movement.assigned_at).toLocaleDateString('hu-HU');
+                const removedDate = movement.removed_at ? new Date(movement.removed_at).toLocaleDateString('hu-HU') : 'Jelenleg itt';
+                const daysInPen = movement.removed_at
+                    ? Math.ceil((new Date(movement.removed_at).getTime() - new Date(movement.assigned_at).getTime()) / (1000 * 60 * 60 * 24))
+                    : Math.ceil((new Date().getTime() - new Date(movement.assigned_at).getTime()) / (1000 * 60 * 60 * 24));
 
-            return {
-                'ENAR': movement.animals?.enar || '-',
-                'Kategória': movement.animals?.kategoria || '-',
-                'Bekerülés': assignedDate,
-                'Távozás': removedDate,
-                'Napok karámban': daysInPen,
-                'Indoklás': movement.assignment_reason || '-'
-            };
-        }) || [];
+                return {
+                    'ENAR': movement.animals?.enar || '-',
+                    'Kategória': movement.animals?.kategoria || '-',
+                    'Bekerülés': assignedDate,
+                    'Távozás': removedDate,
+                    'Napok karámban': daysInPen,
+                    'Indoklás': movement.assignment_reason || '-'
+                };
+            }) || [];
 
-        // EXCEL FÁJL LÉTREHOZÁSA
-        const wb = XLSX.utils.book_new();
+            // EXCEL FÁJL LÉTREHOZÁSA
+            const wb = XLSX.utils.book_new();
 
-        // Worksheets hozzáadása
-        if (periodsExportData.length > 0) {
-            const periodsWS = XLSX.utils.json_to_sheet(periodsExportData);
-            XLSX.utils.book_append_sheet(wb, periodsWS, 'Történeti Periódusok');
-        }
+            // Worksheets hozzáadása
+            if (periodsExportData.length > 0) {
+                const periodsWS = XLSX.utils.json_to_sheet(periodsExportData);
+                XLSX.utils.book_append_sheet(wb, periodsWS, 'Történeti Periódusok');
+            }
 
-        if (eventsExportData.length > 0) {
-            const eventsWS = XLSX.utils.json_to_sheet(eventsExportData);
-            XLSX.utils.book_append_sheet(wb, eventsWS, 'Események');
-        }
+            if (eventsExportData.length > 0) {
+                const eventsWS = XLSX.utils.json_to_sheet(eventsExportData);
+                XLSX.utils.book_append_sheet(wb, eventsWS, 'Események');
+            }
 
-        if (movementsExportData.length > 0) {
-            const movementsWS = XLSX.utils.json_to_sheet(movementsExportData);
-            XLSX.utils.book_append_sheet(wb, movementsWS, 'Mozgatások');
-        }
+            if (movementsExportData.length > 0) {
+                const movementsWS = XLSX.utils.json_to_sheet(movementsExportData);
+                XLSX.utils.book_append_sheet(wb, movementsWS, 'Mozgatások');
+            }
 
-        // Összefoglaló worksheet
-        const summaryData = [
-            { 'Adat típus': 'Történeti periódusok', 'Rekordok száma': periodsExportData.length },
-            { 'Adat típus': 'Események', 'Rekordok száma': eventsExportData.length },
-            { 'Adat típus': 'Mozgatások', 'Rekordok száma': movementsExportData.length },
-            { 'Adat típus': 'Export dátuma', 'Rekordok száma': new Date().toLocaleDateString('hu-HU') },
-            { 'Adat típus': 'Karám', 'Rekordok száma': `Karám ${pen?.pen_number}` }
-        ];
-        const summaryWS = XLSX.utils.json_to_sheet(summaryData);
-        XLSX.utils.book_append_sheet(wb, summaryWS, 'Összefoglaló');
+            // Összefoglaló worksheet
+            const summaryData = [
+                { 'Adat típus': 'Történeti periódusok', 'Rekordok száma': periodsExportData.length },
+                { 'Adat típus': 'Események', 'Rekordok száma': eventsExportData.length },
+                { 'Adat típus': 'Mozgatások', 'Rekordok száma': movementsExportData.length },
+                { 'Adat típus': 'Export dátuma', 'Rekordok száma': new Date().toLocaleDateString('hu-HU') },
+                { 'Adat típus': 'Karám', 'Rekordok száma': `Karám ${pen?.pen_number}` }
+            ];
+            const summaryWS = XLSX.utils.json_to_sheet(summaryData);
+            XLSX.utils.book_append_sheet(wb, summaryWS, 'Összefoglaló');
 
-        // Fájl mentése
-        const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
-        const fileName = `Karam_${pen?.pen_number}_tortenet_${timestamp}.xlsx`;
-        
-        XLSX.writeFile(wb, fileName);
+            // Fájl mentése
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
+            const fileName = `Karam_${pen?.pen_number}_tortenet_${timestamp}.xlsx`;
 
-        console.log('✅ Karámtörténet export sikeres:', fileName);
+            XLSX.writeFile(wb, fileName);
 
-        // Sikeres üzenet
-        alert(`✅ Karámtörténet export sikeres!
+            console.log('✅ Karámtörténet export sikeres:', fileName);
+
+            // Sikeres üzenet
+            alert(`✅ Karámtörténet export sikeres!
 
 📊 Adatok:
 • Történeti periódusok: ${periodsExportData.length} db
@@ -1007,11 +1007,11 @@ const deletePeriod = async (periodId: string, functionType: string, isActive: bo
 
 📁 Fájl: ${fileName}`);
 
-    } catch (error) {
-        console.error('❌ Karámtörténet export hiba:', error);
-        alert('❌ Hiba történt a karámtörténet export során: ' + (error instanceof Error ? error.message : 'Ismeretlen hiba'));
-    }
-};
+        } catch (error) {
+            console.error('❌ Karámtörténet export hiba:', error);
+            alert('❌ Hiba történt a karámtörténet export során: ' + (error instanceof Error ? error.message : 'Ismeretlen hiba'));
+        }
+    };
 
     // Segédfunkciók (változatlanok)
     const calculateTargetDate = (birthDate: string, targetMonths: number): string => {
@@ -1122,24 +1122,24 @@ const deletePeriod = async (periodId: string, functionType: string, isActive: bo
                             </h1>
                         </div>
                         <div className="flex items-center space-x-4">
-    {selectedAnimals.length > 0 && (
-        <button
-            onClick={() => setShowMovementPanel(true)}
-            className="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg transition-colors inline-flex items-center"
-        >
-            <span className="mr-2">🔄</span>
-            Mozgatás ({selectedAnimals.length})
-        </button>
-    )}
-    <AdminEszkozok />  {/* ← ÚJ: Diszkrét admin dropdown */}
-    <button
-        onClick={() => setShowFunctionManager(true)}
-        className="bg-teal-500 hover:bg-teal-600 text-white font-medium px-4 py-2 rounded-lg transition-colors inline-flex items-center"
-    >
-        <span className="mr-2">⚙️</span>
-        Funkció Kezelés
-    </button>
-</div>
+                            {selectedAnimals.length > 0 && (
+                                <button
+                                    onClick={() => setShowMovementPanel(true)}
+                                    className="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg transition-colors inline-flex items-center"
+                                >
+                                    <span className="mr-2">🔄</span>
+                                    Mozgatás ({selectedAnimals.length})
+                                </button>
+                            )}
+                            <AdminEszkozok />  {/* ← ÚJ: Diszkrét admin dropdown */}
+                            <button
+                                onClick={() => setShowFunctionManager(true)}
+                                className="bg-teal-500 hover:bg-teal-600 text-white font-medium px-4 py-2 rounded-lg transition-colors inline-flex items-center"
+                            >
+                                <span className="mr-2">⚙️</span>
+                                Funkció Kezelés
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1303,14 +1303,14 @@ const deletePeriod = async (periodId: string, functionType: string, isActive: bo
                         </div>
                     )}
                     <PenAlertsWidget
-    penId={pen.id}
-    penNumber={pen.pen_number}
-    alerts={penSpecificAlerts as any}
-    animalPenMap={animalPenMap}
-    showAnimalAlerts={true}
-    maxDisplayed={5}
-    className="mt-6"
-/>
+                        penId={pen.id}
+                        penNumber={pen.pen_number}
+                        alerts={penSpecificAlerts as any}
+                        animalPenMap={animalPenMap}
+                        showAnimalAlerts={true}
+                        maxDisplayed={5}
+                        className="mt-6"
+                    />
                     {/* Univerzális Karám Történet Gomb */}
                     <div className="mt-6">
                         <button
@@ -1329,38 +1329,38 @@ const deletePeriod = async (periodId: string, functionType: string, isActive: bo
             </div>
 
             {/* ÚJ Tab Navigation - HÁREM TAB-BAL */}
-<div className="flex border-b mb-6">
-  <button
-    onClick={() => setActiveTab('animals')}
-    className={`px-4 py-2 font-medium ${activeTab === 'animals' ? 'border-b-2 border-green-500 text-green-600' : 'text-gray-500'}`}
-  >
-    🐄 Állatok ({filteredAnimals.length})
-  </button>
-  
-  <button
-    onClick={() => setActiveTab('events')}
-    className={`px-4 py-2 font-medium ${activeTab === 'events' ? 'border-b-2 border-green-500 text-green-600' : 'text-gray-500'}`}
-  >
-    🎯 Karám Események
-  </button>
-  
-  {/* CONDITIONAL HÁREM TAB - csak hárem karámoknál */}
-  {(pen.current_function?.function_type === 'hárem' || pen.current_function?.function_type === 'vemhes') && (
-    <button
-      onClick={() => setActiveTab('harem')}
-      className={`px-4 py-2 font-medium ${activeTab === 'harem' ? 'border-b-2 border-pink-500 text-pink-600' : 'text-gray-500'}`}
-    >
-      {pen.current_function?.function_type === 'hárem' ? '💕 Hárem Dashboard' : '🐄💕 Vemhes Dashboard'}
-    </button>
-  )}
-  
-  <button
-    onClick={() => setActiveTab('timeline')}
-    className={`px-4 py-2 font-medium ${activeTab === 'timeline' ? 'border-b-2 border-green-500 text-green-600' : 'text-gray-500'}`}
-  >
-    📅 Karám Történet
-  </button>
-</div>
+            <div className="flex border-b mb-6">
+                <button
+                    onClick={() => setActiveTab('animals')}
+                    className={`px-4 py-2 font-medium ${activeTab === 'animals' ? 'border-b-2 border-green-500 text-green-600' : 'text-gray-500'}`}
+                >
+                    🐄 Állatok ({filteredAnimals.length})
+                </button>
+
+                <button
+                    onClick={() => setActiveTab('events')}
+                    className={`px-4 py-2 font-medium ${activeTab === 'events' ? 'border-b-2 border-green-500 text-green-600' : 'text-gray-500'}`}
+                >
+                    🎯 Karám Események
+                </button>
+
+                {/* CONDITIONAL HÁREM TAB - csak hárem karámoknál */}
+                {(pen.current_function?.function_type === 'hárem' || pen.current_function?.function_type === 'vemhes') && (
+                    <button
+                        onClick={() => setActiveTab('harem')}
+                        className={`px-4 py-2 font-medium ${activeTab === 'harem' ? 'border-b-2 border-pink-500 text-pink-600' : 'text-gray-500'}`}
+                    >
+                        {pen.current_function?.function_type === 'hárem' ? '💕 Hárem Dashboard' : '🐄💕 Vemhes Dashboard'}
+                    </button>
+                )}
+
+                <button
+                    onClick={() => setActiveTab('timeline')}
+                    className={`px-4 py-2 font-medium ${activeTab === 'timeline' ? 'border-b-2 border-green-500 text-green-600' : 'text-gray-500'}`}
+                >
+                    📅 Karám Történet
+                </button>
+            </div>
 
             {/* Tab Content */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -1450,24 +1450,24 @@ const deletePeriod = async (periodId: string, functionType: string, isActive: bo
                 )}
 
  // ✅ ÚJ - dinamikus komponens:
-         {activeTab === 'events' && (
-  <PenEventsTab 
-    penId={pen.id}
-    penNumber={pen.pen_number}
-    penFunction={pen.current_function?.function_type}
-    animals={filteredAnimals}
-    // onDataChange prop elhagyva
-  />
-)}
+                {activeTab === 'events' && (
+                    <PenEventsTab
+                        penId={pen.id}
+                        penNumber={pen.pen_number}
+                        penFunction={pen.current_function?.function_type}
+                        animals={filteredAnimals}
+                    // onDataChange prop elhagyva
+                    />
+                )}
 
-{/* ÚJ HÁREM TAB CONTENT */}
-{activeTab === 'harem' && (pen.current_function?.function_type === 'hárem' || pen.current_function?.function_type === 'vemhes') && (
-  <HaremDashboard 
-    penId={pen.id}
-    penNumber={pen.pen_number}
-    penFunction={pen.current_function.function_type}
-  />
-)}
+                {/* ÚJ HÁREM TAB CONTENT */}
+                {activeTab === 'harem' && (pen.current_function?.function_type === 'hárem' || pen.current_function?.function_type === 'vemhes') && (
+                    <HaremDashboard
+                        penId={pen.id}
+                        penNumber={pen.pen_number}
+                        penFunction={pen.current_function.function_type}
+                    />
+                )}
 
                 {/* Timeline Tab - ÚJ KARÁMTÖRTÉNET KÁRTYA RENDSZER */}
                 {activeTab === 'timeline' && (
@@ -1497,195 +1497,195 @@ const deletePeriod = async (periodId: string, functionType: string, isActive: bo
                 // Keresd meg ezt a részt a fájlban (787. sor környékén) és cseréld le:
 
                 onMove={async (targetPenId, reason, notes, isHistorical, moveDate, functionType, metadata) => {
-  try {
-    console.log('🔄 JAVÍTOTT állatok mozgatása:', {
-      from: penId,
-      to: targetPenId,
-      animals: selectedAnimals,
-      reason
-    });
+                    try {
+                        console.log('🔄 JAVÍTOTT állatok mozgatása:', {
+                            from: penId,
+                            to: targetPenId,
+                            animals: selectedAnimals,
+                            reason
+                        });
 
-    // Dátum kezelés
-    const actualMoveDate = isHistorical && moveDate ? moveDate : new Date().toISOString();
+                        // Dátum kezelés
+                        const actualMoveDate = isHistorical && moveDate ? moveDate : new Date().toISOString();
 
-    // 🔥 KRITIKUS JAVÍTÁS: BATCH MOZGATÁS TRANSACTION-nel
-    
-    // 1. ✅ ELŐTTE: Duplikáció ellenőrzése
-    console.log('🔍 Duplikáció ellenőrzése...');
-    const { data: existingAssignments, error: checkError } = await supabase
-      .from('animal_pen_assignments')
-      .select('animal_id, pen_id')
-      .in('animal_id', selectedAnimals)
-      .eq('pen_id', targetPenId)
-      .is('removed_at', null);
+                        // 🔥 KRITIKUS JAVÍTÁS: BATCH MOZGATÁS TRANSACTION-nel
 
-    if (checkError) {
-      console.error('❌ Duplikáció ellenőrzési hiba:', checkError);
-      throw new Error('Duplikáció ellenőrzési hiba: ' + checkError.message);
-    }
+                        // 1. ✅ ELŐTTE: Duplikáció ellenőrzése
+                        console.log('🔍 Duplikáció ellenőrzése...');
+                        const { data: existingAssignments, error: checkError } = await supabase
+                            .from('animal_pen_assignments')
+                            .select('animal_id, pen_id')
+                            .in('animal_id', selectedAnimals)
+                            .eq('pen_id', targetPenId)
+                            .is('removed_at', null);
 
-    const alreadyInTarget = existingAssignments?.map(a => a.animal_id) || [];
-    const animalsToMove = selectedAnimals.filter(id => !alreadyInTarget.includes(id));
+                        if (checkError) {
+                            console.error('❌ Duplikáció ellenőrzési hiba:', checkError);
+                            throw new Error('Duplikáció ellenőrzési hiba: ' + checkError.message);
+                        }
 
-    if (alreadyInTarget.length > 0) {
-      console.log('ℹ️ Már a célkarámban lévő állatok:', alreadyInTarget);
-    }
+                        const alreadyInTarget = existingAssignments?.map(a => a.animal_id) || [];
+                        const animalsToMove = selectedAnimals.filter(id => !alreadyInTarget.includes(id));
 
-    if (animalsToMove.length === 0) {
-      alert('ℹ️ Minden kiválasztott állat már a célkarámban van!');
-      setShowMovementPanel(false);
-      return;
-    }
+                        if (alreadyInTarget.length > 0) {
+                            console.log('ℹ️ Már a célkarámban lévő állatok:', alreadyInTarget);
+                        }
 
-    // 2. ✅ RÉGI HOZZÁRENDELÉSEK LEZÁRÁSA - csak a mozgatandó állatokra
-    if (!isHistorical && animalsToMove.length > 0) {
-      console.log('🔒 Régi hozzárendelések lezárása...', animalsToMove);
-      
-      const { error: removeError } = await supabase
-        .from('animal_pen_assignments')
-        .update({ removed_at: actualMoveDate })
-        .in('animal_id', animalsToMove)
-        .is('removed_at', null);
+                        if (animalsToMove.length === 0) {
+                            alert('ℹ️ Minden kiválasztott állat már a célkarámban van!');
+                            setShowMovementPanel(false);
+                            return;
+                        }
 
-      if (removeError) {
-        console.error('❌ Régi hozzárendelések lezárási hiba:', removeError);
-        throw new Error('Régi hozzárendelések lezárása sikertelen: ' + removeError.message);
-      }
+                        // 2. ✅ RÉGI HOZZÁRENDELÉSEK LEZÁRÁSA - csak a mozgatandó állatokra
+                        if (!isHistorical && animalsToMove.length > 0) {
+                            console.log('🔒 Régi hozzárendelések lezárása...', animalsToMove);
 
-      console.log('✅ Régi hozzárendelések lezárva:', animalsToMove.length);
-    }
+                            const { error: removeError } = await supabase
+                                .from('animal_pen_assignments')
+                                .update({ removed_at: actualMoveDate })
+                                .in('animal_id', animalsToMove)
+                                .is('removed_at', null);
 
-    // 3. ✅ VÁRAKOZÁS hogy a lezárás érvényesüljön
-    await new Promise(resolve => setTimeout(resolve, 200));
+                            if (removeError) {
+                                console.error('❌ Régi hozzárendelések lezárási hiba:', removeError);
+                                throw new Error('Régi hozzárendelések lezárása sikertelen: ' + removeError.message);
+                            }
 
-    // 4. ✅ ÚJ HOZZÁRENDELÉSEK LÉTREHOZÁSA - csak a mozgatandó állatokra
-    if (!isHistorical && animalsToMove.length > 0) {
-      console.log('➕ Új hozzárendelések létrehozása...', animalsToMove);
-      
-      const newAssignments = animalsToMove.map(animalId => ({
-        animal_id: animalId,
-        pen_id: targetPenId,
-        assigned_at: actualMoveDate,
-        assignment_reason: reason,
-        notes: notes || null
-      }));
+                            console.log('✅ Régi hozzárendelések lezárva:', animalsToMove.length);
+                        }
 
-      const { error: assignError } = await supabase
-        .from('animal_pen_assignments')
-        .insert(newAssignments);
+                        // 3. ✅ VÁRAKOZÁS hogy a lezárás érvényesüljön
+                        await new Promise(resolve => setTimeout(resolve, 200));
 
-      if (assignError) {
-        console.error('❌ Új hozzárendelések létrehozási hiba:', assignError);
-        throw new Error('Új hozzárendelések létrehozása sikertelen: ' + assignError.message);
-      }
+                        // 4. ✅ ÚJ HOZZÁRENDELÉSEK LÉTREHOZÁSA - csak a mozgatandó állatokra
+                        if (!isHistorical && animalsToMove.length > 0) {
+                            console.log('➕ Új hozzárendelések létrehozása...', animalsToMove);
 
-      console.log('✅ Új hozzárendelések létrehozva:', animalsToMove.length);
-    }
+                            const newAssignments = animalsToMove.map(animalId => ({
+                                animal_id: animalId,
+                                pen_id: targetPenId,
+                                assigned_at: actualMoveDate,
+                                assignment_reason: reason,
+                                notes: notes || null
+                            }));
 
-    // 5. ✅ VÉGSŐ DUPLIKÁCIÓ ELLENŐRZÉS
-    console.log('🔍 Végső duplikáció ellenőrzése...');
-    for (const animalId of animalsToMove) {
-      const { data: finalCheck, error: finalError } = await supabase
-        .from('animal_pen_assignments')
-        .select('id, pen_id')
-        .eq('animal_id', animalId)
-        .is('removed_at', null);
+                            const { error: assignError } = await supabase
+                                .from('animal_pen_assignments')
+                                .insert(newAssignments);
 
-      if (finalError) {
-        console.warn('⚠️ Végső ellenőrzési hiba:', animalId, finalError);
-        continue;
-      }
+                            if (assignError) {
+                                console.error('❌ Új hozzárendelések létrehozási hiba:', assignError);
+                                throw new Error('Új hozzárendelések létrehozása sikertelen: ' + assignError.message);
+                            }
 
-      if (finalCheck && finalCheck.length > 1) {
-        console.error('🚨 DUPLIKÁCIÓ DETEKTÁLVA az állatnál:', animalId, finalCheck);
-        
-        // Csak a célkarámban lévőt hagyjuk meg, a többit lezárjuk
-        const duplicateIds = finalCheck
-          .filter(a => a.pen_id !== targetPenId)
-          .map(a => a.id);
+                            console.log('✅ Új hozzárendelések létrehozva:', animalsToMove.length);
+                        }
 
-        if (duplicateIds.length > 0) {
-          await supabase
-            .from('animal_pen_assignments')
-            .update({ removed_at: actualMoveDate })
-            .in('id', duplicateIds);
-          
-          console.log('🧹 Duplikátumok eltávolítva az állatnál:', animalId, duplicateIds);
-        }
-      }
-    }
+                        // 5. ✅ VÉGSŐ DUPLIKÁCIÓ ELLENŐRZÉS
+                        console.log('🔍 Végső duplikáció ellenőrzése...');
+                        for (const animalId of animalsToMove) {
+                            const { data: finalCheck, error: finalError } = await supabase
+                                .from('animal_pen_assignments')
+                                .select('id, pen_id')
+                                .eq('animal_id', animalId)
+                                .is('removed_at', null);
 
-    // 6. ✅ EGYSÉGES ESEMÉNY RÖGZÍTÉS
-    const events = selectedAnimals.map(animalId => ({
-      animal_id: animalId,
-      event_type: 'pen_movement',
-      event_date: actualMoveDate.split('T')[0],
-      event_time: actualMoveDate.split('T')[1]?.substring(0, 8) || '12:00:00',
-      pen_id: targetPenId,
-      previous_pen_id: penId,
-      pen_function: functionType || null,
-      function_metadata: metadata || null,
-      reason: reason,
-      notes: notes || null,
-      is_historical: isHistorical || false
-    }));
+                            if (finalError) {
+                                console.warn('⚠️ Végső ellenőrzési hiba:', animalId, finalError);
+                                continue;
+                            }
 
-    const { error: eventError } = await supabase
-      .from('animal_events')
-      .insert(events);
+                            if (finalCheck && finalCheck.length > 1) {
+                                console.error('🚨 DUPLIKÁCIÓ DETEKTÁLVA az állatnál:', animalId, finalCheck);
 
-    if (eventError) {
-      console.warn('⚠️ Esemény mentése sikertelen:', eventError.message);
-    } else {
-      console.log('✅ Események mentve animal_events táblába:', events.length);
-    }
+                                // Csak a célkarámban lévőt hagyjuk meg, a többit lezárjuk
+                                const duplicateIds = finalCheck
+                                    .filter(a => a.pen_id !== targetPenId)
+                                    .map(a => a.id);
 
-    // 7. ✅ SIKERÜZENET
-    const movedCount = animalsToMove.length;
-    const alreadyThereCount = alreadyInTarget.length;
-    
-    let successMessage = `✅ Mozgatás befejezve!\n\n`;
-    if (movedCount > 0) {
-      successMessage += `🔄 Áthelyezve: ${movedCount} állat\n`;
-    }
-    if (alreadyThereCount > 0) {
-      successMessage += `ℹ️ Már ott volt: ${alreadyThereCount} állat\n`;
-    }
-    successMessage += `📍 Célkarám: ${targetPenId}\n`;
-    successMessage += `📝 Indoklás: ${reason}`;
+                                if (duplicateIds.length > 0) {
+                                    await supabase
+                                        .from('animal_pen_assignments')
+                                        .update({ removed_at: actualMoveDate })
+                                        .in('id', duplicateIds);
 
-    if (functionType === 'hárem' && metadata) {
-      successMessage += `\n\n🐄💕 HÁREM ADATOK:`;
-      if (metadata.tenyeszbika_name) {
-        successMessage += `\n🐂 Tenyészbika: ${metadata.tenyeszbika_name}`;
-      }
-      if (metadata.pairing_start_date) {
-        successMessage += `\n💕 Párzási kezdet: ${new Date(metadata.pairing_start_date).toLocaleDateString('hu-HU')}`;
-      }
-    }
+                                    console.log('🧹 Duplikátumok eltávolítva az állatnál:', animalId, duplicateIds);
+                                }
+                            }
+                        }
 
-    if (isHistorical) {
-      successMessage += `\n\n📚 Történeti mozgatás - állatok jelenlegi karámja nem változott`;
-    }
+                        // 6. ✅ EGYSÉGES ESEMÉNY RÖGZÍTÉS
+                        const events = selectedAnimals.map(animalId => ({
+                            animal_id: animalId,
+                            event_type: 'pen_movement',
+                            event_date: actualMoveDate.split('T')[0],
+                            event_time: actualMoveDate.split('T')[1]?.substring(0, 8) || '12:00:00',
+                            pen_id: targetPenId,
+                            previous_pen_id: penId,
+                            pen_function: functionType || null,
+                            function_metadata: metadata || null,
+                            reason: reason,
+                            notes: notes || null,
+                            is_historical: isHistorical || false
+                        }));
 
-    alert(successMessage);
+                        const { error: eventError } = await supabase
+                            .from('animal_events')
+                            .insert(events);
 
-    setShowMovementPanel(false);
-    setSelectedAnimals([]);
+                        if (eventError) {
+                            console.warn('⚠️ Esemény mentése sikertelen:', eventError.message);
+                        } else {
+                            console.log('✅ Események mentve animal_events táblába:', events.length);
+                        }
 
-    // Csak nem történeti mozgatás esetén frissítjük az oldalt
-    if (!isHistorical) {
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
-    }
+                        // 7. ✅ SIKERÜZENET
+                        const movedCount = animalsToMove.length;
+                        const alreadyThereCount = alreadyInTarget.length;
 
-  } catch (error) {
-    console.error('❌ JAVÍTOTT mozgatási hiba:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Ismeretlen hiba';
-    alert(`❌ Mozgatási hiba: ${errorMessage}`);
-  }
-}}
+                        let successMessage = `✅ Mozgatás befejezve!\n\n`;
+                        if (movedCount > 0) {
+                            successMessage += `🔄 Áthelyezve: ${movedCount} állat\n`;
+                        }
+                        if (alreadyThereCount > 0) {
+                            successMessage += `ℹ️ Már ott volt: ${alreadyThereCount} állat\n`;
+                        }
+                        successMessage += `📍 Célkarám: ${targetPenId}\n`;
+                        successMessage += `📝 Indoklás: ${reason}`;
+
+                        if (functionType === 'hárem' && metadata) {
+                            successMessage += `\n\n🐄💕 HÁREM ADATOK:`;
+                            if (metadata.tenyeszbika_name) {
+                                successMessage += `\n🐂 Tenyészbika: ${metadata.tenyeszbika_name}`;
+                            }
+                            if (metadata.pairing_start_date) {
+                                successMessage += `\n💕 Párzási kezdet: ${new Date(metadata.pairing_start_date).toLocaleDateString('hu-HU')}`;
+                            }
+                        }
+
+                        if (isHistorical) {
+                            successMessage += `\n\n📚 Történeti mozgatás - állatok jelenlegi karámja nem változott`;
+                        }
+
+                        alert(successMessage);
+
+                        setShowMovementPanel(false);
+                        setSelectedAnimals([]);
+
+                        // Csak nem történeti mozgatás esetén frissítjük az oldalt
+                        if (!isHistorical) {
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1000);
+                        }
+
+                    } catch (error) {
+                        console.error('❌ JAVÍTOTT mozgatási hiba:', error);
+                        const errorMessage = error instanceof Error ? error.message : 'Ismeretlen hiba';
+                        alert(`❌ Mozgatási hiba: ${errorMessage}`);
+                    }
+                }}
             />
 
             <PenFunctionManager
