@@ -48,7 +48,7 @@ export default function PenHistoryCard({ period, onClick }: PenHistoryCardProps)
       'karantén': { emoji: '🔒', name: 'KARANTÉN PERIÓDUS', color: 'bg-amber-100 text-amber-800 border-amber-200' },
       'selejt': { emoji: '📦', name: 'SELEJT PERIÓDUS', color: 'bg-slate-100 text-slate-800 border-slate-200' }
     };
-    
+
     return displays[functionType as keyof typeof displays] || {
       emoji: '❓',
       name: functionType.toUpperCase() + ' PERIÓDUS',
@@ -69,7 +69,7 @@ export default function PenHistoryCard({ period, onClick }: PenHistoryCardProps)
   const getAnimalSummary = () => {
     const animals = period.animals_snapshot || [];
     const total = animals.length;
-    
+
     if (period.function_type === 'hárem') {
       const bulls = animals.filter(a => a.kategoria === 'tenyészbika');
       const females = animals.filter(a => a.kategoria !== 'tenyészbika');
@@ -80,51 +80,67 @@ export default function PenHistoryCard({ period, onClick }: PenHistoryCardProps)
         summary: `${females.length} nőivar + ${bulls.length} hímivar`
       };
     }
-    
+
     return {
       total,
       summary: `${total} állat`
     };
   };
 
-  // Speciális információk
-const getSpecialInfo = () => {
-  const { metadata } = period;
-  
-  if (period.function_type === 'hárem') {
-    // Tenyészbikák nevei FORMÁZOTT ENAR-ral
-    if (metadata?.bulls && Array.isArray(metadata.bulls)) {
-      const bullNames = metadata.bulls.map((bull: any) => {
-        const formattedEnar = displayEnar(bull.enar);
-        const name = bull.name || 'Névtelen';
-        return `${formattedEnar} (${name})`;
-      }).join(', ');
-      return `🐂 Tenyészbikák: ${bullNames}`;
-    } else if (metadata?.tenyeszbika_name) {
-      return `🐂 Tenyészbika: ${metadata.tenyeszbika_name}`;
+  // Speciális információk - ✅ JAVÍTOTT VEMHES RÉSSZEL
+  const getSpecialInfo = () => {
+    const { metadata } = period;
+
+    if (period.function_type === 'hárem') {
+      // Tenyészbikák nevei FORMÁZOTT ENAR-ral
+      if (metadata?.bulls && Array.isArray(metadata.bulls)) {
+        const bullNames = metadata.bulls.map((bull: any) => {
+          const formattedEnar = displayEnar(bull.enar);
+          const name = bull.name || 'Névtelen';
+          return `${formattedEnar} (${name})`;
+        }).join(', ');
+        return `🐂 Tenyészbikák: ${bullNames}`;
+      } else if (metadata?.tenyeszbika_name) {
+        return `🐂 Tenyészbika: ${metadata.tenyeszbika_name}`;
+      }
+
+      // Fogamzási ráta
+      if (metadata?.pregnancy_rate) {
+        return `📊 Fogamzási ráta: ${metadata.pregnancy_rate}%`;
+      }
     }
-    
-    // Fogamzási ráta
-    if (metadata?.pregnancy_rate) {
-      return `📊 Fogamzási ráta: ${metadata.pregnancy_rate}%`;
+
+    // ✅ JAVÍTOTT VEMHES RÉSZ - KATEGÓRIA BONTÁSSAL
+    if (period.function_type === 'vemhes') {
+      const animals = period.animals_snapshot || [];
+      if (animals.length === 0) {
+        return `📊 Nincs állat adat`;
+      }
+
+      // Kategória statisztika
+      const categoryStats: Record<string, number> = {};
+      animals.forEach(animal => {
+        categoryStats[animal.kategoria] = (categoryStats[animal.kategoria] || 0) + 1;
+      });
+
+      // Kategóriák megjelenítése
+      const categoryDisplay = Object.entries(categoryStats)
+        .map(([kategoria, count]) => `${kategoria}: ${count} db`)
+        .join(', ');
+
+      return ` 🐮 ${categoryDisplay}`;
     }
-  }
-  
-  if (period.function_type === 'vemhes') {
-    const pregnantCount = period.animals_snapshot?.length || 0;
-    return `📊 ${pregnantCount} vemhes állat`;
-  }
-  
-  if (period.function_type === 'bölcsi') {
-    return `🐮 Borjú nevelés`;
-  }
-  
-  if (period.function_type === 'óvi') {
-    return `🐄 Üsző fejlesztés`;
-  }
-  
-  return null;
-};
+
+    if (period.function_type === 'bölcsi') {
+      return `🐮 Borjú nevelés`;
+    }
+
+    if (period.function_type === 'óvi') {
+      return `🐄 Üsző fejlesztés`;
+    }
+
+    return null;
+  };
 
   const display = getFunctionDisplay(period.function_type);
   const duration = calculateDuration();
@@ -161,7 +177,7 @@ const getSpecialInfo = () => {
           <span className="mr-1">📅</span>
           <span>
             {new Date(period.start_date).toLocaleDateString('hu-HU')} - {' '}
-            {period.end_date 
+            {period.end_date
               ? new Date(period.end_date).toLocaleDateString('hu-HU')
               : 'folyamatban'
             }
@@ -194,7 +210,7 @@ const getSpecialInfo = () => {
         <span>
           {period.end_date ? '✅ Lezárva' : '🔄 Folyamatban'}
         </span>
-        <span 
+        <span
           className="bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200 transition-colors"
         >
           📋 Részletek megtekintése

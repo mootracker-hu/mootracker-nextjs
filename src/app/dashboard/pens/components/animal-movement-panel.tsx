@@ -57,7 +57,7 @@ export default function AnimalMovementPanel({
   currentPenId,
   isAddMode = false, // ÚJ!
   selectedAnimalsForAdd = [], // ÚJ!
-  setSelectedAnimalsForAdd = () => {}, // ÚJ!
+  setSelectedAnimalsForAdd = () => { }, // ÚJ!
   onMove
 }: AnimalMovementPanelProps) {
   const [targetPenId, setTargetPenId] = useState('');
@@ -67,7 +67,7 @@ export default function AnimalMovementPanel({
   const [isHistorical, setIsHistorical] = useState(false);
   const [historicalDate, setHistoricalDate] = useState('');
   const [functionType, setFunctionType] = useState('');
-  
+
   // Hárem state változók
   const [availableBulls, setAvailableBulls] = useState<TenyeszbikaOption[]>([]);
   const [selectedBulls, setSelectedBulls] = useState<string[]>([]);
@@ -210,7 +210,7 @@ export default function AnimalMovementPanel({
 
       // Dátum formázás
       const moveDate = isHistorical ? historicalDate : new Date().toISOString().split('T')[0];
-      
+
       // Metadata készítése hárem esetén
       let metadata = null;
       if (functionType === 'hárem') {
@@ -235,74 +235,74 @@ export default function AnimalMovementPanel({
       await onMove(targetPenId, movementReason, notes, isHistorical, moveDate, functionType, metadata);
 
       // ✅ ÚJ: AUTOMATIKUS ESEMÉNY RÖGZÍTÉS
-if (!isHistorical && functionType) {
-  try {
-    let eventType: string | null = null;
-    
-    // Esemény típus meghatározása
-    if (functionType === 'óvi') {
-      eventType = ALERT_EVENT_TYPES.MOVED_TO_OVI_PEN;
-    } else if (functionType === 'hárem') {
-      eventType = ALERT_EVENT_TYPES.MOVED_TO_HAREM_PEN;
-    } else if (functionType === 'ellető') {
-      eventType = ALERT_EVENT_TYPES.MOVED_TO_BIRTHING_PEN;
-    }
-    
-    // Ha van releváns esemény típus, rögzítjük minden állathoz
-    if (eventType) {
-      for (const animalId of selectedAnimals) {
-        await recordAnimalEvent(
-          supabase,
-          animalId,
-          eventType,
-          `Karám mozgatás: ${movementReason}. ${notes || ''}`
-        );
+      if (!isHistorical && functionType) {
+        try {
+          let eventType: string | null = null;
+
+          // Esemény típus meghatározása
+          if (functionType === 'óvi') {
+            eventType = ALERT_EVENT_TYPES.MOVED_TO_OVI_PEN;
+          } else if (functionType === 'hárem') {
+            eventType = ALERT_EVENT_TYPES.MOVED_TO_HAREM_PEN;
+          } else if (functionType === 'ellető') {
+            eventType = ALERT_EVENT_TYPES.MOVED_TO_BIRTHING_PEN;
+          }
+
+          // Ha van releváns esemény típus, rögzítjük minden állathoz
+          if (eventType) {
+            for (const animalId of selectedAnimals) {
+              await recordAnimalEvent(
+                supabase,
+                animalId,
+                eventType,
+                `Karám mozgatás: ${movementReason}. ${notes || ''}`
+              );
+            }
+            console.log(`✅ ${selectedAnimals.length} állat ${functionType} eseménye rögzítve`);
+          }
+        } catch (eventError) {
+          console.error('❌ Esemény rögzítés hiba:', eventError);
+        }
       }
-      console.log(`✅ ${selectedAnimals.length} állat ${functionType} eseménye rögzítve`);
-    }
-  } catch (eventError) {
-    console.error('❌ Esemény rögzítés hiba:', eventError);
-  }
-}
 
       // ✅ ÚJ: Automatikus snapshot állat mozgatás után
-if (!isHistorical) {
-  try {
-    console.log('📸 Automatikus snapshot generálás állat mozgatás után...');
-    await createAutomaticPeriodSnapshot(targetPenId, 'animals_moved', 'állat_mozgatás');
-    
-    // Ha más karámból érkeztek állatok, ott is snapshot
-    if (currentPenId !== targetPenId) {
-      await createAutomaticPeriodSnapshot(currentPenId, 'animals_moved', 'állat_mozgatás');
-    }
-    
-    console.log('✅ Állat mozgatás snapshot elkészítve');
-  } catch (snapshotError) {
-    console.error('❌ Állat mozgatás snapshot hiba:', snapshotError);
-  }
-} else {
-  console.log('📚 Történeti mozgatás - snapshot kihagyva');
-}
+      if (!isHistorical) {
+        try {
+          console.log('📸 Automatikus snapshot generálás állat mozgatás után...');
+          await createAutomaticPeriodSnapshot(targetPenId, 'animals_moved', 'állat_mozgatás');
 
-    // ✅ ÚJ: AUTOMATIKUS PERIÓDUS LEZÁRÁS ÉS ÚJ INDÍTÁS
-if (!isHistorical && !isHaremMode) {
-  try {
-    console.log('🔄 Automatikus periódus kezelés indítása...');
-    
-    // 1. FORRÁSKARAM: Állatok eltávolítása miatti periódus lezárás
-    if (currentPenId !== targetPenId) {
-      await closeCurrentPeriodAndStartNew(currentPenId, 'animals_removed', selectedAnimals, moveDate);
-    }
-    
-    // 2. CÉLKARAM: Állatok hozzáadása miatti periódus kezelés
-    await closeCurrentPeriodAndStartNew(targetPenId, 'animals_added', selectedAnimals, moveDate, functionType, metadata);
-    
-    console.log('✅ Automatikus periódus kezelés befejezve');
-  } catch (periodError) {
-    console.error('❌ Automatikus periódus kezelés hiba:', periodError);
-    // Ne állítsuk le a mozgatást emiatt, csak logolunk
-  }
-}
+          // Ha más karámból érkeztek állatok, ott is snapshot
+          if (currentPenId !== targetPenId) {
+            await createAutomaticPeriodSnapshot(currentPenId, 'animals_moved', 'állat_mozgatás');
+          }
+
+          console.log('✅ Állat mozgatás snapshot elkészítve');
+        } catch (snapshotError) {
+          console.error('❌ Állat mozgatás snapshot hiba:', snapshotError);
+        }
+      } else {
+        console.log('📚 Történeti mozgatás - snapshot kihagyva');
+      }
+
+      // ✅ ÚJ: AUTOMATIKUS PERIÓDUS LEZÁRÁS ÉS ÚJ INDÍTÁS
+      if (!isHistorical && !isHaremMode) {
+        try {
+          console.log('🔄 Automatikus periódus kezelés indítása...');
+
+          // 1. FORRÁSKARAM: Állatok eltávolítása miatti periódus lezárás
+          if (currentPenId !== targetPenId) {
+            await closeCurrentPeriodAndStartNew(currentPenId, 'animals_removed', selectedAnimals, moveDate);
+          }
+
+          // 2. CÉLKARAM: Állatok hozzáadása miatti periódus kezelés
+          await closeCurrentPeriodAndStartNew(targetPenId, 'animals_added', selectedAnimals, moveDate, functionType, metadata);
+
+          console.log('✅ Automatikus periódus kezelés befejezve');
+        } catch (periodError) {
+          console.error('❌ Automatikus periódus kezelés hiba:', periodError);
+          // Ne állítsuk le a mozgatást emiatt, csak logolunk
+        }
+      }
 
       // Reset form
       setTargetPenId('');
@@ -315,7 +315,7 @@ if (!isHistorical && !isHaremMode) {
       setPairingStartDate('');
       setExpectedVVDate('');
       setIsHaremMode(false);
-      
+
       onClose();
     } catch (error) {
       console.error('Hiba a mozgatáskor:', error);
@@ -383,7 +383,7 @@ if (!isHistorical && !isHaremMode) {
               </div>
             </div>
           )}
-           <div className="space-y-6">
+          <div className="space-y-6">
             {/* Karám funkció - ELŐRE HELYEZVE! */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
@@ -505,14 +505,14 @@ if (!isHistorical && !isHaremMode) {
                 <h4 className="text-lg font-medium text-pink-900 mb-4 flex items-center">
                   💕 Hárem Specifikus Adatok
                 </h4>
-                
+
                 <div className="space-y-4">
                   {/* Tenyészbika multi-select */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       🐂 Tenyészbika(k) kiválasztása: *
                     </label>
-                    
+
                     {/* Kiválasztott bikák megjelenítése */}
                     {selectedBulls.length > 0 && (
                       <div className="mb-3 p-3 bg-white rounded border border-pink-300">
@@ -622,17 +622,33 @@ if (!isHistorical && !isHaremMode) {
                 {/* Történeti mozgatás */}
                 <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                   <label className="flex items-center space-x-3 cursor-pointer">
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={isHistorical}
                       onChange={(e) => setIsHistorical(e.target.checked)}
                       className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                     />
                     <span className="text-sm font-medium text-blue-900 flex items-center">
                       <span className="text-lg mr-2">📚</span>
-                      Csak történeti rögzítés (nem változtatja a jelenlegi karám hozzárendelést)
+                      Történeti állat mozgatás
                     </span>
                   </label>
+
+                  <div className="mt-3 ml-7 text-xs text-blue-700 bg-blue-100 p-3 rounded border-l-4 border-blue-400">
+                    <div className="font-medium mb-1">ℹ️ Mit jelent ez?</div>
+                    <div className="space-y-1">
+                      <div>• <strong>Fizikai mozgatás:</strong> Az állatok ténylegesen átkerülnek a másik karámba</div>
+                      <div>• <strong>Múltbéli dátum:</strong> A mozgatás a megadott korábbi dátummal lesz rögzítve</div>
+                      <div>• <strong>Jelenlegi állapot:</strong> Az állatok jelenleg a célkarámban lesznek</div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-blue-300 text-blue-600">
+                      <strong>Példa:</strong> "Múlt héten elfelejtettem rögzíteni, hogy 3 állatot áttettem a 2-es karámba"
+                    </div>
+                  </div>
+
+                  <div className="mt-2 ml-7 text-xs text-gray-600">
+                    💡 <strong>Tipp:</strong> Ha csak dokumentálni szeretnél (fizikai mozgatás nélkül), használd a <strong>Karám Történet</strong> funkciót
+                  </div>
                 </div>
               </>
             )}
@@ -688,7 +704,7 @@ if (!isHistorical && !isHaremMode) {
 }
 // ✅ ÚJ FÜGGVÉNY: Automatikus periódus lezárás és új indítás
 const closeCurrentPeriodAndStartNew = async (
-  penId: string, 
+  penId: string,
   changeType: 'animals_added' | 'animals_removed',
   affectedAnimals: number[],
   eventDate: string,
@@ -714,10 +730,10 @@ const closeCurrentPeriodAndStartNew = async (
     if (currentPeriod) {
       const endDate = new Date(eventDate);
       endDate.setHours(23, 59, 59); // Nap vége
-      
+
       const { error: closeError } = await supabase
         .from('pen_history_periods')
-        .update({ 
+        .update({
           end_date: endDate.toISOString().split('T')[0],
           metadata: {
             ...currentPeriod.metadata,
@@ -730,7 +746,7 @@ const closeCurrentPeriodAndStartNew = async (
         .eq('id', currentPeriod.id);
 
       if (closeError) throw closeError;
-      
+
       console.log(`✅ Periódus lezárva: ${currentPeriod.function_type} (${currentPeriod.id})`);
     }
 
@@ -738,7 +754,7 @@ const closeCurrentPeriodAndStartNew = async (
     if (changeType === 'animals_added' || (changeType === 'animals_removed' && await hasRemainingAnimals(penId, affectedAnimals))) {
       const startDate = new Date(eventDate);
       startDate.setHours(0, 0, 0); // Nap eleje
-      
+
       // Jelenlegi állatok lekérdezése a karámban (a mozgatás után)
       const { data: currentAnimals, error: animalsError } = await supabase
         .from('animal_pen_assignments')
@@ -754,10 +770,10 @@ const closeCurrentPeriodAndStartNew = async (
       if (animalsError) throw animalsError;
 
       const animalsSnapshot = currentAnimals?.map(assignment => assignment.animals).filter(Boolean) || [];
-      
+
       // Funkció típus meghatározása
       const functionType = newFunctionType || determineFunctionType(animalsSnapshot);
-      
+
       // Metadata összeállítása
       const periodMetadata = {
         auto_created: true,
@@ -782,10 +798,10 @@ const closeCurrentPeriodAndStartNew = async (
         });
 
       if (createError) throw createError;
-      
+
       console.log(`✅ Új periódus indítva: ${functionType} (${animalsSnapshot.length} állat)`);
     }
-    
+
   } catch (error) {
     console.error(`❌ Periódus kezelés hiba (${penId}):`, error);
     throw error;
@@ -800,37 +816,37 @@ const hasRemainingAnimals = async (penId: string, removedAnimals: number[]): Pro
     .eq('pen_id', penId)
     .is('removed_at', null)
     .not('animal_id', 'in', `(${removedAnimals.join(',')})`);
-    
+
   if (error) {
     console.error('Maradó állatok ellenőrzés hiba:', error);
     return false;
   }
-  
+
   return (data?.length || 0) > 0;
 };
 
 // ✅ SEGÉD FÜGGVÉNY: Funkció típus automatikus meghatározása
 const determineFunctionType = (animals: any[]): string => {
   if (animals.length === 0) return 'üres';
-  
+
   const categories = animals.map(a => a.kategoria);
   const hasBulls = categories.includes('tenyészbika');
   const hasFemales = categories.some(cat => cat !== 'tenyészbika');
-  
+
   // Logika a kategóriák alapján
   if (hasBulls && hasFemales) {
     return 'hárem'; // Bikák + nőivarok = hárem
   }
-  
+
   const avgAge = animals.reduce((sum, animal) => {
     const birthDate = new Date(animal.szuletesi_datum);
     const ageMonths = (Date.now() - birthDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
     return sum + ageMonths;
   }, 0) / animals.length;
-  
+
   if (avgAge < 12) return 'bölcsi';     // 0-12 hónap
   if (avgAge < 24) return 'óvi';        // 12-24 hónap
   if (hasBulls) return 'hízóbika';      // Csak bikák
-  
+
   return 'tehén'; // Default felnőtt nőivarok
 };

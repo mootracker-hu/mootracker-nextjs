@@ -62,7 +62,7 @@ export default function PenEventsTab({
       }
     ];
 
-    switch(penFunction) {
+    switch (penFunction) {
       case 'hárem':
         return [
           ...baseActions,
@@ -83,7 +83,7 @@ export default function PenEventsTab({
             enabled: animals.filter(a => a.ivar === 'nő').length > 0
           }
         ];
-      
+
       case 'vemhes':
         return [
           ...baseActions,
@@ -104,7 +104,7 @@ export default function PenEventsTab({
             enabled: animals.filter(a => a.expected_birth_date).length > 0
           }
         ];
-      
+
       case 'hízóbika':
         return [
           ...baseActions,
@@ -117,7 +117,7 @@ export default function PenEventsTab({
             enabled: animals.length > 0
           }
         ];
-      
+
       case 'ellető':
         return [
           ...baseActions,
@@ -130,7 +130,7 @@ export default function PenEventsTab({
             enabled: animals.filter(a => a.ivar === 'nő').length > 0
           }
         ];
-      
+
       default:
         return baseActions;
     }
@@ -160,13 +160,13 @@ export default function PenEventsTab({
     const bulls = animals.filter(a => a.ivar === 'hím');
     const females = animals.filter(a => a.ivar === 'nő');
     const pregnant = animals.filter(a => a.pregnancy_status === 'vemhes');
-    
+
     // Kategória összesítés
     const categories: Record<string, number> = {};
     animals.forEach(animal => {
       categories[animal.kategoria] = (categories[animal.kategoria] || 0) + 1;
     });
-    
+
     // Életkor csoportok
     const now = new Date();
     const young = animals.filter(a => {
@@ -174,7 +174,7 @@ export default function PenEventsTab({
       const ageMonths = (now.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
       return ageMonths < 12;
     });
-    
+
     const adult = animals.filter(a => {
       const birthDate = new Date(a.szuletesi_datum);
       const ageMonths = (now.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
@@ -222,7 +222,7 @@ export default function PenEventsTab({
           <span className="mr-2">⚖️</span>
           Súlymérési Áttekintés
         </h3>
-        
+
         {weightStats.measured === 0 ? (
           <div className="text-center py-4">
             <p className="text-blue-700 mb-3">📋 Egyetlen állatnak sincs súlymérési adata!</p>
@@ -265,13 +265,13 @@ export default function PenEventsTab({
           <span className="mr-2">🚀</span>
           Bulk Műveletek
         </h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {bulkActions.map((action) => (
             <button
               key={action.id}
               onClick={() => {
-                switch(action.id) {
+                switch (action.id) {
                   case 'weight': setShowBulkWeightModal(true); break;
                   case 'rcc': setShowBulkRCCModal(true); break;
                   case 'vv': setShowBulkVVModal(true); break;
@@ -321,14 +321,14 @@ export default function PenEventsTab({
             <span className="mr-2">🏷️</span>
             Kategória Megoszlás
           </h3>
-          
+
           <div className="grid grid-cols-3 md:grid-cols-6 lg:grid-cols-8 gap-3">
             {(() => {
               const categories: Record<string, number> = {};
               animals.forEach(animal => {
                 categories[animal.kategoria] = (categories[animal.kategoria] || 0) + 1;
               });
-              
+
               return Object.entries(categories).map(([kategoria, count]) => (
                 <div key={kategoria} className="bg-gray-50 border border-gray-200 p-3 rounded-lg text-center hover:bg-gray-100 transition-colors">
                   <h4 className="font-medium text-gray-900 text-xs mb-1 truncate" title={kategoria}>

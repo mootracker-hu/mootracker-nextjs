@@ -8,11 +8,11 @@ import AddHistoricalPeriod from './AddHistoricalPeriod';
 import EditHistoricalPeriod from './EditHistoricalPeriod'; // ÚJ IMPORT
 //import SmartTeljesKaramTortenelem from './SmartTeljesKaramTortenelem';
 
-import { 
-  broadcastManualPeriodAdded, 
+import {
+  broadcastManualPeriodAdded,
   broadcastPenHistoryUpdate,
   broadcastAnimalHistoryUpdate,
-  usePenHistorySync 
+  usePenHistorySync
 } from '@/lib/penHistorySync';
 
 interface Animal {
@@ -42,10 +42,10 @@ interface PenHistoryTabProps {
   onDataChange?: () => void;
 }
 
-export default function PenHistoryTab({ 
-  penId, 
-  penNumber, 
-  onDataChange 
+export default function PenHistoryTab({
+  penId,
+  penNumber,
+  onDataChange
 }: PenHistoryTabProps) {
   const [periods, setPeriods] = useState<PenHistoryPeriod[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,6 +56,8 @@ export default function PenHistoryTab({
   const [filter, setFilter] = useState<'all' | 'harem' | 'other'>('all');
 
   // Periódusok betöltése
+  // A loadPeriods függvény JAVÍTOTT változata - PenHistoryTab.tsx-ben:
+
   const loadPeriods = async () => {
     try {
       setLoading(true);
@@ -65,7 +67,7 @@ export default function PenHistoryTab({
         .from('pen_history_periods')
         .select('*')
         .eq('pen_id', penId)
-        .order('start_date', { ascending: false }); // Legújabb felül
+        .order('start_date', { ascending: false }); // Alaprendezés
 
       if (error) {
         console.error('❌ Karámtörténet betöltési hiba:', error);
@@ -73,7 +75,24 @@ export default function PenHistoryTab({
       }
 
       console.log('✅ Karámtörténet betöltve:', data?.length || 0, 'periódus');
-      setPeriods(data || []);
+
+      // ✅ INTELLIGENS RENDEZÉS: Folyamatban levők MINDIG elöl
+      const sortedData = (data || []).sort((a, b) => {
+        // 1. FOLYAMATBAN vs LEZÁRT - folyamatban mindig előre
+        const aIsActive = !a.end_date || a.end_date === null || a.end_date === '';
+        const bIsActive = !b.end_date || b.end_date === null || b.end_date === '';
+
+        if (aIsActive && !bIsActive) return -1; // a aktív, b lezárt -> a előre
+        if (!aIsActive && bIsActive) return 1;  // a lezárt, b aktív -> b előre
+
+        // 2. Ha mindkettő ugyanaz (aktív v. lezárt), akkor dátum szerint
+        const aDate = new Date(a.start_date);
+        const bDate = new Date(b.start_date);
+
+        return bDate.getTime() - aDate.getTime(); // Legfrissebb előre
+      });
+
+      setPeriods(sortedData);
 
     } catch (error) {
       console.error('💥 loadPeriods hiba:', error);
@@ -131,10 +150,10 @@ export default function PenHistoryTab({
 
       console.log('✅ Periódus sikeresen törölve:', periodId);
       alert('✅ Periódus sikeresen törölve!');
-      
+
       // Lista frissítése
       loadPeriods();
-      
+
       // Parent komponens értesítése
       if (onDataChange) {
         onDataChange();
@@ -155,7 +174,7 @@ export default function PenHistoryTab({
     );
   }
 
-return (
+  return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -170,8 +189,8 @@ return (
             </p>
           </div>
         </div>
-        
-        <button 
+
+        <button
           onClick={() => setShowAddForm(true)}
           className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg transition-colors inline-flex items-center"
         >
@@ -184,31 +203,28 @@ return (
       <div className="flex flex-wrap gap-2">
         <button
           onClick={() => setFilter('all')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            filter === 'all' 
-              ? 'bg-green-100 text-green-800 border border-green-200' 
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'all'
+              ? 'bg-green-100 text-green-800 border border-green-200'
               : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-          }`}
+            }`}
         >
           🏠 Minden ({periods.length})
         </button>
         <button
           onClick={() => setFilter('harem')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            filter === 'harem' 
-              ? 'bg-pink-100 text-pink-800 border border-pink-200' 
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'harem'
+              ? 'bg-pink-100 text-pink-800 border border-pink-200'
               : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-          }`}
+            }`}
         >
           💕 Hárem ({periods.filter(p => p.function_type === 'hárem').length})
         </button>
         <button
           onClick={() => setFilter('other')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            filter === 'other' 
-              ? 'bg-gray-100 text-gray-800 border border-gray-200' 
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'other'
+              ? 'bg-gray-100 text-gray-800 border border-gray-200'
               : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-          }`}
+            }`}
         >
           🔄 Egyéb ({periods.filter(p => p.function_type !== 'hárem').length})
         </button>
@@ -217,7 +233,7 @@ return (
       {/* Manual add form */}
       {showAddForm && (
         <div className="mb-6">
-          <AddHistoricalPeriod 
+          <AddHistoricalPeriod
             penId={penId}
             penNumber={penNumber}
             onSave={() => {
@@ -233,7 +249,7 @@ return (
       {/* ÚJ: Manual edit form */}
       {showEditForm && editingPeriod && (
         <div className="mb-6">
-          <EditHistoricalPeriod 
+          <EditHistoricalPeriod
             period={editingPeriod}
             penNumber={penNumber}
             onSave={() => {
@@ -255,8 +271,8 @@ return (
         <div className="text-center py-12">
           <span className="text-6xl mb-4 block">📚</span>
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            {filter === 'all' 
-              ? 'Még nincs karám történet' 
+            {filter === 'all'
+              ? 'Még nincs karám történet'
               : `Nincs ${filter === 'harem' ? 'hárem' : 'egyéb'} periódus`
             }
           </h3>
@@ -270,7 +286,7 @@ return (
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredPeriods.map(period => (
-            <PenHistoryCard 
+            <PenHistoryCard
               key={period.id}
               period={period}
               onClick={() => setSelectedPeriod(period)}
@@ -296,7 +312,7 @@ return (
                   </p>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-3">
                 {/* ÚJ: Szerkesztés gomb */}
                 <button
@@ -306,7 +322,7 @@ return (
                   <span className="mr-1">✏️</span>
                   Szerkesztés
                 </button>
-                
+
                 {/* Törlés gomb */}
                 <button
                   onClick={() => {
@@ -318,7 +334,7 @@ return (
                   <span className="mr-1">🗑️</span>
                   Törlés
                 </button>
-                
+
                 {/* Bezárás gomb */}
                 <button
                   onClick={() => setSelectedPeriod(null)}
@@ -328,7 +344,7 @@ return (
                 </button>
               </div>
             </div>
-            
+
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
               {/* Alapadatok */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -353,7 +369,7 @@ return (
                     )}
                   </div>
                 </div>
-                
+
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
                     <span className="mr-2">🐄</span>
@@ -374,7 +390,7 @@ return (
                       })()}
                     </div>
                   )}
-                  
+
                   {/* Eladott állatok információ */}
                   {selectedPeriod.metadata?.sold_animals_count > 0 && (
                     <div className="bg-red-50 border border-red-200 rounded p-2 text-sm">
@@ -392,7 +408,7 @@ return (
                     <span className="mr-2">💕</span>
                     Hárem adatok
                   </h4>
-                  
+
                   {/* Tenyészbikák */}
                   {selectedPeriod.metadata.bulls && (
                     <div className="mb-3">
@@ -409,7 +425,7 @@ return (
                       </div>
                     </div>
                   )}
-                  
+
                   {/* További metadata */}
                   {selectedPeriod.metadata.pregnancy_rate && (
                     <p className="text-sm text-pink-700">
@@ -425,7 +441,7 @@ return (
                   <span className="mr-2">📋</span>
                   Állatok listája
                 </h4>
-                
+
                 {selectedPeriod.animals_snapshot && selectedPeriod.animals_snapshot.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200 border border-gray-200 rounded-lg">

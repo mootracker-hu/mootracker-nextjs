@@ -19,7 +19,7 @@ interface Animal {
 
 interface PenFunction {
   id: number;
-  function_name: string;
+  function_type: string; // ✅ HOZZÁADVA
   start_date: string;
   end_date?: string;
   metadata?: any;
@@ -61,39 +61,119 @@ const HaremDashboard: React.FC<HaremDashboardProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Hárem státusz meghatározása
+  // ✅ JAVÍTOTT ÁLLAPOT LOGIKA - PONTOS PREGNANCY_STATUS ELLENŐRZÉS
   const determineHaremStatus = (animal: Animal): 'haremben' | 'vemhes' | 'borjas' => {
-    // Tenyészbika kizárás
+    console.log(`🔍 Állapot ellenőrzés - ${animal.enar}:`, {
+      kategoria: animal.kategoria,
+      pregnancy_status: animal.pregnancy_status,
+      last_birth_date: animal.last_birth_date
+    });
+
+    // ✅ TENYÉSZBIKA - mindig "háremben" marad (nincs állapotváltozás)
     if (animal.kategoria === 'tenyészbika') {
       return 'haremben';
     }
 
-    // VV eredmény prioritás
-    if (animal.pregnancy_status === 'vemhes' ||
-        animal.pregnancy_status === 'pregnant' ||
-        animal.expected_birth_date) {
-      return 'vemhes';
+    // ✅ VEMHES STÁTUSZ - PONTOS ellenőrzés
+    if (animal.pregnancy_status) {
+      const status = animal.pregnancy_status.toLowerCase().trim();
+      if (status === 'vemhes' ||
+        status === 'pregnant' ||
+        status === 'true' ||
+        status === '1') {
+        console.log(`✅ VEMHES: ${animal.enar} - ${animal.pregnancy_status}`);
+        return 'vemhes';
+      }
     }
 
-    // Borjas státusz (6 hónapon belüli ellés)
+    // ✅ BORJAS STÁTUSZ - 6 hónapon belüli ellés
     if (animal.last_birth_date) {
       const birthDate = new Date(animal.last_birth_date);
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
       if (birthDate >= sixMonthsAgo) {
+        console.log(`✅ BORJAS: ${animal.enar} - ellés: ${animal.last_birth_date}`);
         return 'borjas';
       }
     }
 
+    // ✅ DEFAULT - háremben
+    console.log(`✅ HÁREMBEN: ${animal.enar} - alapértelmezett`);
     return 'haremben';
   };
 
-  // Napok számítása háremben
-  const calculateDaysInHarem = (startDate: string): number => {
-    const start = new Date(startDate);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - start.getTime());
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  // ✅ FUNKCIÓ TÍPUS ALAPÚ NAPOK SZÁMÍTÁSA
+  const calculateDaysInHarem = (assignedAt: string, penFunction: PenFunction | null): number => {
+    try {
+      let startDate = null;
+      let logPrefix = "";
+
+      // ✅ FUNKCIÓ TÍPUS ALAPJÁN KÜLÖNBÖZŐ LOGIKA
+      if (penFunction?.function_type === 'hárem') {
+        // HÁREM: parozás kezdetétől számol
+        if (penFunction?.metadata?.parozas_kezdete) {
+          startDate = penFunction.metadata.parozas_kezdete;
+          logPrefix = "🐂 HÁREM - parozás kezdete";
+        } else if (penFunction?.metadata?.pairing_start_date) {
+          startDate = penFunction.metadata.pairing_start_date;
+          logPrefix = "🐂 HÁREM - pairing start";
+        } else if (penFunction?.start_date) {
+          startDate = penFunction.start_date;
+          logPrefix = "🐂 HÁREM - funkció kezdete";
+        }
+      }
+      else if (penFunction?.function_type === 'vemhes') {
+        // VEMHES: előbb pen_history_periods tényleges kezdet
+        if (penFunction?.metadata?.actual_period_start) {
+          startDate = penFunction.metadata.actual_period_start;
+          logPrefix = "🤰 VEMHES - tényleges periódus kezdet";
+        } else if (penFunction?.metadata?.vemhes_kezdete) {
+          startDate = penFunction.metadata.vemhes_kezdete;
+          logPrefix = "🤰 VEMHES - metadata kezdete";
+        } else if (penFunction?.metadata?.period_start_date) {
+          startDate = penFunction.metadata.period_start_date;
+          logPrefix = "🤰 VEMHES - period kezdete";
+        } else if (penFunction?.start_date) {
+          startDate = penFunction.start_date;
+          logPrefix = "🤰 VEMHES - funkció kezdete (ROSSZ!)";
+        }
+      }
+      else {
+        // EGYÉB FUNKCIÓK: funkció kezdetétől számol
+        if (penFunction?.start_date) {
+          startDate = penFunction.start_date;
+          logPrefix = `📋 ${penFunction.function_type?.toUpperCase()} - funkció kezdete`;
+        }
+      }
+
+      // FALLBACK: assigned_at
+      if (!startDate) {
+        startDate = assignedAt;
+        logPrefix = "⚠️ FALLBACK - assigned_at";
+      }
+
+      const calculationDate = new Date(startDate);
+      const currentDate = new Date();
+
+      console.log(`${logPrefix}: ${startDate}`);
+      console.log(`🐄 Állat assigned_at: ${assignedAt} ${penFunction?.function_type === 'hárem' ? '(figyelmen kívül hagyva)' : ''}`);
+
+      // ✅ UTC MÓDSZER - PONTOS NAPOK SZÁMÍTÁSA
+      const utcStart = Date.UTC(calculationDate.getFullYear(), calculationDate.getMonth(), calculationDate.getDate());
+      const utcCurrent = Date.UTC(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+
+      // Napok számítása
+      const diffTime = utcCurrent - utcStart;
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+      console.log(`🕐 Napok a funkcióban: ${diffDays} nap`);
+      return Math.max(0, diffDays);
+
+    } catch (error) {
+      console.error(`❌ Dátum számítási hiba:`, error);
+      return 0;
+    }
   };
 
   // Várható ellési dátum formázása
@@ -110,7 +190,7 @@ const HaremDashboard: React.FC<HaremDashboardProps> = ({
     return animals?.filter((assignment: any) => {
       const animal = assignment.animals;
       if (!animal) return false;
-      
+
       // Hárem: tenyészbikák + 24+ hónapos nőivarok
       if (animal.kategoria === 'tenyészbika') return true;
       if (animal.ivar === 'nő') {
@@ -127,6 +207,7 @@ const HaremDashboard: React.FC<HaremDashboardProps> = ({
     try {
       setLoading(true);
       setError(null);
+      console.log(`🔄 Hárem adatok betöltése - Karám: ${penId}`);
 
       // 1. Karám aktuális funkciójának lekérdezése
       const { data: functionData, error: functionError } = await supabase
@@ -140,6 +221,32 @@ const HaremDashboard: React.FC<HaremDashboardProps> = ({
       if (functionError) throw functionError;
       const currentFunction = functionData?.[0] || null;
       setCurrentPenFunction(currentFunction);
+      console.log(`📋 Aktuális funkció:`, currentFunction);
+
+      // ✅ 1B. VEMHES ESETÉN: pen_history_periods tényleges kezdet lekérdezése
+      let actualPeriodStart = null;
+      if (currentFunction?.function_type === 'vemhes') {
+        const { data: periodData, error: periodError } = await supabase
+          .from('pen_history_periods')
+          .select('start_date')
+          .eq('pen_id', penId)
+          .eq('function_type', 'vemhes')
+          .is('end_date', null)
+          .order('start_date', { ascending: false })
+          .limit(1);
+
+        if (!periodError && periodData?.[0]) {
+          actualPeriodStart = periodData[0].start_date;
+          console.log(`📅 VEMHES tényleges kezdet (pen_history_periods): ${actualPeriodStart}`);
+
+          // Metadata-ba belerakjuk a tényleges kezdetet
+          if (currentFunction.metadata) {
+            currentFunction.metadata.actual_period_start = actualPeriodStart;
+          } else {
+            currentFunction.metadata = { actual_period_start: actualPeriodStart };
+          }
+        }
+      }
 
       // 2. Karámban lévő állatok lekérdezése
       const { data: assignmentData, error: assignmentError } = await supabase
@@ -163,37 +270,47 @@ const HaremDashboard: React.FC<HaremDashboardProps> = ({
         .is('removed_at', null);
 
       if (assignmentError) throw assignmentError;
+      console.log(`🐄 Talált állatok:`, assignmentData?.length);
 
       // 3. Hárem releváns állatok szűrése
       const relevantAnimals = getHaremRelevantAnimals(assignmentData || []);
+      console.log(`🎯 Hárem releváns állatok:`, relevantAnimals.length);
 
-      // 4. Állatok feldolgozása hárem státusszal
+      // ✅ JAVÍTOTT ÁLLATOK FELDOLGOZÁSA
       const processedAnimals: HaremAnimal[] = relevantAnimals.map((assignment: any) => {
         const animal = assignment.animals;
         const haremStatus = determineHaremStatus(animal);
-        
+        const daysInHarem = calculateDaysInHarem(assignment.assigned_at, currentFunction);
+
         const haremAnimal: HaremAnimal = {
           ...animal,
           haremStatus,
           haremStartDate: assignment.assigned_at,
           expectedBirthDate: animal.expected_birth_date,
-          daysInHarem: calculateDaysInHarem(assignment.assigned_at),
+          daysInHarem,
           bulls: currentFunction?.metadata?.bulls?.map((b: any) => b.name) || []
         };
-        
+
+        console.log(`✅ Feldolgozott állat:`, {
+          enar: animal.enar,
+          status: haremStatus,
+          days: daysInHarem
+        });
+
         return haremAnimal;
       });
 
       setAnimals(processedAnimals);
 
-      // 5. Statisztikák számítása
+      // ✅ JAVÍTOTT STATISZTIKÁK - TENYÉSZBIKÁK IS BENNE
       const newStats: HaremStats = {
         haremben: processedAnimals.filter(a => a.haremStatus === 'haremben').length,
         vemhes: processedAnimals.filter(a => a.haremStatus === 'vemhes').length,
         borjas: processedAnimals.filter(a => a.haremStatus === 'borjas').length,
         total: processedAnimals.length
       };
-      
+
+      console.log(`📊 Statisztikák:`, newStats);
       setStats(newStats);
 
     } catch (error: any) {
@@ -205,22 +322,10 @@ const HaremDashboard: React.FC<HaremDashboardProps> = ({
   };
 
   // JAVÍTOTT useEffect - cseréld le a 163-170. sort
-useEffect(() => {
-  // Kezdeti betöltés
-  loadHaremData();
-}, [penId]); // Újratölt ha változik a karám
-
-
-// Kommentezd ki a teljes 167-172. sort:
-/*
-useEffect(() => {
-  const interval = setInterval(() => {
+  useEffect(() => {
+    // Kezdeti betöltés
     loadHaremData();
-  }, 10000);
-  
-  return () => clearInterval(interval);
-}, []);
-*/
+  }, [penId]); // Újratölt ha változik a karám
 
   // Státusz badge színek
   const getStatusColor = (status: 'haremben' | 'vemhes' | 'borjas') => {
@@ -290,22 +395,22 @@ useEffect(() => {
   }
 
   return (
-  <div className="space-y-6">
-    <div className="bg-white rounded-lg p-6 shadow-sm">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-bold text-gray-900 flex items-center">
-          <span className="text-2xl mr-3">💕</span>
-          Hárem Dashboard - Karám {penNumber}
-        </h3>
-        <button
-  onClick={loadHaremData}  // ← Vissza az eredeti
-  className="text-green-600 hover:text-green-700 transition-colors"
-  title="Adatok frissítése"
->
-  🔄
-</button>
-      </div>
+    <div className="space-y-6">
+      <div className="bg-white rounded-lg p-6 shadow-sm">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold text-gray-900 flex items-center">
+            <span className="text-2xl mr-3">💕</span>
+            Hárem Dashboard - Karám {penNumber}
+          </h3>
+          <button
+            onClick={loadHaremData}
+            className="text-green-600 hover:text-green-700 transition-colors"
+            title="Adatok frissítése"
+          >
+            🔄
+          </button>
+        </div>
 
         {/* Hárem Statisztikák */}
         <div className="grid grid-cols-4 gap-4 mb-6">

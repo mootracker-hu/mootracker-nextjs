@@ -1,10 +1,11 @@
 // src/components/TeljesKaramTortenelem.tsx - JAVÍTOTT ÉS TISZTÍTOTT VERZIÓ
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { syncHaremData, createHistoricalSnapshot } from '@/lib/utils/haremSync';
 import AnimalSelector from '@/components/AnimalSelector';
+import { displayEnar, formatEnarInput, isValidEnar } from '@/constants/enar-formatter';
 
 // 🔹 INTERFACES
 interface KombinaltEsemeny {
@@ -26,6 +27,18 @@ interface KombinaltEsemeny {
     animal_enar?: string;
     animal_kategoria?: string;
     animal_pregnancy_status?: string;
+    // ✅ ÚJ: Bővített esemény információk
+    enhanced_details?: {
+        duration?: string;
+        animalCount?: number;
+        bullsPresent?: any[];
+        vvResults?: any[];
+        previousEvent?: KombinaltEsemeny;
+        nextEvent?: KombinaltEsemeny;
+        isAutomaticGenerated?: boolean;
+        penCapacity?: number;
+        utilizationPercentage?: number;
+    };
 }
 
 interface TenyeszBika {
@@ -240,6 +253,85 @@ const handleBullPhysicalAssignment = async (
     }
 };
 
+// ✅ ÚJ: Fejlett dátum input komponens
+const EnhancedDateInput: React.FC<{
+    value: string;
+    onChange: (value: string) => void;
+    className?: string;
+    placeholder?: string;
+}> = ({ value, onChange, className = '', placeholder = 'YYYY-MM-DD' }) => {
+    const yearRef = useRef<HTMLInputElement>(null);
+    const monthRef = useRef<HTMLInputElement>(null);
+    const dayRef = useRef<HTMLInputElement>(null);
+
+    const [year, month, day] = value.split('-');
+
+    const handleYearChange = (newYear: string) => {
+        if (newYear.length <= 4 && /^\d*$/.test(newYear)) {
+            const updatedDate = `${newYear.padStart(4, '0')}-${month || '01'}-${day || '01'}`;
+            onChange(updatedDate);
+
+            if (newYear.length === 4) {
+                monthRef.current?.focus();
+            }
+        }
+    };
+
+    const handleMonthChange = (newMonth: string) => {
+        if (newMonth.length <= 2 && /^\d*$/.test(newMonth)) {
+            const monthNum = Math.min(12, Math.max(1, parseInt(newMonth) || 1));
+            const updatedDate = `${year || new Date().getFullYear()}-${monthNum.toString().padStart(2, '0')}-${day || '01'}`;
+            onChange(updatedDate);
+
+            if (newMonth.length === 2) {
+                dayRef.current?.focus();
+            }
+        }
+    };
+
+    const handleDayChange = (newDay: string) => {
+        if (newDay.length <= 2 && /^\d*$/.test(newDay)) {
+            const dayNum = Math.min(31, Math.max(1, parseInt(newDay) || 1));
+            const updatedDate = `${year || new Date().getFullYear()}-${month || '01'}-${dayNum.toString().padStart(2, '0')}`;
+            onChange(updatedDate);
+        }
+    };
+
+    return (
+        <div className={`flex items-center space-x-1 ${className}`}>
+            <input
+                ref={yearRef}
+                type="text"
+                value={year || ''}
+                onChange={(e) => handleYearChange(e.target.value)}
+                placeholder="YYYY"
+                maxLength={4}
+                className="w-16 px-2 py-1 text-center border rounded focus:ring-2 focus:ring-green-500"
+            />
+            <span>-</span>
+            <input
+                ref={monthRef}
+                type="text"
+                value={month || ''}
+                onChange={(e) => handleMonthChange(e.target.value)}
+                placeholder="MM"
+                maxLength={2}
+                className="w-12 px-2 py-1 text-center border rounded focus:ring-2 focus:ring-green-500"
+            />
+            <span>-</span>
+            <input
+                ref={dayRef}
+                type="text"
+                value={day || ''}
+                onChange={(e) => handleDayChange(e.target.value)}
+                placeholder="DD"
+                maxLength={2}
+                className="w-12 px-2 py-1 text-center border rounded focus:ring-2 focus:ring-green-500"
+            />
+        </div>
+    );
+};
+
 const TeljesKaramTortenelem: React.FC<TeljesKaramTortenelemProps> = ({
     penId,
     animalId,
@@ -368,7 +460,29 @@ const TeljesKaramTortenelem: React.FC<TeljesKaramTortenelemProps> = ({
                     }
                 }
 
-                events.forEach(event => {
+                events.forEach((event, index) => {
+                    // ✅ ÚJ: ENHANCED DETAILS SZÁMÍTÁS
+                    const nextEvent = events[index + 1];
+                    const currentEventDate = new Date(event.event_date);
+                    const duration = nextEvent
+                        ? Math.ceil((currentEventDate.getTime() - new Date(nextEvent.event_date).getTime()) / (1000 * 60 * 60 * 24))
+                        : Math.ceil((new Date().getTime() - currentEventDate.getTime()) / (1000 * 60 * 60 * 24));
+
+                    const isAutomaticGenerated = event.notes?.includes('Automatikus') ||
+                        event.reason?.includes('automatikus') ||
+                        event.function_metadata?.created_via?.includes('automatic');
+
+                    const enhanced_details = {
+                        duration: `${duration} nap`,
+                        animalCount: event.function_metadata?.animal_count || 1,
+                        bullsPresent: event.function_metadata?.bulls || [],
+                        vvResults: [],
+                        previousEvent: nextEvent,
+                        nextEvent: events[index - 1],
+                        isAutomaticGenerated,
+                        penCapacity: 0,
+                        utilizationPercentage: 0
+                    };
                     kombinalt.push({
                         id: `event_${event.id}`,
                         animal_id: event.animal_id,
@@ -387,7 +501,8 @@ const TeljesKaramTortenelem: React.FC<TeljesKaramTortenelemProps> = ({
                         pen_location: penNames[event.pen_id]?.location || '',
                         animal_enar: animalNames[event.animal_id]?.enar || `ID: ${event.animal_id}`,
                         animal_kategoria: animalNames[event.animal_id]?.kategoria || 'unknown',
-                        animal_pregnancy_status: animalNames[event.animal_id]?.pregnancy_status || null
+                        animal_pregnancy_status: animalNames[event.animal_id]?.pregnancy_status || null,
+                        enhanced_details
                     });
                 });
             }
@@ -432,6 +547,15 @@ const TeljesKaramTortenelem: React.FC<TeljesKaramTortenelemProps> = ({
                 }
 
                 movements.forEach(movement => {
+                    const enhanced_details = {
+                        duration: 'Mozgatási esemény',
+                        animalCount: 1,
+                        bullsPresent: movement.function_metadata?.bulls || [],
+                        vvResults: [],
+                        isAutomaticGenerated: movement.notes?.includes('Automatikus') || false,
+                        penCapacity: 0,
+                        utilizationPercentage: 0
+                    };
                     kombinalt.push({
                         id: `movement_${movement.id}`,
                         animal_id: movement.animal_id,
@@ -448,7 +572,8 @@ const TeljesKaramTortenelem: React.FC<TeljesKaramTortenelemProps> = ({
                         function_metadata: movement.function_metadata,
                         pen_number: penNames[movement.to_pen_id] || `Karám ID: ${movement.to_pen_id}`,
                         pen_location: '',
-                        animal_enar: movement.animals?.enar
+                        animal_enar: movement.animals?.enar,
+                        enhanced_details
                     });
                 });
             }
@@ -549,7 +674,7 @@ const TeljesKaramTortenelem: React.FC<TeljesKaramTortenelemProps> = ({
             }
 
             // VV eredmények hozzárendelése a hárem eseményekhez
-            events.forEach(event => {
+            events.forEach((event, index) => {
                 if (event.funkci === 'hárem') {
                     // Hárem kezdete - metadata-ból vagy esemény dátumából
                     const haremKezdete = event.function_metadata?.pairing_start_date ?

@@ -1,5 +1,5 @@
 // src/components/AddHistoricalPeriod.tsx
-// ✅ JAVÍTOTT VERZIÓ - CSAK METADATA, NINCS FIZIKAI MOZGATÁS
+// ✅ JAVÍTOTT VERZIÓ - CSAK METADATA, NINCS FIZIKAI MOZGATÁS + ENAR FORMATTER + EGYSÉGES DATE INPUT
 
 'use client';
 
@@ -271,7 +271,7 @@ Időszak: ${formData.start_date} - ${formData.end_date || 'folyamatban'}${soldIn
       </div>
 
       <div className="space-y-6">
-        {/* Időszak */}
+        {/* ✅ EGYSÉGES IDŐSZAK - SIMA DATE INPUT */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -294,7 +294,6 @@ Időszak: ${formData.start_date} - ${formData.end_date || 'folyamatban'}${soldIn
               value={formData.end_date}
               onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-              placeholder="Üres = folyamatban"
             />
             <p className="text-xs text-gray-500 mt-1">
               💡 Ha üres marad, akkor "folyamatban" lesz
@@ -355,7 +354,7 @@ Időszak: ${formData.start_date} - ${formData.end_date || 'folyamatban'}${soldIn
           </p>
         </div>
 
-        {/* Kiválasztott állatok összesítő */}
+        {/* Kiválasztott állatok összesítő - ✅ ENAR FORMATTER HOZZÁADVA */}
         {selectedAnimalsData.length > 0 && (
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <h4 className="font-medium text-blue-900 mb-2">
@@ -386,6 +385,24 @@ Időszak: ${formData.start_date} - ${formData.end_date || 'folyamatban'}${soldIn
                 </div>
               );
             })()}
+
+            {/* ✅ ÁLLATOK LISTÁJA ENAR FORMATTER-REL */}
+            <div className="mb-3 p-2 bg-white rounded border">
+              <p className="text-sm font-medium text-gray-700 mb-2">Kiválasztott állatok:</p>
+              <div className="max-h-32 overflow-y-auto">
+                {selectedAnimalsData.map(animal => (
+                  <div key={animal.id} className="text-xs text-gray-600 mb-1">
+                    🐄 <strong>{displayEnar(animal.enar)}</strong> - {animal.kategoria} ({animal.ivar})
+                    {animal.statusz !== 'aktív' && (
+                      <span className={`ml-2 px-1 rounded text-xs ${animal.statusz === 'eladott' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'
+                        }`}>
+                        {animal.statusz}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div>
@@ -422,7 +439,7 @@ Időszak: ${formData.start_date} - ${formData.end_date || 'folyamatban'}${soldIn
           </div>
         )}
 
-        {/* Hárem specifikus mező - METADATA FIGYELMEZTETÉSSEL */}
+        {/* Hárem specifikus mező - ✅ ENAR FORMATTER HOZZÁADVA */}
         {formData.function_type === 'hárem' && (
           <div className="bg-pink-50 p-4 rounded-lg border border-pink-200">
             <h4 className="text-lg font-medium text-pink-900 mb-2 flex items-center">
@@ -455,7 +472,7 @@ Időszak: ${formData.start_date} - ${formData.end_date || 'folyamatban'}${soldIn
                         className="mr-3 rounded border-gray-300 text-green-600 focus:ring-green-500"
                       />
                       <span className="text-sm flex-1">
-                        🐂 {bull.enar} - {bull.name || 'Névtelen'}
+                        🐂 <strong>{displayEnar(bull.enar)}</strong> - {bull.name || 'Névtelen'}
                         {bull.statusz === 'eladott' && (
                           <span className="ml-2 text-xs text-red-600">
                             [ELADOTT]
@@ -478,6 +495,14 @@ Időszak: ${formData.start_date} - ${formData.end_date || 'folyamatban'}${soldIn
                         return soldBulls > 0 ? ` (${activeBulls} aktív, ${soldBulls} eladott)` : '';
                       })()}
                     </p>
+                    {/* ✅ KIVÁLASZTOTT BIKÁK LISTÁJA ENAR FORMATTER-REL */}
+                    <div className="mt-2 max-h-24 overflow-y-auto">
+                      {availableBulls.filter(bull => selectedBulls.includes(bull.id)).map(bull => (
+                        <div key={bull.id} className="text-xs text-green-700">
+                          🐂 <strong>{displayEnar(bull.enar)}</strong> - {bull.name || 'Névtelen'}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

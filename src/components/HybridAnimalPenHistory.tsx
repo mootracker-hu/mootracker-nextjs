@@ -1,10 +1,10 @@
-// src/components/HybridAnimalPenHistory.tsx
+// src/components/HybridAnimalPenHistory.tsx - FEJLESZTETT VERZIÓ
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { usePenHistorySync } from '@/lib/penHistorySync';
-
+import { displayEnar, formatEnarInput, isValidEnar } from '@/constants/enar-formatter';
 
 interface HybridTimelineItem {
     id: string;
@@ -21,12 +21,106 @@ interface HybridTimelineItem {
     metadata?: any;
     animals?: any[];
     isCurrentPen?: boolean;
+    // ✅ ÚJ: Részletes mozgatási adatok
+    movementDetails?: {
+        fromPen?: string;
+        toPen?: string;
+        reason?: string;
+        assignedBy?: string;
+        notes?: string;
+        totalAnimalsInPeriod?: number;
+        animalPosition?: number;
+        periodDuration?: string;
+        bullsInPeriod?: any[];
+        vvResults?: any[];
+        previousFunction?: string;
+        nextFunction?: string;
+    };
 }
 
 interface Props {
     animalEnar: string;
-    animalId: string | number; // string vagy number típus elfogadása
+    animalId: string | number;
 }
+
+// ✅ ÚJ: Fejlett dátum input komponens
+const EnhancedDateInput: React.FC<{
+    value: string;
+    onChange: (value: string) => void;
+    className?: string;
+    placeholder?: string;
+}> = ({ value, onChange, className = '', placeholder = 'YYYY-MM-DD' }) => {
+    const yearRef = useRef<HTMLInputElement>(null);
+    const monthRef = useRef<HTMLInputElement>(null);
+    const dayRef = useRef<HTMLInputElement>(null);
+
+    const [year, month, day] = value.split('-');
+
+    const handleYearChange = (newYear: string) => {
+        if (newYear.length <= 4 && /^\d*$/.test(newYear)) {
+            const updatedDate = `${newYear.padStart(4, '0')}-${month || '01'}-${day || '01'}`;
+            onChange(updatedDate);
+
+            if (newYear.length === 4) {
+                monthRef.current?.focus();
+            }
+        }
+    };
+
+    const handleMonthChange = (newMonth: string) => {
+        if (newMonth.length <= 2 && /^\d*$/.test(newMonth)) {
+            const monthNum = Math.min(12, Math.max(1, parseInt(newMonth) || 1));
+            const updatedDate = `${year || new Date().getFullYear()}-${monthNum.toString().padStart(2, '0')}-${day || '01'}`;
+            onChange(updatedDate);
+
+            if (newMonth.length === 2) {
+                dayRef.current?.focus();
+            }
+        }
+    };
+
+    const handleDayChange = (newDay: string) => {
+        if (newDay.length <= 2 && /^\d*$/.test(newDay)) {
+            const dayNum = Math.min(31, Math.max(1, parseInt(newDay) || 1));
+            const updatedDate = `${year || new Date().getFullYear()}-${month || '01'}-${dayNum.toString().padStart(2, '0')}`;
+            onChange(updatedDate);
+        }
+    };
+
+    return (
+        <div className={`flex items-center space-x-1 ${className}`}>
+            <input
+                ref={yearRef}
+                type="text"
+                value={year || ''}
+                onChange={(e) => handleYearChange(e.target.value)}
+                placeholder="YYYY"
+                maxLength={4}
+                className="w-16 px-2 py-1 text-center border rounded focus:ring-2 focus:ring-blue-500"
+            />
+            <span>-</span>
+            <input
+                ref={monthRef}
+                type="text"
+                value={month || ''}
+                onChange={(e) => handleMonthChange(e.target.value)}
+                placeholder="MM"
+                maxLength={2}
+                className="w-12 px-2 py-1 text-center border rounded focus:ring-2 focus:ring-blue-500"
+            />
+            <span>-</span>
+            <input
+                ref={dayRef}
+                type="text"
+                value={day || ''}
+                onChange={(e) => handleDayChange(e.target.value)}
+                placeholder="DD"
+                maxLength={2}
+                className="w-12 px-2 py-1 text-center border rounded focus:ring-2 focus:ring-blue-500"
+            />
+        </div>
+    );
+};
 
 const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
     const [timeline, setTimeline] = useState<HybridTimelineItem[]>([]);
@@ -34,34 +128,30 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
     const [viewMode, setViewMode] = useState<'all' | 'cards_only' | 'legacy_only'>('all');
     const [selectedItem, setSelectedItem] = useState<HybridTimelineItem | null>(null);
 
-    // animalId string konverzió
     const animalIdString = animalId.toString();
 
-    // 🔥 TESZT KONZOL ÜZENET
-    console.log('🔥 HIBRID KOMPONENS BETÖLTŐDÖTT:', animalEnar, 'ID:', animalIdString);
+    console.log('🔥 HIBRID KOMPONENS BETÖLTŐDÖTT:', displayEnar(animalEnar), 'ID:', animalIdString);
 
     const loadHybridTimeline = async () => {
         try {
             setLoading(true);
-            console.log(`🔍 Loading hybrid timeline for animal: ${animalEnar}`);
+            console.log(`🔍 Loading enhanced hybrid timeline for animal: ${displayEnar(animalEnar)}`);
 
             const items: HybridTimelineItem[] = [];
 
-            // 1. ÚJ KÁRTYA RENDSZER ADATOK - EGYSZERŰBB MEGKÖZELÍTÉS
+            // 1. ÚJ KÁRTYA RENDSZER ADATOK - BŐVÍTETT METADATA-VAL
             if (viewMode === 'all' || viewMode === 'cards_only') {
-                // Először minden periódust lekérdezünk, majd JavaScriptben szűrünk
                 const { data: allPeriods, error: periodsError } = await supabase
                     .from('pen_history_periods')
                     .select(`
-            *,
-            pens!inner(pen_number)
-          `)
+                        *,
+                        pens!inner(pen_number, location)
+                    `)
                     .order('start_date', { ascending: false });
 
                 if (periodsError) {
                     console.error('Error loading periods:', periodsError);
                 } else {
-                    // JavaScript szűrés az állat ENAR alapján
                     const filteredPeriods = allPeriods?.filter(period => {
                         const animals = period.animals_snapshot as any[] || [];
                         return animals.some(animal =>
@@ -71,26 +161,48 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
                         );
                     }) || [];
 
-                    // VV eredmények lekérdezése az állathoz
+                    // ✅ BŐVÍTETT METADATA GYŰJTÉS
                     const { data: vvResults } = await supabase
                         .from('vv_results')
                         .select('*')
                         .eq('animal_enar', animalEnar)
                         .order('created_at', { ascending: false });
 
-                    // Hárem history lekérdezése a releváns karámokhoz
                     const penIds = [...new Set(filteredPeriods.map(p => p.pen_id))];
                     const { data: haremHistory } = await supabase
                         .from('pen_harem_history')
                         .select('*')
                         .in('pen_id', penIds);
 
-                    filteredPeriods.forEach(period => {
+                    // ✅ MOZGATÁSI RÉSZLETEK GYŰJTÉSE
+                    const { data: animalMovements } = await supabase
+                        .from('animal_pen_assignments')
+                        .select(`
+                            *,
+                            pens!inner(pen_number, location)
+                        `)
+                        .eq('animal_id', animalIdString)
+                        .order('assigned_at', { ascending: false });
+
+                    filteredPeriods.forEach((period, index) => {
                         const pen = period.pens as any;
                         const functionColor = getFunctionColor(period.function_type);
                         const functionIcon = getFunctionIcon(period.function_type);
 
-                        // Időszak alapú VV és hárem adatok
+                        // ✅ SPECIÁLIS MOZGATÁSI RÉSZLETEK KISZÁMÍTÁSA
+                        const periodAnimals = period.animals_snapshot as any[] || [];
+                        const animalInPeriod = periodAnimals.find(a =>
+                            a.enar === animalEnar || a.id === animalIdString
+                        );
+
+                        const relatedMovement = animalMovements?.find(m =>
+                            new Date(m.assigned_at).toDateString() === new Date(period.start_date).toDateString()
+                        );
+
+                        const previousPeriod = filteredPeriods[index + 1];
+                        const nextPeriod = filteredPeriods[index - 1];
+
+                        // VV eredmények szűrése erre a periódusra
                         const periodVVResults = vvResults?.filter(vv => {
                             const vvDate = new Date(vv.vv_date);
                             const startDate = new Date(period.start_date);
@@ -104,19 +216,17 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
                             (!h.end_date || new Date(h.end_date) >= new Date(period.start_date))
                         );
 
-                        // Tenyészbika információk kiemelése hárem esetén
+                        // Tenyészbika információk
                         let description = `${period.function_type.toUpperCase()} periódus`;
                         let extraInfo = '';
 
-                        if (period.function_type === 'hárem') {
-                            // Hárem specifikus adatok
-                            if (periodHarem && periodHarem.bulls) {
-                                const bulls = periodHarem.bulls as any[];
-                                const bullNames = bulls.map(b => b.name || b.enar).join(', ');
-                                extraInfo += ` • 🐂 ${bullNames}`;
-                            }
+                        // Bulls információ metadata-ból vagy hárem history-ból
+                        const bulls = period.metadata?.bulls || periodHarem?.bulls || [];
 
-                            // VV eredmények hozzáadása
+                        if (period.function_type === 'hárem' && bulls.length > 0) {
+                            const bullNames = bulls.map((b: any) => `${b.name || b.enar}`).join(', ');
+                            extraInfo += ` • 🐂 ${bullNames}`;
+
                             if (periodVVResults.length > 0) {
                                 const latestVV = periodVVResults[0];
                                 if (latestVV.pregnancy_status === 'vemhes') {
@@ -134,6 +244,22 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
                             ? calculateDuration(period.start_date, period.end_date)
                             : 'folyamatban';
 
+                        // ✅ RÉSZLETES MOZGATÁSI ADATOK
+                        const movementDetails = {
+                            fromPen: previousPeriod ? (previousPeriod.pens as any)?.pen_number : 'Új bekerülés',
+                            toPen: pen?.pen_number,
+                            reason: relatedMovement?.assignment_reason || period.metadata?.entry_reason || 'Automatikus periódus',
+                            assignedBy: relatedMovement?.created_by || 'Rendszer',
+                            notes: relatedMovement?.notes || period.metadata?.notes || '',
+                            totalAnimalsInPeriod: periodAnimals.length,
+                            animalPosition: periodAnimals.findIndex(a => a.enar === animalEnar || a.id === animalIdString) + 1,
+                            periodDuration: duration,
+                            bullsInPeriod: bulls,
+                            vvResults: periodVVResults,
+                            previousFunction: previousPeriod?.function_type,
+                            nextFunction: nextPeriod?.function_type
+                        };
+
                         items.push({
                             id: `period-${period.id}`,
                             type: 'new_period',
@@ -149,28 +275,33 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
                             metadata: {
                                 ...period.metadata,
                                 vvResults: periodVVResults,
-                                haremInfo: periodHarem
+                                haremInfo: periodHarem,
+                                animalCount: periodAnimals.length,
+                                periodType: period.historical ? 'Történeti' : 'Automatikus'
                             },
                             animals: period.animals_snapshot,
-                            isCurrentPen: !period.end_date
+                            isCurrentPen: !period.end_date,
+                            movementDetails // ✅ ÚJ!
                         });
                     });
                 }
             }
 
-            // 2. RÉGI MOZGATÁSI ADATOK (egyszerűbb lekérdezés)
+            // 2. RÉGI MOZGATÁSI ADATOK - BŐVÍTETT INFORMÁCIÓKKAL
             if (viewMode === 'all' || viewMode === 'legacy_only') {
                 try {
                     const { data: movements, error: movementsError } = await supabase
                         .from('animal_movements')
-                        .select('*')
+                        .select(`
+                            *,
+                            animals!inner(enar)
+                        `)
                         .eq('animal_id', animalIdString)
                         .order('moved_at', { ascending: false });
 
                     if (movementsError) {
                         console.error('Error loading movements:', movementsError);
                     } else if (movements && movements.length > 0) {
-                        // ✅ JAVÍTÁS: Pen számok batch lekérdezése UUID helyett
                         const movementPenIds = [...new Set([
                             ...movements.map(m => m.to_pen_id),
                             ...movements.map(m => m.from_pen_id)
@@ -178,11 +309,11 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
 
                         const { data: movementPenNumbers } = await supabase
                             .from('pens')
-                            .select('id, pen_number')
+                            .select('id, pen_number, location')
                             .in('id', movementPenIds);
 
                         const movementPenLookup = Object.fromEntries(
-                            movementPenNumbers?.map(p => [p.id, p.pen_number]) || []
+                            movementPenNumbers?.map(p => [p.id, { pen_number: p.pen_number, location: p.location }]) || []
                         );
 
                         movements.forEach(movement => {
@@ -192,21 +323,43 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
                             );
 
                             if (!isConflicting) {
-                                // ✅ JAVÍTÁS: Karám számok UUID helyett
-                                const toPenNumber = movementPenLookup[movement.to_pen_id] || 'N/A';
-                                const fromPenNumber = movementPenLookup[movement.from_pen_id] || 'N/A';
-                                
+                                const toPenInfo = movementPenLookup[movement.to_pen_id];
+                                const fromPenInfo = movementPenLookup[movement.from_pen_id];
+
+                                // ✅ BŐVÍTETT MOZGATÁSI RÉSZLETEK
+                                const movementDetails = {
+                                    fromPen: fromPenInfo?.pen_number || 'Ismeretlen',
+                                    toPen: toPenInfo?.pen_number || 'Ismeretlen',
+                                    reason: translateMovementReason(movement.movement_reason) || 'Állatmozgatás',
+                                    assignedBy: movement.moved_by || 'Ismeretlen',
+                                    notes: movement.notes || '',
+                                    totalAnimalsInPeriod: 1, // Legacy movements általában egyedi
+                                    animalPosition: 1,
+                                    periodDuration: 'Legacy mozgatás',
+                                    bullsInPeriod: movement.function_metadata?.bulls || [],
+                                    vvResults: [],
+                                    previousFunction: movement.function_metadata?.previous_function,
+                                    nextFunction: movement.function_type
+                                };
+
                                 items.push({
                                     id: `movement-${movement.id}`,
                                     type: 'legacy_movement',
                                     date: movement.moved_at,
-                                    penNumber: toPenNumber,
+                                    penNumber: toPenInfo?.pen_number || 'N/A',
                                     penId: movement.to_pen_id,
-                                    title: `🔄 Mozgatás: ${fromPenNumber} → ${toPenNumber}`,
-                                    // ✅ JAVÍTÁS: Magyar fordítás
+                                    title: `🔄 Mozgatás: ${fromPenInfo?.pen_number || 'N/A'} → ${toPenInfo?.pen_number || 'N/A'}`,
                                     description: translateMovementReason(movement.movement_reason) || 'Állatmozgatás',
                                     icon: '🔄',
-                                    color: 'bg-blue-100 border-blue-300 text-blue-800'
+                                    color: 'bg-blue-100 border-blue-300 text-blue-800',
+                                    metadata: {
+                                        originalMovement: movement,
+                                        penLocations: {
+                                            from: fromPenInfo?.location,
+                                            to: toPenInfo?.location
+                                        }
+                                    },
+                                    movementDetails // ✅ ÚJ!
                                 });
                             }
                         });
@@ -216,7 +369,7 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
                 }
             }
 
-            // 3. RÉGI ESEMÉNYEK (egyszerűbb lekérdezés)
+            // 3. RÉGI ESEMÉNYEK - BŐVÍTETT INFORMÁCIÓKKAL  
             if (viewMode === 'all' || viewMode === 'legacy_only') {
                 try {
                     const { data: events, error: eventsError } = await supabase
@@ -228,33 +381,7 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
                     if (eventsError) {
                         console.error('Error loading events:', eventsError);
                     } else if (events && events.length > 0) {
-                        // VV eredmények előre lekérdezése az összes function_change eseményhez
-                        const functionChangeEvents = events.filter(e => e.event_type === 'function_change');
-                        const vvPromises = functionChangeEvents.map(async (event) => {
-                            const eventDate = new Date(event.event_date);
-                            const thirtyDaysBefore = new Date(eventDate.getTime() - 30 * 24 * 60 * 60 * 1000);
-                            const thirtyDaysAfter = new Date(eventDate.getTime() + 30 * 24 * 60 * 60 * 1000);
-
-                            const { data: nearbyVVResults } = await supabase
-                                .from('vv_results')
-                                .select('*')
-                                .eq('animal_enar', animalEnar)
-                                .gte('vv_date', thirtyDaysBefore.toISOString().split('T')[0])
-                                .lte('vv_date', thirtyDaysAfter.toISOString().split('T')[0])
-                                .order('vv_date', { ascending: false });
-
-                            return {
-                                eventId: event.id,
-                                vvResults: nearbyVVResults || []
-                            };
-                        });
-
-                        const allVVResults = await Promise.all(vvPromises);
-                        const vvLookup = Object.fromEntries(
-                            allVVResults.map(r => [r.eventId, r.vvResults])
-                        );
-                        
-                        // ✅ JAVÍTÁS: Events-hez pen számok lekérdezése (current + previous)
+                        // Events-hez pen számok lekérdezése
                         const eventPenIds = [...new Set([
                             ...events.map(e => e.pen_id),
                             ...events.map(e => e.previous_pen_id)
@@ -262,11 +389,11 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
 
                         const { data: eventPenNumbers } = await supabase
                             .from('pens')
-                            .select('id, pen_number')
+                            .select('id, pen_number, location')
                             .in('id', eventPenIds);
 
                         const eventPenLookup = Object.fromEntries(
-                            eventPenNumbers?.map(p => [p.id, p.pen_number]) || []
+                            eventPenNumbers?.map(p => [p.id, { pen_number: p.pen_number, location: p.location }]) || []
                         );
 
                         events.forEach(event => {
@@ -276,70 +403,64 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
                             );
 
                             if (!isConflicting) {
-                                // ✅ JAVÍTÁS: Karám számok UUID helyett
-                                const penNumber = event.pen_id ? eventPenLookup[event.pen_id] || 'N/A' : 'N/A';
-                                const previousPenNumber = event.previous_pen_id ? eventPenLookup[event.previous_pen_id] || 'N/A' : null;
+                                const penInfo = eventPenLookup[event.pen_id];
+                                const previousPenInfo = eventPenLookup[event.previous_pen_id];
 
-                                // VV eredmények hozzáadása function_change eseményekhez
-                                let extraEventInfo = '';
-                                if (event.event_type === 'function_change') {
-                                    const nearbyVVResults = vvLookup[event.id] || [];
+                                // ✅ ESEMÉNY RÉSZLETEK
+                                const movementDetails = {
+                                    fromPen: previousPenInfo?.pen_number || 'Ismeretlen',
+                                    toPen: penInfo?.pen_number || 'Ismeretlen',
+                                    reason: translateEventReason(event.reason) || translateEventReason(event.notes) || 'Esemény',
+                                    assignedBy: event.created_by || 'Ismeretlen',
+                                    notes: event.notes || '',
+                                    totalAnimalsInPeriod: 1,
+                                    animalPosition: 1,
+                                    periodDuration: 'Esemény',
+                                    bullsInPeriod: event.function_metadata?.bulls || [],
+                                    vvResults: [],
+                                    previousFunction: event.function_metadata?.previous_function,
+                                    nextFunction: event.pen_function
+                                };
 
-                                    if (nearbyVVResults.length > 0) {
-                                        const vv = nearbyVVResults[0];
-                                        if (vv.pregnancy_status === 'vemhes') {
-                                            // Possible fathers lekérése
-                                            const possibleFathers = vv.possible_fathers as any[] || [];
-                                            const fatherNames = possibleFathers.length > 0
-                                                ? possibleFathers.map(f => f.name).join(', ')
-                                                : vv.father_name;
-
-                                            const vvDate = new Date(vv.vv_date).toLocaleDateString('hu-HU');
-                                            extraEventInfo = ` • ✅ VV: ${vv.vv_result_days} nap (${fatherNames}) - ${vvDate}`;
-                                        } else {
-                                            const vvDate = new Date(vv.vv_date).toLocaleDateString('hu-HU');
-                                            extraEventInfo = ` • ❌ VV: negatív - ${vvDate}`;
-                                        }
-                                    }
-                                    // ✨ ÚJ: Hárem tenyészbika információk hozzáadása
-                                    if (event.function_metadata && event.function_metadata.bulls) {
-                                        const bulls = event.function_metadata.bulls as any[];
-                                        const bullNames = bulls.map(b => b.name).join(', ');
-                                        extraEventInfo += ` • 🐂 Hárem: ${bullNames}`;
-                                    }
-                                }
-
-                                // Mozgatás típusú események külön kezelése
                                 if (event.event_type === 'pen_movement' || event.event_type === 'pen_assignment') {
                                     const title = event.event_type === 'pen_movement'
-                                        ? `🔄 Mozgatás: Karám ${previousPenNumber || 'N/A'} → Karám ${penNumber}`
-                                        : `📍 Bekerülés: Karám ${penNumber}`;
+                                        ? `🔄 Mozgatás: Karám ${previousPenInfo?.pen_number || 'N/A'} → Karám ${penInfo?.pen_number || 'N/A'}`
+                                        : `📍 Bekerülés: Karám ${penInfo?.pen_number || 'N/A'}`;
 
                                     items.push({
                                         id: `event-movement-${event.id}`,
-                                        type: 'legacy_movement', // Mozgatásként kezeljük
+                                        type: 'legacy_movement',
                                         date: event.event_date,
-                                        penNumber: penNumber,
+                                        penNumber: penInfo?.pen_number || 'N/A',
                                         penId: event.pen_id,
                                         title: title,
-                                        // ✅ JAVÍTÁS: Magyar fordítás
                                         description: translateEventReason(event.reason) || translateEventReason(event.notes) || 'Állatmozgatás',
                                         icon: '🔄',
-                                        color: 'bg-blue-100 border-blue-300 text-blue-800'
+                                        color: 'bg-blue-100 border-blue-300 text-blue-800',
+                                        metadata: {
+                                            originalEvent: event,
+                                            penLocations: {
+                                                from: previousPenInfo?.location,
+                                                to: penInfo?.location
+                                            }
+                                        },
+                                        movementDetails // ✅ ÚJ!
                                     });
                                 } else {
-                                    // Egyéb események (function_change, stb.)
                                     items.push({
                                         id: `event-${event.id}`,
                                         type: 'legacy_event',
                                         date: event.event_date,
-                                        penNumber: penNumber,
+                                        penNumber: penInfo?.pen_number || 'N/A',
                                         penId: event.pen_id,
                                         title: `📋 ${translateEventType(event.event_type)}`,
-                                        // ✅ JAVÍTÁS: Magyar fordítás
-                                        description: `${translateEventReason(event.notes) || translateEventReason(event.reason) || 'Esemény'}${extraEventInfo}`,
+                                        description: translateEventReason(event.notes) || translateEventReason(event.reason) || 'Esemény',
                                         icon: getEventIcon(event.event_type),
-                                        color: 'bg-purple-100 border-purple-300 text-purple-800'
+                                        color: 'bg-purple-100 border-purple-300 text-purple-800',
+                                        metadata: {
+                                            originalEvent: event
+                                        },
+                                        movementDetails // ✅ ÚJ!
                                     });
                                 }
                             }
@@ -354,23 +475,23 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
             items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
             setTimeline(items);
-            console.log(`✅ Loaded ${items.length} hybrid timeline items`);
+            console.log(`✅ Loaded ${items.length} enhanced hybrid timeline items`);
 
         } catch (error) {
-            console.error('❌ Error loading hybrid timeline:', error);
+            console.error('❌ Error loading enhanced hybrid timeline:', error);
         } finally {
             setLoading(false);
         }
     };
 
-    // 🔄 Real-time sync hook - a loadHybridTimeline függvény után
+    // Real-time sync hook
     const { lastSync } = usePenHistorySync(undefined, animalIdString, loadHybridTimeline);
 
     useEffect(() => {
         loadHybridTimeline();
     }, [animalEnar, animalIdString, viewMode]);
 
-    // ✅ JAVÍTÁS: Csak a szükséges fordítási függvények hozzáadása
+    // Utility functions
     const translateEventType = (eventType: string): string => {
         const translations: { [key: string]: string } = {
             'function_change': 'Funkció váltás',
@@ -389,7 +510,7 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
 
     const translateEventReason = (reason: string | null): string => {
         if (!reason) return '';
-        
+
         const reasonTranslations: { [key: string]: string } = {
             'breeding': 'Tenyésztési célból',
             'other': 'Egyéb okból',
@@ -400,13 +521,13 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
             'separation': 'Elkülönítés miatt',
             'grouping': 'Csoportosítás miatt'
         };
-        
+
         return reasonTranslations[reason.toLowerCase()] || reason;
     };
 
     const translateMovementReason = (reason: string | null): string => {
         if (!reason) return '';
-        
+
         const movementReasons: { [key: string]: string } = {
             'breeding': 'Tenyésztési célból',
             'other': 'Egyéb okból',
@@ -415,7 +536,7 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
             'treatment': 'Kezelés miatt',
             'quarantine': 'Karantén miatt'
         };
-        
+
         return movementReasons[reason.toLowerCase()] || reason;
     };
 
@@ -486,7 +607,7 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
         <div className="space-y-6">
             {/* Header */}
             <div className="bg-gradient-to-r from-blue-50 to-green-50 p-4 rounded-lg border">
-                <h3 className="text-lg font-semibold mb-2">📚 {animalEnar} Karám Történet</h3>
+                <h3 className="text-lg font-semibold mb-2">📚 {displayEnar(animalEnar)} Karám Történet</h3>
                 <p className="text-sm text-gray-600 mb-3">
                     Hibrid nézet: új kártya rendszer + régi mozgatási adatok
                 </p>
@@ -521,7 +642,7 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
             </div>
 
             <h2 className="text-xl font-bold text-gray-900 mb-6">
-                📚 Karám Történelem - {animalEnar}
+                📚 Karám Történelem - {displayEnar(animalEnar)}
             </h2>
 
             {/* Statistics */}
@@ -567,11 +688,11 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
                             {/* Timeline card */}
                             <div
                                 className={`
-                  flex items-start space-x-4 p-4 rounded-lg border-2 cursor-pointer
-                  transition-all duration-200 hover:shadow-md
-                  ${item.color}
-                  ${item.isCurrentPen ? 'ring-2 ring-blue-400' : ''}
-                `}
+                                    flex items-start space-x-4 p-4 rounded-lg border-2 cursor-pointer
+                                    transition-all duration-200 hover:shadow-md
+                                    ${item.color}
+                                    ${item.isCurrentPen ? 'ring-2 ring-blue-400' : ''}
+                                `}
                                 onClick={() => setSelectedItem(item)}
                             >
                                 {/* Icon */}
@@ -586,7 +707,7 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
                                         <div className="flex items-center gap-2 text-xs">
                                             {item.type === 'new_period' && (
                                                 <span className="bg-green-200 text-green-800 px-2 py-1 rounded">
-                                                    🆕 Új rendszer
+                                                    🆕 {item.metadata?.periodType || 'Új rendszer'}
                                                 </span>
                                             )}
                                             {item.type.startsWith('legacy') && (
@@ -602,6 +723,21 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
                                         </div>
                                     </div>
                                     <p className="text-sm text-gray-700 mt-1">{item.description}</p>
+
+                                    {/* ✅ ÚJ: Mozgatási előnézet */}
+                                    {item.movementDetails && (
+                                        <div className="mt-2 text-xs text-gray-600 space-y-1">
+                                            <div className="flex items-center gap-2">
+                                                <span>🔄 {item.movementDetails.fromPen} → {item.movementDetails.toPen}</span>
+                                                <span>•</span>
+                                                <span>👥 {item.movementDetails.animalPosition}/{item.movementDetails.totalAnimalsInPeriod} állat</span>
+                                            </div>
+                                            {item.movementDetails.reason && (
+                                                <div>📋 {item.movementDetails.reason}</div>
+                                            )}
+                                        </div>
+                                    )}
+
                                     <div className="flex items-center gap-4 mt-2 text-xs text-gray-600">
                                         <span>📅 {formatDate(item.date)}</span>
                                         {item.endDate && (
@@ -625,10 +761,10 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
                 </div>
             )}
 
-            {/* Details Modal */}
+            {/* Enhanced Details Modal */}
             {selectedItem && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+                    <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                         <div className="p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-lg font-semibold">
@@ -643,6 +779,41 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
                                     </svg>
                                 </button>
                             </div>
+
+                            {/* ✅ ÚJ: Részletes mozgatási információk */}
+                            {selectedItem.movementDetails && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                    {/* Mozgatási részletek */}
+                                    <div className="bg-blue-50 p-4 rounded-lg">
+                                        <h4 className="font-semibold text-blue-800 mb-3">🔄 Mozgatási részletek</h4>
+                                        <div className="space-y-2 text-sm">
+                                            <div><strong>Honnan:</strong> Karám {selectedItem.movementDetails.fromPen}</div>
+                                            <div><strong>Hová:</strong> Karám {selectedItem.movementDetails.toPen}</div>
+                                            <div><strong>Indok:</strong> {selectedItem.movementDetails.reason}</div>
+                                            <div><strong>Végrehajtó:</strong> {selectedItem.movementDetails.assignedBy}</div>
+                                            <div><strong>Időtartam:</strong> {selectedItem.movementDetails.periodDuration}</div>
+                                            {selectedItem.movementDetails.notes && (
+                                                <div><strong>Megjegyzés:</strong> {selectedItem.movementDetails.notes}</div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Periódus részletek */}
+                                    <div className="bg-green-50 p-4 rounded-lg">
+                                        <h4 className="font-semibold text-green-800 mb-3">📊 Periódus részletek</h4>
+                                        <div className="space-y-2 text-sm">
+                                            <div><strong>Állatok száma:</strong> {selectedItem.movementDetails.totalAnimalsInPeriod}</div>
+                                            <div><strong>Pozíció:</strong> {selectedItem.movementDetails.animalPosition}. állat</div>
+                                            {selectedItem.movementDetails.previousFunction && (
+                                                <div><strong>Előző funkció:</strong> {selectedItem.movementDetails.previousFunction}</div>
+                                            )}
+                                            {selectedItem.movementDetails.nextFunction && (
+                                                <div><strong>Következő funkció:</strong> {selectedItem.movementDetails.nextFunction}</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="space-y-4">
                                 <div>
@@ -665,6 +836,52 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
                                     <p className="text-sm text-gray-600">{selectedItem.description}</p>
                                 </div>
 
+                                {/* ✅ ÚJ: Tenyészbikák részletes megjelenítése */}
+                                {selectedItem.movementDetails?.bullsInPeriod && selectedItem.movementDetails.bullsInPeriod.length > 0 && (
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-700">
+                                            🐂 Tenyészbikák ({selectedItem.movementDetails.bullsInPeriod.length})
+                                        </label>
+                                        <div className="grid grid-cols-2 gap-2 mt-2">
+                                            {selectedItem.movementDetails.bullsInPeriod.map((bull: any, index: number) => (
+                                                <div key={index} className="text-xs p-2 bg-pink-50 rounded border">
+                                                    <div className="font-semibold">{bull.name || 'Névtelen'}</div>
+                                                    <div className="text-gray-600">{displayEnar(bull.enar)}</div>
+                                                    {bull.kplsz && <div className="text-gray-500">KPLSZ: {bull.kplsz}</div>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* ✅ ÚJ: VV eredmények megjelenítése */}
+                                {selectedItem.movementDetails?.vvResults && selectedItem.movementDetails.vvResults.length > 0 && (
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-700">
+                                            🔬 VV eredmények ({selectedItem.movementDetails.vvResults.length})
+                                        </label>
+                                        <div className="space-y-2 mt-2">
+                                            {selectedItem.movementDetails.vvResults.map((vv: any, index: number) => (
+                                                <div key={index} className={`text-xs p-2 rounded border ${vv.pregnancy_status === 'vemhes' ? 'bg-green-50' : 'bg-orange-50'
+                                                    }`}>
+                                                    <div className="flex justify-between">
+                                                        <span className="font-semibold">
+                                                            {vv.pregnancy_status === 'vemhes' ? '✅ Vemhes' : '❌ Üres'}
+                                                        </span>
+                                                        <span>{formatDate(vv.vv_date)}</span>
+                                                    </div>
+                                                    {vv.vv_result_days && (
+                                                        <div>Napok: {vv.vv_result_days}</div>
+                                                    )}
+                                                    {vv.father_name && (
+                                                        <div>Apa: {vv.father_name}</div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {selectedItem.animals && selectedItem.animals.length > 0 && (
                                     <div>
                                         <label className="text-sm font-medium text-gray-700">
@@ -673,7 +890,7 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
                                         <div className="grid grid-cols-2 gap-2 mt-2">
                                             {selectedItem.animals.slice(0, 10).map((animal: any, index: number) => (
                                                 <div key={index} className="text-xs p-2 bg-gray-50 rounded">
-                                                    {animal.enar || animal.id} {animal.nev && `(${animal.nev})`}
+                                                    {displayEnar(animal.enar || animal.id)} {animal.nev && `(${animal.nev})`}
                                                 </div>
                                             ))}
                                             {selectedItem.animals.length > 10 && (
@@ -689,19 +906,19 @@ const HybridAnimalPenHistory: React.FC<Props> = ({ animalEnar, animalId }) => {
                                     <div>
                                         <label className="text-sm font-medium text-gray-700">További információk</label>
                                         <div className="space-y-2 mt-2">
-                                            {selectedItem.metadata.animal_count && (
+                                            {selectedItem.metadata.animalCount && (
                                                 <div className="text-sm">
-                                                    <span className="font-medium">🐄 Állatok száma:</span> {selectedItem.metadata.animal_count}
+                                                    <span className="font-medium">🐄 Állatok száma:</span> {selectedItem.metadata.animalCount}
                                                 </div>
                                             )}
-                                            {selectedItem.metadata.manual_entry && (
+                                            {selectedItem.metadata.periodType && (
                                                 <div className="text-sm">
-                                                    <span className="font-medium">📝 Rögzítés típusa:</span> Kézi rögzítés
+                                                    <span className="font-medium">📝 Típus:</span> {selectedItem.metadata.periodType}
                                                 </div>
                                             )}
                                             {selectedItem.metadata.entry_date && (
                                                 <div className="text-sm">
-                                                    <span className="font-medium">📅 Rögzítve:</span> {new Date(selectedItem.metadata.entry_date).toLocaleDateString('hu-HU')}
+                                                    <span className="font-medium">📅 Rögzítve:</span> {formatDate(selectedItem.metadata.entry_date)}
                                                 </div>
                                             )}
                                         </div>
