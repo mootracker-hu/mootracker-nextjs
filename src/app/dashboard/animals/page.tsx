@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { displayEnar } from '@/constants/enar-formatter';
+// A meglévő importok mellé add hozzá:
+import * as XLSX from 'xlsx';
 
 interface Animal {
   id: number;
@@ -49,6 +51,10 @@ export default function AnimalsPage() {
   const [bulkNotes, setBulkNotes] = useState('');
   const [assignmentLoading, setAssignmentLoading] = useState(false);
 
+  // ÚJ SZŰRŐ STATE-EK
+  const [showInactiveAnimals, setShowInactiveAnimals] = useState(false);
+  const [ageFilter, setAgeFilter] = useState(''); // 'over_1_year', 'under_1_year', ''
+
   const getCategoryEmoji = (kategoria: string): string => {
     const emojiMap: { [key: string]: string } = {
       'nőivarú_borjú': '🐮',
@@ -72,6 +78,20 @@ export default function AnimalsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedBirthLocation, setSelectedBirthLocation] = useState('');
 
+  // ÚJ FUNKCIÓ: Életkor számítás
+  const calculateAgeInMonths = (birthDate: string): number => {
+    const birth = new Date(birthDate);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - birth.getTime());
+    const diffMonths = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 30.44));
+    return diffMonths;
+  };
+
+  // ÚJ FUNKCIÓ: 1 évesnél idősebb-e
+  const isOverOneYear = (birthDate: string): boolean => {
+    return calculateAgeInMonths(birthDate) >= 12;
+  };
+
   // Pagination logic  
   const totalPages = Math.ceil(filteredAnimals.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -83,7 +103,6 @@ export default function AnimalsPage() {
   console.log('startIndex:', startIndex);
   console.log('endIndex:', endIndex);
   console.log('currentAnimals.length:', currentAnimals.length);
-  console.log('9120 a currentAnimals-ban:', currentAnimals.filter(a => a.enar.includes('9120')));
 
   // ÚJ FUNKCIÓ: Elérhető karamok betöltése (JAVÍTOTT verzió)
   const fetchAvailablePens = async () => {
@@ -206,13 +225,13 @@ export default function AnimalsPage() {
     }
   };
 
-  // Adatok betöltése Supabase-ből  
+  // MÓDOSÍTOTT: Adatok betöltése Supabase-ből - MOSTANTÓL MINDEN ÁLLAT (aktív és inaktív)
   const fetchAnimals = async () => {
     try {
       setLoading(true);
-      console.log('🐄 Állatok betöltése karám adatokkal...');
+      console.log('🐄 ÖSSZES állat betöltése karám adatokkal...');
 
-      // Próbáljuk meg a JOIN query-t
+      // Próbáljuk meg a JOIN query-t - MINDEN STÁTUSSZAL
       const { data: animalsWithPens, error: joinError } = await supabase
         .from('animals')
         .select(`
@@ -234,7 +253,7 @@ export default function AnimalsPage() {
       if (joinError) {
         console.warn('⚠️ JOIN query hiba, fallback egyszerű query-re:', joinError);
 
-        // Fallback: egyszerű állatok lekérdezés
+        // Fallback: egyszerű állatok lekérdezés - MINDEN STÁTUSSZAL
         const { data: simpleAnimals, error: simpleError } = await supabase
           .from('animals')
           .select('*')
@@ -247,11 +266,11 @@ export default function AnimalsPage() {
           return;
         }
 
-        console.log('✅ Fallback: állatok betöltve karamok nélkül:', simpleAnimals?.length || 0);
+        console.log('✅ Fallback: ÖSSZES állat betöltve karamok nélkül:', simpleAnimals?.length || 0);
         setAnimals(simpleAnimals || []);
         setFilteredAnimals(simpleAnimals || []);
       } else {
-        console.log('✅ Állatok + karamok sikeresen betöltve:', animalsWithPens?.length || 0);
+        console.log('✅ ÖSSZES állat + karamok sikeresen betöltve:', animalsWithPens?.length || 0);
         console.log('📊 Példa állat karám adatokkal:', animalsWithPens?.[0]);
         setAnimals(animalsWithPens || []);
         setFilteredAnimals(animalsWithPens || []);
@@ -270,7 +289,7 @@ export default function AnimalsPage() {
     fetchAvailablePens();
   }, []);
 
-  // Keresés és szűrés  
+  // MÓDOSÍTOTT: Keresés és szűrés - ÚJ SZŰRŐK HOZZÁADVA
   useEffect(() => {
 
     if (!animals || animals.length === 0) {
@@ -279,6 +298,18 @@ export default function AnimalsPage() {
     }
 
     let filtered = animals;
+
+    // ÚJ: Alapértelmezetten csak aktív állatok
+    if (!showInactiveAnimals) {
+      filtered = filtered.filter(animal => animal.statusz === 'aktív');
+    }
+
+    // ÚJ: Életkor szűrés
+    if (ageFilter === 'over_1_year') {
+      filtered = filtered.filter(animal => isOverOneYear(animal.szuletesi_datum));
+    } else if (ageFilter === 'under_1_year') {
+      filtered = filtered.filter(animal => !isOverOneYear(animal.szuletesi_datum));
+    }
 
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
@@ -314,11 +345,272 @@ export default function AnimalsPage() {
 
     console.log('penFilter:', penFilter);
     console.log('categoryFilter:', categoryFilter);
+    console.log('ageFilter:', ageFilter);
+    console.log('showInactiveAnimals:', showInactiveAnimals);
     console.log('filtered állatok száma:', filtered.length);
-    console.log('9120 a filtered-ban:', filtered.filter(a => a.enar.includes('9120')));
 
     setFilteredAnimals(filtered);
-  }, [animals, searchTerm, categoryFilter, penFilter, statusFilter, selectedBirthLocation]);
+
+    // Reset pagination amikor szűrés változik
+    setCurrentPage(1);
+
+  }, [animals, searchTerm, categoryFilter, penFilter, statusFilter, selectedBirthLocation, showInactiveAnimals, ageFilter]);
+
+  // ÚJ FUNKCIÓ: Univerzális Excel Export
+  const exportFilteredAnimalsToExcel = () => {
+    try {
+      console.log('📊 Univerzális Excel export kezdődik...');
+
+      if (filteredAnimals.length === 0) {
+        alert('⚠️ Nincs exportálható állat a jelenlegi szűrés alapján!');
+        return;
+      }
+
+      // Jelenlegi szűrések összegyűjtése a fájlnévhez
+      const filterInfo = [];
+      if (searchTerm) filterInfo.push(`keresés-${searchTerm}`);
+      if (categoryFilter) filterInfo.push(`kategória-${categoryFilter}`);
+      if (penFilter) filterInfo.push(`karám-${penFilter}`);
+      if (statusFilter) filterInfo.push(`státusz-${statusFilter}`);
+      if (selectedBirthLocation) filterInfo.push(`származás-${selectedBirthLocation}`);
+      if (ageFilter === 'over_1_year') filterInfo.push('1+évesek');
+      if (ageFilter === 'under_1_year') filterInfo.push('1év-alatt');
+      if (!showInactiveAnimals) filterInfo.push('csak-aktívak');
+
+      const filterString = filterInfo.length > 0 ? filterInfo.join('_') : 'összes-állat';
+
+      console.log(`🎯 Exportálás: ${filteredAnimals.length} állat (${filterString})`);
+
+      // Karám szerint csoportosítás
+      const animalsByPen = filteredAnimals.reduce((groups, animal) => {
+        const assignment = (animal as any).animal_pen_assignments?.find(
+          (a: any) => a.removed_at === null
+        );
+
+        let penInfo = 'Nincs karám hozzárendelés';
+        if (assignment?.pens?.pen_number) {
+          penInfo = `${assignment.pens.pen_number}`;
+          if (assignment.pens.location) {
+            penInfo += ` (${assignment.pens.location})`;
+          }
+        }
+
+        if (!groups[penInfo]) {
+          groups[penInfo] = [];
+        }
+
+        // Részletes állat adatok
+        groups[penInfo].push({
+          'ENAR': animal.enar,
+          'Rövid ID': getShortId(animal.enar),
+          'Születési dátum': animal.szuletesi_datum,
+          'Életkor': calculateAge(animal.szuletesi_datum),
+          'Életkor hónapokban': calculateAgeInMonths(animal.szuletesi_datum),
+          'Ivar': animal.ivar === 'nő' ? 'Nőivarú' : 'Hímivarú',
+          'Kategória': animal.kategoria,
+          'Aktuális karám': penInfo,
+          'Státusz': animal.statusz,
+          'Anya ENAR': animal.anya_enar || '',
+          'Anya rövid': animal.anya_enar ? getShortId(animal.anya_enar) : '',
+          'Apa ENAR': animal.apa_enar || '',
+          'Apa rövid': animal.apa_enar ? getShortId(animal.apa_enar) : '',
+          'KPLSZ': animal.kplsz || '',
+          'Származás': animal.birth_location === 'nálunk' ? 'Nálunk született' :
+            animal.birth_location === 'vásárolt' ? 'Vásárolt' : 'Ismeretlen',
+          'Bekerülés dátuma': animal.bekerules_datum || '',
+          'Megjegyzés': (animal as any).notes || '',
+          '1+ éves': isOverOneYear(animal.szuletesi_datum) ? 'Igen' : 'Nem'
+        });
+
+        return groups;
+      }, {} as Record<string, any[]>);
+
+      console.log('📋 Karám csoportok:', Object.keys(animalsByPen));
+
+      // Excel workbook létrehozása
+      const workbook = XLSX.utils.book_new();
+
+      // ÖSSZESÍTŐ LAP
+      const summaryData = [
+        ['🐄 MOOTRACKER - ÁLLAT EXPORT'],
+        [''],
+        ['Exportálás dátuma:', new Date().toLocaleDateString('hu-HU', {
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit'
+        })],
+        ['Alkalmazott szűrések:', filterInfo.length > 0 ? filterInfo.join(', ') : 'Nincs szűrés'],
+        ['Exportált állatok száma:', filteredAnimals.length],
+        ['Összes állat az adatbázisban:', animals.length],
+        [''],
+        ['KARÁM ÖSSZESÍTÉS:', ''],
+        ['Karám neve', 'Állatok száma', 'Arány (%)'],
+        ...Object.entries(animalsByPen).map(([pen, animalList]) => [
+          pen,
+          animalList.length,
+          `${((animalList.length / filteredAnimals.length) * 100).toFixed(1)}%`
+        ]),
+        [''],
+        ['KATEGÓRIA ÖSSZESÍTÉS:', ''],
+        ['Kategória', 'Darab'],
+        ...Object.entries(
+          filteredAnimals.reduce((acc, animal) => {
+            acc[animal.kategoria] = (acc[animal.kategoria] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>)
+        ).map(([category, count]) => [category, count]),
+        [''],
+        ['STÁTUSZ ÖSSZESÍTÉS:', ''],
+        ['Státusz', 'Darab'],
+        ...Object.entries(
+          filteredAnimals.reduce((acc, animal) => {
+            acc[animal.statusz] = (acc[animal.statusz] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>)
+        ).map(([status, count]) => [status, count]),
+        [''],
+        ['ÉLETKOR ÖSSZESÍTÉS:', ''],
+        ['', 'Darab'],
+        ['1 évesnél fiatalabb', filteredAnimals.filter(a => !isOverOneYear(a.szuletesi_datum)).length],
+        ['1 évesnél idősebb', filteredAnimals.filter(a => isOverOneYear(a.szuletesi_datum)).length]
+      ];
+
+      const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+
+      // Oszlopszélességek beállítása az összesítőhöz
+      summarySheet['!cols'] = [
+        { width: 35 },
+        { width: 20 },
+        { width: 15 }
+      ];
+
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Összesítő');
+
+      // MINDEN ÁLLAT EGY LAPON
+      if (filteredAnimals.length <= 1000) { // Nagy listáknál memória védelem
+        const allAnimalsData = filteredAnimals.map(animal => {
+          const assignment = (animal as any).animal_pen_assignments?.find(
+            (a: any) => a.removed_at === null
+          );
+
+          let penInfo = 'Nincs karám hozzárendelés';
+          if (assignment?.pens?.pen_number) {
+            penInfo = `${assignment.pens.pen_number}`;
+            if (assignment.pens.location) {
+              penInfo += ` (${assignment.pens.location})`;
+            }
+          }
+
+          return {
+            'ENAR': animal.enar,
+            'Rövid ID': getShortId(animal.enar),
+            'Születési dátum': animal.szuletesi_datum,
+            'Életkor': calculateAge(animal.szuletesi_datum),
+            'Életkor hónapokban': calculateAgeInMonths(animal.szuletesi_datum),
+            'Ivar': animal.ivar === 'nő' ? 'Nőivarú' : 'Hímivarú',
+            'Kategória': animal.kategoria,
+            'Aktuális karám': penInfo,
+            'Státusz': animal.statusz,
+            'Anya ENAR': animal.anya_enar || '',
+            'Anya rövid': animal.anya_enar ? getShortId(animal.anya_enar) : '',
+            'Apa ENAR': animal.apa_enar || '',
+            'Apa rövid': animal.apa_enar ? getShortId(animal.apa_enar) : '',
+            'KPLSZ': animal.kplsz || '',
+            'Származás': animal.birth_location === 'nálunk' ? 'Nálunk született' :
+              animal.birth_location === 'vásárolt' ? 'Vásárolt' : 'Ismeretlen',
+            'Bekerülés dátuma': animal.bekerules_datum || '',
+            'Megjegyzés': (animal as any).notes || '',
+            '1+ éves': isOverOneYear(animal.szuletesi_datum) ? 'Igen' : 'Nem'
+          };
+        });
+
+        const allAnimalsSheet = XLSX.utils.json_to_sheet(allAnimalsData);
+
+        // Oszlopszélességek
+        allAnimalsSheet['!cols'] = [
+          { width: 18 }, // ENAR
+          { width: 12 }, // Rövid ID
+          { width: 15 }, // Születési dátum
+          { width: 15 }, // Életkor
+          { width: 12 }, // Életkor hónapokban
+          { width: 12 }, // Ivar
+          { width: 20 }, // Kategória
+          { width: 25 }, // Karám
+          { width: 12 }, // Státusz
+          { width: 18 }, // Anya ENAR
+          { width: 12 }, // Anya rövid
+          { width: 18 }, // Apa ENAR
+          { width: 12 }, // Apa rövid
+          { width: 12 }, // KPLSZ
+          { width: 15 }, // Származás
+          { width: 15 }, // Bekerülés
+          { width: 30 }, // Megjegyzés
+          { width: 10 }  // 1+ éves
+        ];
+
+        XLSX.utils.book_append_sheet(workbook, allAnimalsSheet, 'Minden állat');
+      }
+
+      // KARÁMONKÉNTI LAPOK
+      Object.entries(animalsByPen)
+        .sort(([a], [b]) => {
+          // "Nincs karám" legyen a végén
+          if (a.includes('Nincs karám')) return 1;
+          if (b.includes('Nincs karám')) return -1;
+          return a.localeCompare(b);
+        })
+        .forEach(([penName, animalList]) => {
+          console.log(`📄 Karám lap: ${penName} (${animalList.length} állat)`);
+
+          const worksheet = XLSX.utils.json_to_sheet(animalList);
+
+          // Oszlopszélességek beállítása
+          worksheet['!cols'] = [
+            { width: 18 }, // ENAR
+            { width: 12 }, // Rövid ID
+            { width: 15 }, // Születési dátum
+            { width: 15 }, // Életkor
+            { width: 12 }, // Életkor hónapokban
+            { width: 12 }, // Ivar
+            { width: 20 }, // Kategória
+            { width: 25 }, // Karám
+            { width: 12 }, // Státusz
+            { width: 18 }, // Anya ENAR
+            { width: 12 }, // Anya rövid
+            { width: 18 }, // Apa ENAR
+            { width: 12 }, // Apa rövid
+            { width: 12 }, // KPLSZ
+            { width: 15 }, // Származás
+            { width: 15 }, // Bekerülés
+            { width: 30 }, // Megjegyzés
+            { width: 10 }  // 1+ éves
+          ];
+
+          // Excel-kompatibilis lapnév (max 31 karakter, speciális karakterek nélkül)
+          let sheetName = penName.replace(/[:\\\/\?\*\[\]]/g, '_');
+          if (sheetName.length > 31) {
+            sheetName = sheetName.substring(0, 28) + '...';
+          }
+
+          XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+        });
+
+      // Fájlnév generálása
+      const timestamp = new Date().toISOString().slice(0, 16).replace(/[-:]/g, '').replace('T', '_');
+      const fileName = `mootracker_allatok_${filterString}_${timestamp}.xlsx`.replace(/\s+/g, '_');
+
+      console.log(`💾 Fájl generálása: ${fileName}`);
+      XLSX.writeFile(workbook, fileName);
+
+      console.log('✅ Excel export sikeres!');
+
+      // Sikeres üzenet
+      alert(`✅ Excel fájl letöltve!\n\n📊 ${filteredAnimals.length} állat exportálva\n🏠 ${Object.keys(animalsByPen).length} karám/csoport\n📄 Fájlnév: ${fileName}\n\n🎯 Alkalmazott szűrések: ${filterInfo.length > 0 ? filterInfo.join(', ') : 'Nincs'}`);
+
+    } catch (error) {
+      console.error('❌ Excel export hiba:', error);
+      alert('❌ Hiba történt az Excel export során! Próbáld újra.');
+    }
+  };
 
   // Checkbox kezelés
   const handleSelectAnimal = (animalId: number) => {
@@ -372,10 +664,11 @@ export default function AnimalsPage() {
     return colors[category as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
-  // Egyedi értékek lekérése szűréshez  
-  const uniqueCategories = [...new Set(animals.map(a => a.kategoria))].filter(Boolean);
+  // MÓDOSÍTOTT: Egyedi értékek lekérése szűréshez - CSAK AKTÍV ÁLLATOKRA
+  const activeAnimals = animals.filter(a => a.statusz === 'aktív');
+  const uniqueCategories = [...new Set(activeAnimals.map(a => a.kategoria))].filter(Boolean);
   const uniquePens = [...new Set(
-    animals
+    activeAnimals
       .map(animal => {
         const assignment = (animal as any).animal_pen_assignments?.find(
           (a: any) => a.removed_at === null
@@ -419,7 +712,7 @@ export default function AnimalsPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
-        
+
         {/* Header - DESIGN SYSTEM */}
         <div className="mb-8">
           <div className="flex items-center mb-4">
@@ -427,7 +720,12 @@ export default function AnimalsPage() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Állomány</h1>
               <p className="mt-2 text-gray-600">
-                Összesen {animals.length} állat ({filteredAnimals.length} megjelenítve)
+                {/* MÓDOSÍTOTT: Aktív/összes megjelenítés */}
+                {showInactiveAnimals ? (
+                  <>Összesen {animals.length} állat ({activeAnimals.length} aktív) • {filteredAnimals.length} megjelenítve</>
+                ) : (
+                  <>Aktív állatok: {activeAnimals.length} • {filteredAnimals.length} megjelenítve</>
+                )}
                 {selectedAnimals.length > 0 && (
                   <span className="ml-2 text-green-600 font-medium">
                     • {selectedAnimals.length} kiválasztva
@@ -457,6 +755,21 @@ export default function AnimalsPage() {
               <span className="mr-2">📥</span>
               Importálás
             </Link>
+
+            {/* ÚJ: Excel Export gomb */}
+            <button
+              onClick={exportFilteredAnimalsToExcel}
+              disabled={filteredAnimals.length === 0}
+              className="bg-blue-500 hover:bg-blue-600 text-white font-medium px-4 py-2 rounded-lg transition-colors inline-flex items-center text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className="mr-2">📊</span>
+              Excel Export
+              {filteredAnimals.length > 0 && (
+                <span className="ml-2 bg-blue-400 text-white px-2 py-1 rounded-full text-xs">
+                  {filteredAnimals.length}
+                </span>
+              )}
+            </button>
 
             <Link
               href="/dashboard/animals/new"
@@ -551,59 +864,121 @@ export default function AnimalsPage() {
           </div>
         )}
 
-        {/* Statisztika Widget - DESIGN SYSTEM CARDS */}
+        {/* MÓDOSÍTOTT: Statisztika Widget - CSAK AKTÍV ÁLLATOK */}
         <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
           <div className="flex items-center mb-3">
             <span className="text-2xl mr-3">📊</span>
-            <h2 className="text-lg font-semibold text-gray-900">Állomány Összetétel</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Aktív Állomány Összetétel</h2>
+            {animals.length !== activeAnimals.length && (
+              <span className="ml-2 text-sm text-gray-500">
+                ({animals.length - activeAnimals.length} inaktív nem látszik)
+              </span>
+            )}
           </div>
           <div className="flex flex-wrap gap-2 text-sm">
             <div className="flex items-center bg-blue-50 px-3 py-1 rounded-full">
-              <span className="text-blue-700 font-medium">📈 Összesen: {animals.length} állat</span>
+              <span className="text-blue-700 font-medium">📈 Aktív: {activeAnimals.length} állat</span>
             </div>
 
-            {/* Nőivarok */}
+            {/* Nőivarok - CSAK AKTÍVAK */}
             <div className="flex items-center bg-pink-50 px-3 py-1 rounded-full">
-              <span className="text-pink-700 font-medium">🐮 {animals.filter(a => a.kategoria === 'nőivarú_borjú').length} nőivarú borjú</span>
+              <span className="text-pink-700 font-medium">🐮 {activeAnimals.filter(a => a.kategoria === 'nőivarú_borjú').length} nőivarú borjú</span>
             </div>
             <div className="flex items-center bg-purple-50 px-3 py-1 rounded-full">
-              <span className="text-purple-700 font-medium">🐄 {animals.filter(a => a.kategoria === 'szűz_üsző').length} szűz üsző</span>
+              <span className="text-purple-700 font-medium">🐄 {activeAnimals.filter(a => a.kategoria === 'szűz_üsző').length} szűz üsző</span>
             </div>
             <div className="flex items-center bg-red-50 px-3 py-1 rounded-full">
-              <span className="text-red-700 font-medium">🐄💕 {animals.filter(a => a.kategoria === 'háremben_lévő_üsző').length} háremben</span>
+              <span className="text-red-700 font-medium">🐄💕 {activeAnimals.filter(a => a.kategoria === 'háremben_lévő_üsző').length} háremben</span>
             </div>
             <div className="flex items-center bg-green-50 px-3 py-1 rounded-full">
-              <span className="text-green-700 font-medium">🐄💖 {animals.filter(a => a.kategoria === 'vemhes_üsző').length} vemhes üsző</span>
+              <span className="text-green-700 font-medium">🐄💖 {activeAnimals.filter(a => a.kategoria === 'vemhes_üsző').length} vemhes üsző</span>
             </div>
             <div className="flex items-center bg-yellow-50 px-3 py-1 rounded-full">
-              <span className="text-yellow-700 font-medium">🐄🚫 {animals.filter(a => a.kategoria === 'üres_üsző').length} üres üsző</span>
+              <span className="text-yellow-700 font-medium">🐄🚫 {activeAnimals.filter(a => a.kategoria === 'üres_üsző').length} üres üsző</span>
             </div>
             <div className="flex items-center bg-gray-50 px-3 py-1 rounded-full">
-              <span className="text-gray-700 font-medium">🐄⚠️ {animals.filter(a => a.kategoria === 'csíra').length} csíra</span>
+              <span className="text-gray-700 font-medium">🐄⚠️ {activeAnimals.filter(a => a.kategoria === 'csíra').length} csíra</span>
             </div>
             <div className="flex items-center bg-green-50 px-3 py-1 rounded-full">
-              <span className="text-green-700 font-medium">🐄🍼 {animals.filter(a => a.kategoria === 'tehén').length} tehén</span>
+              <span className="text-green-700 font-medium">🐄🍼 {activeAnimals.filter(a => a.kategoria === 'tehén').length} tehén</span>
             </div>
 
-            {/* Hímivarok */}
+            {/* Hímivarok - CSAK AKTÍVAK */}
             <div className="flex items-center bg-blue-50 px-3 py-1 rounded-full">
-              <span className="text-blue-700 font-medium">🐂 {animals.filter(a => a.kategoria === 'hímivarú_borjú').length} hímivarú borjú</span>
+              <span className="text-blue-700 font-medium">🐂 {activeAnimals.filter(a => a.kategoria === 'hímivarú_borjú').length} hímivarú borjú</span>
             </div>
             <div className="flex items-center bg-orange-50 px-3 py-1 rounded-full">
-              <span className="text-orange-700 font-medium">🐂 {animals.filter(a => a.kategoria === 'hízóbika').length} hízóbika</span>
+              <span className="text-orange-700 font-medium">🐂 {activeAnimals.filter(a => a.kategoria === 'hízóbika').length} hízóbika</span>
             </div>
             <div className="flex items-center bg-red-50 px-3 py-1 rounded-full">
-              <span className="text-red-700 font-medium">🐂 {animals.filter(a => a.kategoria === 'tenyészbika').length} tenyészbika</span>
+              <span className="text-red-700 font-medium">🐂 {activeAnimals.filter(a => a.kategoria === 'tenyészbika').length} tenyészbika</span>
             </div>
           </div>
         </div>
 
-        {/* Filters - DESIGN SYSTEM FORM STANDARDS */}
+        {/* MÓDOSÍTOTT: Filters - ÚJ SZŰRŐK HOZZÁADVA */}
         <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
           <div className="flex items-center mb-4">
             <span className="text-2xl mr-3">🔍</span>
             <h2 className="text-lg font-semibold text-gray-900">Szűrők és Keresés</h2>
           </div>
+
+          {/* ÚJ: GYORS SZŰRŐK ROW */}
+          <div className="mb-4 flex flex-wrap gap-3">
+            {/* Aktív/Inaktív Toggle */}
+            <button
+              onClick={() => setShowInactiveAnimals(!showInactiveAnimals)}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors inline-flex items-center ${showInactiveAnimals
+                  ? 'bg-gray-600 text-white'
+                  : 'bg-green-600 text-white'
+                }`}
+            >
+              <span className="mr-2">{showInactiveAnimals ? '👁️' : '✅'}</span>
+              {showInactiveAnimals ? 'Minden állat' : 'Csak aktívak'}
+            </button>
+
+            {/* Életkor szűrők */}
+            <button
+              onClick={() => setAgeFilter(ageFilter === 'over_1_year' ? '' : 'over_1_year')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors inline-flex items-center ${ageFilter === 'over_1_year'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                }`}
+            >
+              <span className="mr-2">🎂</span>
+              1 évesnél idősebb
+            </button>
+
+            <button
+              onClick={() => setAgeFilter(ageFilter === 'under_1_year' ? '' : 'under_1_year')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors inline-flex items-center ${ageFilter === 'under_1_year'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                }`}
+            >
+              <span className="mr-2">🍼</span>
+              1 évesnél fiatalabb
+            </button>
+
+            {/* Clear filters gomb */}
+            {(ageFilter || categoryFilter || penFilter || statusFilter || selectedBirthLocation || searchTerm) && (
+              <button
+                onClick={() => {
+                  setAgeFilter('');
+                  setCategoryFilter('');
+                  setPenFilter('');
+                  setStatusFilter('');
+                  setSelectedBirthLocation('');
+                  setSearchTerm('');
+                }}
+                className="px-4 py-2 rounded-lg font-medium transition-colors inline-flex items-center bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"
+              >
+                <span className="mr-2">🗑️</span>
+                Szűrők törlése
+              </button>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {/* Keresés */}
             <div className="relative">
@@ -752,7 +1127,8 @@ export default function AnimalsPage() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {currentAnimals.map((animal) => (
-                    <tr key={animal.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={animal.id} className={`hover:bg-gray-50 transition-colors ${animal.statusz !== 'aktív' ? 'bg-gray-50 opacity-75' : ''
+                      }`}>
                       {/* Checkbox cella */}
                       <td className="px-4 py-4 whitespace-nowrap">
                         <input
@@ -773,6 +1149,12 @@ export default function AnimalsPage() {
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                             #{getShortId(animal.enar)}
                           </span>
+                          {/* ÚJ: Életkor badge */}
+                          {isOverOneYear(animal.szuletesi_datum) && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              🎂 1+
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
