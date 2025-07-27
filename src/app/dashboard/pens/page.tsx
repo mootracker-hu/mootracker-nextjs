@@ -1,4 +1,4 @@
-// src/app/dashboard/pens/page.tsx - ÉS TOVÁBBÁ A getFunctionColor JAVÍTÁS
+// src/app/dashboard/pens/page.tsx - AdminEszkozok hozzáadással
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,8 +8,8 @@ import PenCard from './components/pen-card';
 import PenStats from './components/pen-stats';
 import { useAlertsNew } from '@/hooks/useAlertsNew';
 import { AlertsSummary } from './components/pen-alerts-widget';
-// A meglévő importok után:
 import { ColorHelpers } from '@/constants/colors';
+import { AdminEszkozok } from '@/components/AdminEszkozok'; // ← ÚJ IMPORT
 
 export default function PensPage() {
   const router = useRouter();
@@ -315,13 +315,17 @@ export default function PensPage() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => router.push('/dashboard/pens/add')}
-              className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg transition-colors inline-flex items-center"
-            >
-              <span className="mr-2">➕</span>
-              Új Karám
-            </button>
+            <div className="flex items-center space-x-4">
+              {/* ✅ ÚJ: AdminEszkozok hozzáadása */}
+              <AdminEszkozok />
+              <button
+                onClick={() => router.push('/dashboard/pens/add')}
+                className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg transition-colors inline-flex items-center"
+              >
+                <span className="mr-2">➕</span>
+                Új Karám
+              </button>
+            </div>
           </div>
         </div>
 
