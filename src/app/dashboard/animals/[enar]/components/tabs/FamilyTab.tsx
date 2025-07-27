@@ -68,18 +68,16 @@ const FamilyTab: React.FC<FamilyTabProps> = ({ animal, isEditing, updateField, o
           const { data: birthData } = await supabase
             .from('births')
             .select(`
-              mother_enar,
-              mother:animals!births_mother_enar_fkey(enar, name)
+              mother_enar
             `)
             .eq('id', animal.birth_id)
             .single();
 
           if (birthData?.mother_enar) {
             console.log('✅ Anya megtalálva birth_id alapján:', birthData.mother_enar);
-            const motherInfo = birthData.mother as any; // Type assertion
             setMotherData({
               enar: birthData.mother_enar,
-              name: motherInfo?.name || undefined
+              name: undefined // Nincs szükség a mother join-ra
             });
           } else {
             setMotherData(null);
@@ -115,21 +113,19 @@ const FamilyTab: React.FC<FamilyTabProps> = ({ animal, isEditing, updateField, o
           const { data: birthData } = await supabase
             .from('births')
             .select(`
-              father_enar,
-              father_name,
-              father_kplsz,
-              mother_enar,
-              father:animals!births_father_enar_fkey(enar, name)
-            `)
+  father_enar,
+  father_name,
+  father_kplsz,
+  mother_enar
+`)
             .eq('id', animal.birth_id)
             .single();
 
           if (birthData?.father_enar) {
             console.log('✅ Apa megtalálva birth_id alapján:', birthData.father_enar);
-            const fatherInfo = birthData.father as any; // Type assertion
             setFatherData({
               enar: birthData.father_enar,
-              name: birthData.father_name || fatherInfo?.name || undefined,
+              name: birthData.father_name || undefined,
               kplsz: birthData.father_kplsz || undefined,
               source: 'birth_record'
             });
