@@ -913,7 +913,7 @@ export default function EllesTab({ animal }: { animal: Animal }) {
                         .from('calves')
                         .update({
                           enar: selectedAnimalEnar,
-                          ear_tag_date: new Date().toISOString().split('T')[0]
+                          ear_tag_date: earTagDate
                         })
                         .eq('temp_id', assigningEarTag.temp_id);
 
