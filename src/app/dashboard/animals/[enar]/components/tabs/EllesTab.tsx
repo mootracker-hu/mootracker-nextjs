@@ -16,6 +16,11 @@ export default function EllesTab({ animal }: { animal: Animal }) {
   const [assigningEarTag, setAssigningEarTag] = useState<any>(null);
   const [possibleAnimals, setPossibleAnimals] = useState<any[]>([]);
   const [selectedAnimalEnar, setSelectedAnimalEnar] = useState<string>('');
+  const [earTagDate, setEarTagDate] = useState(new Date().toISOString().split('T')[0]);
+  // ÚJ state változók a fülszám szerkesztéshez (add hozzá a többi state mellé)
+  const [editingEarTag, setEditingEarTag] = useState<any>(null);
+  const [editEnarValue, setEditEnarValue] = useState('');
+  const [editEarTagDate, setEditEarTagDate] = useState('');
   // 🆕 VV adatok state változói az ellés form számára
   const [vvResults, setVvResults] = useState<any[]>([]);
   const [loadingVV, setLoadingVV] = useState(true);
@@ -675,6 +680,13 @@ export default function EllesTab({ animal }: { animal: Animal }) {
                                 new Date(calf.ear_tag_date).toLocaleDateString('hu-HU') :
                                 'Ismeretlen'}
                             </p>
+                            {/* ÚJ: Szerkesztés gomb */}
+                            <button
+                              onClick={() => setEditingEarTag(calf)}
+                              className="bg-yellow-500 hover:bg-yellow-600 text-white text-xs px-3 py-1 rounded mt-2"
+                            >
+                              ✏️ ENAR szerkesztése
+                            </button>
                           </div>
                         ) : (
                           <div>
@@ -867,6 +879,18 @@ export default function EllesTab({ animal }: { animal: Animal }) {
                 </div>
               </div>
 
+              <div className="border-t pt-3 mt-3">
+                <p className="text-sm text-gray-600 mb-2">
+                  📅 Fülszám felhelyezés dátuma:
+                </p>
+                <input
+                  type="date"
+                  value={earTagDate}
+                  onChange={(e) => setEarTagDate(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded text-sm"
+                />
+              </div>
+
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setAssigningEarTag(null)}
@@ -1055,6 +1079,201 @@ export default function EllesTab({ animal }: { animal: Animal }) {
                   Törlés
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ÚJ: FÜLSZÁM SZERKESZTÉS MODAL */}
+      {editingEarTag && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-sm border max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center">
+                  <span className="text-2xl mr-3">✏️</span>
+                  <h3 className="text-lg font-semibold text-gray-900">ENAR Szerkesztése</h3>
+                </div>
+                <button
+                  onClick={() => {
+                    setEditingEarTag(null);
+                    setEditEnarValue('');
+                    setEditEarTagDate('');
+                  }}
+                  className="text-gray-400 hover:text-gray-600 p-2 transition-colors"
+                >
+                  ❌
+                </button>
+              </div>
+
+              <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Borjú:</strong> {editingEarTag.gender === 'male' ? '🐂' : '🐄'} {editingEarTag.temp_id}
+                </p>
+                <p className="text-sm text-blue-600">
+                  <strong>Jelenlegi ENAR:</strong> {editingEarTag.enar}
+                </p>
+                <p className="text-sm text-blue-600">
+                  <strong>Jelenlegi dátum:</strong> {editingEarTag.ear_tag_date ?
+                    new Date(editingEarTag.ear_tag_date).toLocaleDateString('hu-HU') :
+                    'Nincs megadva'}
+                </p>
+              </div>
+
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+
+                if (!editEnarValue.trim() || !editEarTagDate) {
+                  alert('❌ Kérlek töltsd ki az összes mezőt!');
+                  return;
+                }
+
+                // ENAR formátum ellenőrzés
+                const enarRegex = /^HU\s\d{5}\s\d{4}\s\d$/;
+                if (!enarRegex.test(editEnarValue)) {
+                  alert('❌ Helytelen ENAR formátum! Használd ezt: HU 12345 6789 0');
+                  return;
+                }
+
+                try {
+                  // Ellenőrizzük hogy az új ENAR már létezik-e (kivéve ha ugyanaz)
+                  if (editEnarValue !== editingEarTag.enar) {
+                    const { data: existingAnimal } = await supabase
+                      .from('animals')
+                      .select('enar')
+                      .eq('enar', editEnarValue)
+                      .single();
+
+                    if (existingAnimal) {
+                      alert('❌ Ez az ENAR már használatban van!');
+                      return;
+                    }
+
+                    const { data: existingCalf } = await supabase
+                      .from('calves')
+                      .select('enar')
+                      .eq('enar', editEnarValue)
+                      .neq('id', editingEarTag.id)
+                      .single();
+
+                    if (existingCalf) {
+                      alert('❌ Ez az ENAR már használatban van egy másik borjúnál!');
+                      return;
+                    }
+                  }
+
+                  // 1. Borjú frissítése
+                  const { error: calfError } = await supabase
+                    .from('calves')
+                    .update({
+                      enar: editEnarValue,
+                      ear_tag_date: editEarTagDate
+                    })
+                    .eq('id', editingEarTag.id);
+
+                  if (calfError) {
+                    throw new Error('Borjú frissítése sikertelen: ' + calfError.message);
+                  }
+
+                  // 2. Ha az állat már létezik az animals táblában, frissítsük ott is
+                  const { data: existingAnimal } = await supabase
+                    .from('animals')
+                    .select('id')
+                    .eq('enar', editingEarTag.enar)
+                    .single();
+
+                  if (existingAnimal) {
+                    const { error: animalError } = await supabase
+                      .from('animals')
+                      .update({ enar: editEnarValue })
+                      .eq('enar', editingEarTag.enar);
+
+                    if (animalError) {
+                      console.error('⚠️ Animals tábla frissítési figyelmeztetés:', animalError);
+                    } else {
+                      console.log('✅ Animals tábla is frissítve');
+                    }
+                  }
+
+                  console.log('✅ ENAR sikeresen frissítve:', {
+                    from: editingEarTag.enar,
+                    to: editEnarValue,
+                    date: editEarTagDate
+                  });
+
+                  alert('✅ ENAR és dátum sikeresen frissítve!');
+                  setEditingEarTag(null);
+                  setEditEnarValue('');
+                  setEditEarTagDate('');
+                  refreshData();
+
+                } catch (error) {
+                  console.error('❌ ENAR szerkesztési hiba:', error);
+                  alert('❌ Hiba történt a szerkesztés során!');
+                }
+              }}>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Új ENAR *
+                    </label>
+                    <input
+                      type="text"
+                      value={editEnarValue}
+                      onChange={(e) => setEditEnarValue(e.target.value)}
+                      placeholder="HU 12345 6789 0"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      required
+                      onFocus={() => {
+                        if (!editEnarValue) {
+                          setEditEnarValue(editingEarTag.enar || '');
+                        }
+                      }}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Formátum: HU 12345 6789 0
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Fülszám felhelyezés dátuma *
+                    </label>
+                    <input
+                      type="date"
+                      value={editEarTagDate}
+                      onChange={(e) => setEditEarTagDate(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      required
+                      onFocus={() => {
+                        if (!editEarTagDate && editingEarTag.ear_tag_date) {
+                          setEditEarTagDate(editingEarTag.ear_tag_date);
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingEarTag(null);
+                      setEditEnarValue('');
+                      setEditEarTagDate('');
+                    }}
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  >
+                    Mégse
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    ✅ Mentés
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

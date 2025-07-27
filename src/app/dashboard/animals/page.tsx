@@ -929,8 +929,8 @@ export default function AnimalsPage() {
             <button
               onClick={() => setShowInactiveAnimals(!showInactiveAnimals)}
               className={`px-4 py-2 rounded-lg font-medium transition-colors inline-flex items-center ${showInactiveAnimals
-                  ? 'bg-gray-600 text-white'
-                  : 'bg-green-600 text-white'
+                ? 'bg-gray-600 text-white'
+                : 'bg-green-600 text-white'
                 }`}
             >
               <span className="mr-2">{showInactiveAnimals ? '👁️' : '✅'}</span>
@@ -941,8 +941,8 @@ export default function AnimalsPage() {
             <button
               onClick={() => setAgeFilter(ageFilter === 'over_1_year' ? '' : 'over_1_year')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors inline-flex items-center ${ageFilter === 'over_1_year'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                 }`}
             >
               <span className="mr-2">🎂</span>
@@ -952,8 +952,8 @@ export default function AnimalsPage() {
             <button
               onClick={() => setAgeFilter(ageFilter === 'under_1_year' ? '' : 'under_1_year')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors inline-flex items-center ${ageFilter === 'under_1_year'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                ? 'bg-purple-600 text-white'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                 }`}
             >
               <span className="mr-2">🍼</span>
