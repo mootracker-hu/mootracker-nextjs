@@ -361,7 +361,7 @@ const FamilyTab: React.FC<FamilyTabProps> = ({ animal, isEditing, updateField, o
 
     if (fatherData) {
       // Bizonytalan apaság esetén
-      if (fatherData.uncertain_paternity && fatherData.possible_fathers && fatherData.possible_fathers.length > 1) {
+      if ((fatherData.uncertain_paternity) || (fatherData.possible_fathers && fatherData.possible_fathers.length > 1)) {
         return (
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg">
             <div className="flex items-start justify-between">
@@ -376,7 +376,7 @@ const FamilyTab: React.FC<FamilyTabProps> = ({ animal, isEditing, updateField, o
                 <div className="bg-yellow-100 p-3 rounded mb-3">
                   <p className="font-medium text-yellow-800 mb-2 text-sm">Lehetséges apák:</p>
                   <div className="space-y-1">
-                    {fatherData.possible_fathers.map((father: any, index: number) => (
+                    {fatherData.possible_fathers?.map((father: any, index: number) => (
                       <div key={index} className="text-yellow-800 text-sm">
                         🐂 {father.name || 'Ismeretlen'} ({father.enar || 'Nincs ENAR'})
                         {father.kplsz && ` - KPLSZ: ${father.kplsz}`}
