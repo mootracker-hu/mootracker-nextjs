@@ -402,6 +402,37 @@ const VVForm: React.FC<VVFormProps> = ({
         }
       }
 
+      // ✅ HIÁNYZÓ MEZŐK SZINKRONIZÁLÁSA - MINDEN VV ESETÉN (történeti is!)
+      console.log('🔄 Pregnancy status és expected_birth_date szinkronizálása...');
+
+      const pregnancyUpdateData: any = {
+        pregnancy_status: formData.pregnancy_status
+      };
+
+      // Expected birth date kezelése
+      if (formData.pregnancy_status === 'vemhes' && formData.expected_birth_date) {
+        pregnancyUpdateData.expected_birth_date = formData.expected_birth_date;
+      } else {
+        // Nem vemhes esetén expected_birth_date törlése
+        pregnancyUpdateData.expected_birth_date = null;
+      }
+
+      console.log('📊 Pregnancy status frissítendő adatok:', pregnancyUpdateData);
+
+      const { error: pregnancyUpdateError } = await supabase
+        .from('animals')
+        .update(pregnancyUpdateData)
+        .eq('enar', animalEnar);
+
+      if (pregnancyUpdateError) {
+        console.error('❌ Pregnancy status frissítési hiba:', pregnancyUpdateError);
+        // Ne álljon le, csak figyelmeztessen
+        console.warn('⚠️ Pregnancy status nem frissült az animals táblában');
+      } else {
+        console.log('✅ Pregnancy status és expected_birth_date frissítve!');
+        console.log(`✅ ${animalEnar}: ${formData.pregnancy_status} → ${pregnancyUpdateData.expected_birth_date || 'nincs ellési dátum'}`);
+      }
+
       alert(editMode ? 'VV eredmény sikeresen frissítve!' : 'VV eredmény sikeresen rögzítve!');
       onSubmit();
 
