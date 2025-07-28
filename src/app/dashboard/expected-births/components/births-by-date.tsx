@@ -41,13 +41,13 @@ const BirthsByDate: React.FC = () => {
 
       if (animalsError) throw animalsError;
 
-      // 🔍 2. HÁROM módon ellenőrizzük az elléseket párhuzamosan
-      const [birthsResponse, calvesResponse, offspringResponse] = await Promise.all([
-        // 2a. Births tábla - ellési rekordok
+      // 🔍 2. BIRTHS ÉS VV RESULTS KOMBINÁLT LEKÉRDEZÉS
+      const [birthsResponse, calvesResponse, offspringResponse, vvResponse] = await Promise.all([
+        // 2a. Births tábla - MINDEN ellési rekord dátummal
         supabase
           .from('births')
-          .select('mother_enar'),
-        
+          .select('mother_enar, birth_date, birth_type, complications, notes'),
+
         // 2b. Calves tábla - temp ID-s borjak
         supabase
           .from('calves')
@@ -57,60 +57,135 @@ const BirthsByDate: React.FC = () => {
             births!inner(mother_enar)
           `)
           .not('temp_id', 'is', null),
-        
+
         // 2c. Animals tábla - önálló ENAR-os utódok
         supabase
           .from('animals')
           .select('anya_enar')
           .not('anya_enar', 'is', null)
-          .eq('statusz', 'aktív')
+          .eq('statusz', 'aktív'),
+
+        // 2d. ÚJ: VV Results - legutóbbi vemhes eredmények állatonként
+        supabase
+          .from('vv_results')
+          .select('animal_enar, vv_date, pregnancy_status')
+          .eq('pregnancy_status', 'vemhes')
+          .order('vv_date', { ascending: false })
       ]);
 
       if (birthsResponse.error) throw birthsResponse.error;
       if (calvesResponse.error) throw calvesResponse.error;
       if (offspringResponse.error) throw offspringResponse.error;
+      if (vvResponse.error) throw vvResponse.error;
 
-      // 🚫 3. Minden módon ellettek állatok gyűjtése
+      // 🧠 3. INTELLIGENS KIZÁRÁSI LOGIKA
       const animalsWithBirths = new Set<string>();
 
-      // 3a. Direkt births rekordok
+      // 3a. VV Results mappelése - legutóbbi vemhes VV állatonként
+      const latestVVMap = new Map<string, string>(); // animal_enar -> vv_date
+      (vvResponse.data || []).forEach(vv => {
+        if (!latestVVMap.has(vv.animal_enar) || vv.vv_date > latestVVMap.get(vv.animal_enar)!) {
+          latestVVMap.set(vv.animal_enar, vv.vv_date);
+        }
+      });
+
+      // 3b. Births rekordok intelligens elemzése
       (birthsResponse.data || []).forEach(birth => {
-        if (birth.mother_enar) {
+        if (!birth.mother_enar) return;
+
+        const birthDate = birth.birth_date;
+        const latestVVDate = latestVVMap.get(birth.mother_enar);
+
+        // 🔍 DÖNTÉSI LOGIKA:
+        if (latestVVDate && birthDate) {
+          const birthDateTime = new Date(birthDate).getTime();
+          const vvDateTime = new Date(latestVVDate).getTime();
+
+          if (vvDateTime > birthDateTime) {
+            // ✅ VV ÚJABB mint az ellés → NEM zárjuk ki (újra vemhes lehet)
+            console.log(`✅ ${birth.mother_enar}: VV (${latestVVDate}) újabb mint ellés (${birthDate}) → VÁRHATÓ ELLÉS`);
+            return; // NEM adjuk hozzá a kizárt listához
+          } else {
+            // ❌ Ellés újabb mint VV → kizárjuk
+            console.log(`❌ ${birth.mother_enar}: Ellés (${birthDate}) újabb mint VV (${latestVVDate}) → KIZÁRVA`);
+            animalsWithBirths.add(birth.mother_enar);
+          }
+        } else if (!latestVVDate) {
+          // Nincs VV eredmény, de van ellés → kizárjuk
+          console.log(`❌ ${birth.mother_enar}: Van ellés de nincs VV → KIZÁRVA`);
+          animalsWithBirths.add(birth.mother_enar);
+        } else {
+          // Nincs ellés dátum → biztonsági kizárás
+          console.log(`⚠️ ${birth.mother_enar}: Nincs ellés dátum → KIZÁRVA`);
           animalsWithBirths.add(birth.mother_enar);
         }
       });
 
-      // 3b. Temp ID-s borjak anyái (calves + births JOIN)
+      // 3c. Temp ID-s borjak anyái - INTELLIGENS VV DÁTUM ELLENŐRZÉS
       (calvesResponse.data || []).forEach((calf: any) => {
         if (calf.births?.mother_enar) {
-          animalsWithBirths.add(calf.births.mother_enar);
+          const motherEnar = calf.births.mother_enar;
+          const latestVVDate = latestVVMap.get(motherEnar);
+
+          // Keressük meg a births rekordot ehhez a calf-hoz
+          const relatedBirth = (birthsResponse.data || []).find(birth =>
+            birth.mother_enar === motherEnar
+          );
+
+          if (relatedBirth && latestVVDate && relatedBirth.birth_date) {
+            const birthDateTime = new Date(relatedBirth.birth_date).getTime();
+            const vvDateTime = new Date(latestVVDate).getTime();
+
+            if (vvDateTime > birthDateTime) {
+              // ✅ VV ÚJABB mint a temp borjak ellése → NEM zárjuk ki
+              console.log(`✅ ${motherEnar}: Van temp borjú DE VV (${latestVVDate}) újabb mint ellés (${relatedBirth.birth_date}) → VÁRHATÓ ELLÉS`);
+              return; // NEM adjuk hozzá a kizárt listához
+            } else {
+              // ❌ Temp borjú ellése újabb → kizárjuk
+              console.log(`❌ ${motherEnar}: Van temp borjú ÉS ellés (${relatedBirth.birth_date}) újabb mint VV (${latestVVDate}) → KIZÁRVA`);
+              animalsWithBirths.add(motherEnar);
+            }
+          } else {
+            // Nincs VV vagy nincs birth_date → biztonsági kizárás
+            console.log(`❌ ${motherEnar}: Van temp borjú de nincs VV vagy birth_date → KIZÁRVA`);
+            animalsWithBirths.add(motherEnar);
+          }
         }
       });
 
-      // 3c. Önálló ENAR-os utódok anyái
+      // 3d. Önálló ENAR-os utódok anyái
       (offspringResponse.data || []).forEach(animal => {
         if (animal.anya_enar) {
           animalsWithBirths.add(animal.anya_enar);
+          console.log(`❌ ${animal.anya_enar}: Van ENAR-os utód → KIZÁRVA`);
         }
       });
 
       // 🔍 4. Szűrés és részletes debug
-      const filteredAnimals = (animalsData || []).filter(animal => 
+      const filteredAnimals = (animalsData || []).filter(animal =>
         !animalsWithBirths.has(animal.enar)
       );
 
-      console.log('🔍 === VÁRHATÓ ELLÉSEK DEBUG ===');
+      console.log('🔍 === INTELLIGENS VÁRHATÓ ELLÉSEK DEBUG ===');
       console.log('💡 Összes vemhes állat:', animalsData?.length || 0);
       console.log('📋 Births rekordok száma:', birthsResponse.data?.length || 0);
+      console.log('🔬 VV eredmények száma:', vvResponse.data?.length || 0);
+      console.log('🧠 VV Map size:', latestVVMap.size);
       console.log('🐮 Temp ID-s borjak száma:', calvesResponse.data?.length || 0);
       console.log('👶 Önálló utódok száma:', offspringResponse.data?.length || 0);
-      console.log('🚫 Már ellettek (összesen):', animalsWithBirths.size);
+      console.log('🚫 Végleg kizárt anyák:', animalsWithBirths.size);
       console.log('✅ Valóban várható ellések:', filteredAnimals.length);
       console.log('🎯 Várható ellések ENARok:', filteredAnimals.map(a => a.enar));
-      
+
+      // KONKRÉT PÉLDA DEBUG:
+      const testAnimal = 'HU 30223 4444 0';
+      console.log(`🎯 ${testAnimal} részletes elemzés:`);
+      console.log(`   - Legutóbbi VV: ${latestVVMap.get(testAnimal) || 'NINCS'}`);
+      console.log(`   - Kizárva: ${animalsWithBirths.has(testAnimal) ? 'IGEN' : 'NEM'}`);
+
       // Debug: mely anyák vannak kizárva
       const excludedMothers = Array.from(animalsWithBirths);
-      console.log('🚫 Kizárt anyák (már ellettek):', excludedMothers);
+      console.log('🚫 Véglegesen kizárt anyák:', excludedMothers);
 
       // 📊 5. Adatok feldolgozása
       const processedBirths: ExpectedBirth[] = filteredAnimals.map((animal: any) => {
