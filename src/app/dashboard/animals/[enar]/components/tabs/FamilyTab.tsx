@@ -113,62 +113,89 @@ const FamilyTab: React.FC<FamilyTabProps> = ({ animal, isEditing, updateField, o
           const { data: birthData } = await supabase
             .from('births')
             .select(`
-  father_enar,
-  father_name,
-  father_kplsz,
-  mother_enar
-`)
+      father_enar,
+      father_name,
+      father_kplsz,
+      mother_enar
+    `)
             .eq('id', animal.birth_id)
             .single();
 
-          if (birthData?.father_enar) {
-            console.log('✅ Apa megtalálva birth_id alapján:', birthData.father_enar);
+          // ⭐ ÚJ: PÁRHUZAMOS VV KERESÉS - MINDIG!
+          const motherEnar = animal.anya_enar || birthData?.mother_enar;
+          let vvData = null;
+
+          if (motherEnar) {
+            console.log('🔍 Párhuzamos VV keresés az anya alapján:', motherEnar);
+
+            const { data: vvResults } = await supabase
+              .from('vv_results')
+              .select(`
+        father_enar,
+        father_name,
+        father_kplsz,
+        uncertain_paternity,
+        possible_fathers,
+        blood_test_date,
+        vv_date,
+        pregnancy_status
+      `)
+              .eq('animal_enar', motherEnar)
+              .eq('pregnancy_status', 'vemhes')
+              .order('vv_date', { ascending: false })
+              .limit(1);
+
+            vvData = vvResults?.[0];
+
+            // ⭐ DEBUG LOGOK:
+            console.log('🔍 VV eredmény:', vvData);
+            if (vvData) {
+              console.log('🔍 DEBUG - VV uncertain_paternity:', vvData.uncertain_paternity);
+              console.log('🔍 DEBUG - VV possible_fathers:', vvData.possible_fathers);
+              console.log('🔍 DEBUG - VV possible_fathers length:', vvData.possible_fathers?.length);
+            }
+          }
+
+          // ⭐ DÖNTÉSI LOGIKA: VV PRIORITÁS BIZONYTALAN APASÁG ESETÉN
+          if (vvData && (vvData.uncertain_paternity || (vvData.possible_fathers && vvData.possible_fathers.length > 1))) {
+            console.log('✅ BIZONYTALAN APASÁG - VV eredmény használata:', vvData);
+            setFatherData({
+              enar: vvData.father_enar,
+              name: vvData.father_name || undefined,
+              kplsz: vvData.father_kplsz || undefined,
+              source: 'vv_record',
+              uncertain_paternity: vvData.uncertain_paternity || false,
+              possible_fathers: vvData.possible_fathers || [],
+              blood_test_date: vvData.blood_test_date || undefined
+            });
+          }
+          // Ha nincs bizonytalan apaság a VV-ben, használjuk a births adatot
+          else if (birthData?.father_enar) {
+            console.log('✅ Apa megtalálva birth_id alapján (nincs VV bizonytalan apaság):', birthData.father_enar);
             setFatherData({
               enar: birthData.father_enar,
               name: birthData.father_name || undefined,
               kplsz: birthData.father_kplsz || undefined,
               source: 'birth_record'
             });
-          } else {
-            // 3. VV results keresés az anya alapján
-            const motherEnar = animal.anya_enar || (birthData as any)?.mother_enar;
-            if (motherEnar) {
-              console.log('🔍 Apa keresése VV results-ban az anya alapján:', motherEnar);
+          }
+          // Ha a VV-ben van apa adat (de nem bizonytalan), azt használjuk
+          else if (vvData && vvData.father_enar) {
+            console.log('✅ Apa megtalálva VV results alapján (egyértelmű):', vvData);
+            setFatherData({
+              enar: vvData.father_enar,
+              name: vvData.father_name || undefined,
+              kplsz: vvData.father_kplsz || undefined,
+              source: 'vv_record',
+              uncertain_paternity: vvData.uncertain_paternity || false,
+              possible_fathers: vvData.possible_fathers || [],
+              blood_test_date: vvData.blood_test_date || undefined
+            });
+          }
 
-              const { data: vvData } = await supabase
-                .from('vv_results')
-                .select(`
-                  father_enar,
-                  father_name,
-                  father_kplsz,
-                  uncertain_paternity,
-                  possible_fathers,
-                  blood_test_date,
-                  vv_date,
-                  pregnancy_status
-                `)
-                .eq('animal_enar', motherEnar)
-                .eq('pregnancy_status', 'vemhes')
-                .order('vv_date', { ascending: false })
-                .limit(1);
-
-              if (vvData && vvData.length > 0 && vvData[0].father_enar) {
-                console.log('✅ Apa megtalálva VV results alapján:', vvData[0]);
-                setFatherData({
-                  enar: vvData[0].father_enar,
-                  name: vvData[0].father_name || undefined,
-                  kplsz: vvData[0].father_kplsz || undefined,
-                  source: 'vv_record',
-                  uncertain_paternity: vvData[0].uncertain_paternity || false,
-                  possible_fathers: vvData[0].possible_fathers || [],
-                  blood_test_date: vvData[0].blood_test_date || undefined
-                });
-              } else {
-                setFatherData(null);
-              }
-            } else {
-              setFatherData(null);
-            }
+          else {
+            console.log('❌ Nem található apa adat sem births-ben, sem VV-ben');
+            setFatherData(null);
           }
         }
         // 4. Legacy apa_enar keresés
