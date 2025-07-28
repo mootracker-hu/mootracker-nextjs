@@ -27,6 +27,7 @@ import { ColorHelpers } from '@/constants/colors';
 import { VV_CONSTANTS } from '@/constants/business';
 import AnimalSelector from '@/components/AnimalSelector';
 import { broadcastPenHistoryUpdate } from '@/lib/penHistorySync';
+import { displayEnar } from '@/constants/enar-formatter';
 
 // TypeScript interfaces - egyértelműen definiálva
 interface Animal {
@@ -61,6 +62,17 @@ interface PenFunctionType {
     start_date: string;
     metadata: any;
     notes?: string;
+
+    // ✅ ÚJ MEZŐK HOZZÁADÁSA:
+    pregnancy_status?: string;
+    expected_birth_date?: string;
+    vv_date?: string;
+    birth_date?: string;
+    calf_enar?: string;
+    calf_gender?: string;
+    current_weight?: number;
+    last_weight_measured_at?: string;
+
 }
 
 export default function PenDetailsPage() {
@@ -676,54 +688,59 @@ export default function PenDetailsPage() {
     };
 
     // Excel Export funkció - INTELLIGENS HÁREM DÁTUM LOGIKA
+
+    // 2. AZTÁN cseréld le a teljes exportToExcel funkciót erre:
+
     const exportToExcel = async () => {
         try {
-            console.log('📊 Excel export kezdése...', {
+            console.log('📊 FUNKCIÓ-SPECIFIKUS Excel export kezdése...', {
                 penNumber: pen?.pen_number,
                 functionType: pen?.current_function?.function_type,
                 animalCount: filteredAnimals.length
             });
 
-            // ⭐ ÚJ: Supabase import intelligens hárem dátum lekérdezéshez
+            // ⭐ MINDEN ÁLLAT - NINCS SZŰRÉS!
+            const allAnimalsInPen = [...filteredAnimals];
+            const functionType = pen?.current_function?.function_type || 'üres';
+
+            console.log('✅ ÖSSZES állat exportálása funkció-specifikus oszlopokkal:', {
+                állatok: allAnimalsInPen.length,
+                funkció: functionType
+            });
+
+            // ⭐ Supabase import hárem dátum lekérdezéshez
             const { createClient } = await import('@supabase/supabase-js');
             const supabase = createClient(
                 process.env.NEXT_PUBLIC_SUPABASE_URL!,
                 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
             );
 
-            // Funkció-specifikus oszlopok meghatározása
-            const functionType = pen?.current_function?.function_type || 'üres';
+            // ⭐ FUNKCIÓ-SPECIFIKUS OSZLOPOK - MINDEN ÁLLATTAL
             let data: any[] = [];
 
             if (functionType === 'hárem') {
-                // ⭐ INTELLIGENS HÁREM EXPORT - ÁLLAT-SPECIFIKUS DÁTUMOK
-                console.log('🐄💕 Hárem export - intelligens dátum lekérdezés...');
+                // ⭐ HÁREM EXPORT - MINDEN ÁLLAT hárem-specifikus oszlopokkal
+                console.log('🐄💕 Hárem export - minden állat intelligens dátum lekérdezéssel...');
 
-                // Minden állathoz lekérdezzük a mozgatási történetet
                 const animalsWithHaremData = await Promise.all(
-                    filteredAnimals.map(async (animal) => {
+                    allAnimalsInPen.map(async (animal) => {
                         try {
-                            // ⭐ ÁLLAT-SPECIFIKUS HÁREM KEZDET KERESÉSE
+                            // Állat-specifikus hárem kezdet keresése
                             const { data: movements, error } = await supabase
                                 .from('animal_movements')
                                 .select('moved_at, function_type, movement_reason')
                                 .eq('animal_id', animal.id)
                                 .eq('function_type', 'hárem')
-                                .order('moved_at', { ascending: true }); // Legkorábbi hárem mozgatás
+                                .order('moved_at', { ascending: true });
 
                             let animalHaremStart = null;
 
                             if (!error && movements && movements.length > 0) {
-                                // Legkorábbi hárem mozgatás dátuma
                                 animalHaremStart = movements[0].moved_at;
-                                console.log(`🔍 ${animal.enar} hárem kezdete mozgatásból:`, animalHaremStart);
                             } else {
-                                // Fallback: karám funkció kezdete vagy assignment dátum
                                 const assignment = animal.assigned_at;
                                 const penFunctionStart = pen?.current_function?.metadata?.parozas_kezdete;
-
                                 animalHaremStart = assignment || penFunctionStart;
-                                console.log(`🔄 ${animal.enar} hárem kezdete fallback:`, animalHaremStart);
                             }
 
                             // VV esedékesség számítása (hárem kezdet + 75 nap)
@@ -731,7 +748,7 @@ export default function PenDetailsPage() {
                             if (animalHaremStart) {
                                 const haremDate = new Date(animalHaremStart);
                                 const vvDate = new Date(haremDate);
-                                vvDate.setDate(vvDate.getDate() + VV_CONSTANTS.DAYS_AFTER_PAIRING);
+                                vvDate.setDate(vvDate.getDate() + 75);
                                 vvEsedekesseg = vvDate.toLocaleDateString('hu-HU');
                             }
 
@@ -752,11 +769,11 @@ export default function PenDetailsPage() {
                     })
                 );
 
-                // Excel adatok generálása állat-specifikus dátumokkal
+                // Excel adatok generálása hárem-specifikus oszlopokkal - MINDEN ÁLLATTAL
                 data = animalsWithHaremData.map(animal => ({
-                    'ENAR': animal.enar,
+                    'ENAR': displayEnar(animal.enar),
+                    'KATEGÓRIA': animal.kategoria.replace('_', ' '),
                     'NÉV': (() => {
-                        // Tenyészbika név logika (változatlan)
                         if (animal.kategoria === 'tenyészbika') {
                             const bulls = pen?.current_function?.metadata?.bulls;
                             if (bulls && Array.isArray(bulls)) {
@@ -769,70 +786,192 @@ export default function PenDetailsPage() {
                         }
                         return '-';
                     })(),
-                    // ⭐ INTELLIGENS HÁREM KEZDETE - ÁLLAT-SPECIFIKUS!
+                    'SZÜLETÉSI DÁTUM': new Date(animal.szuletesi_datum).toLocaleDateString('hu-HU'),
+                    'ÉLETKOR': calculateAge(animal.szuletesi_datum),
                     'HÁREM KEZDETE': animal.calculatedHaremStart ?
                         new Date(animal.calculatedHaremStart).toLocaleDateString('hu-HU') : '-',
-                    // ⭐ INTELLIGENS VV TERVEZETT - ÁLLAT-SPECIFIKUS SZÁMÍTÁS!
                     'VV TERVEZETT': (() => {
                         const ageMonths = calculateAgeInMonths(animal.szuletesi_datum);
                         if (ageMonths < 24) return 'Még fiatal';
                         return animal.calculatedVVDate;
                     })(),
-                    'VV EREDMÉNY': '-', // TODO: VV eredmények táblából
-                    'VÁRHATÓ ELLÉS': '-', // TODO: VV eredmények alapján számolva
+                    'VV EREDMÉNY': (animal as any).pregnancy_status === 'vemhes' ? '🤰 Vemhes' :
+                        (animal as any).pregnancy_status === 'ures' ? '❌ Üres' :
+                            (animal as any).pregnancy_status === 'csira' ? '⚠️ Csíra' : '-',
+                    'VÁRHATÓ ELLÉS': (animal as any).expected_birth_date ?
+                        new Date((animal as any).expected_birth_date).toLocaleDateString('hu-HU') : '-',
                     'FELJEGYZÉS': animal.assignment_reason || '-'
                 }));
-
-                console.log('✅ Intelligens hárem export adatok generálva:', data.length, 'állat');
 
             } else if (functionType === 'bölcsi') {
-                // BÖLCSI EXPORT (változatlan)
-                data = filteredAnimals.map(animal => ({
-                    'ENAR': animal.enar,
-                    'SZÜLETÉSI DÁTUM': new Date(animal.szuletesi_datum).toLocaleDateString('hu-HU'),
-                    '12 HÓNAPOS EKKOR': calculateTargetDate(animal.szuletesi_datum, 12),
-                    'FELJEGYZÉS': animal.assignment_reason || '-'
-                }));
-            } else if (functionType === 'óvi') {
-                // ÓVI EXPORT (változatlan)
-                data = filteredAnimals.map(animal => ({
-                    'ENAR': animal.enar,
-                    'SZÜLETÉSI DÁTUM': new Date(animal.szuletesi_datum).toLocaleDateString('hu-HU'),
-                    '18 HÓNAPOS EKKOR': calculateTargetDate(animal.szuletesi_datum, 18),
-                    '24 HÓNAPOS EKKOR': calculateTargetDate(animal.szuletesi_datum, 24),
-                    'FELJEGYZÉS': animal.assignment_reason || '-'
-                }));
-            } else {
-                // ÁLTALÁNOS EXPORT (változatlan)
-                data = filteredAnimals.map(animal => ({
-                    'ENAR': animal.enar,
-                    'KATEGÓRIA': animal.kategoria.replace('_', ' '),
+                // ⭐ BÖLCSI EXPORT - MINDEN ÁLLAT bölcsi-specifikus oszlopokkal
+                data = allAnimalsInPen.map(animal => ({
+                    'ENAR': displayEnar(animal.enar),
+                    'IVAR': animal.ivar === 'hímivar' ? '🐂 Bika' : '🐄 Üsző',
                     'SZÜLETÉSI DÁTUM': new Date(animal.szuletesi_datum).toLocaleDateString('hu-HU'),
                     'ÉLETKOR': calculateAge(animal.szuletesi_datum),
+                    '12 HÓNAPOS EKKOR': calculateTargetDate(animal.szuletesi_datum, 12),
+                    'ALKALMAS BÖLCSIRE': (() => {
+                        const ageMonths = calculateAgeInMonths(animal.szuletesi_datum);
+                        return ageMonths < 12 ? '✅ Igen' : '❌ Túl idős';
+                    })(),
+                    'ANYA ENAR': displayEnar(animal.anya_enar || ''),
+                    'APA ENAR': displayEnar(animal.apa_enar || ''),
                     'SZÁRMAZÁS': animal.birth_location === 'nálunk' ? 'Nálunk' :
                         animal.birth_location === 'vásárolt' ? 'Vásárolt' : 'Ismeretlen',
                     'FELJEGYZÉS': animal.assignment_reason || '-'
                 }));
+
+            } else if (functionType === 'óvi') {
+                // ⭐ ÓVI EXPORT - MINDEN ÁLLAT óvi-specifikus oszlopokkal
+                data = allAnimalsInPen.map(animal => ({
+                    'ENAR': displayEnar(animal.enar),
+                    'KATEGÓRIA': animal.kategoria.replace('_', ' '),
+                    'SZÜLETÉSI DÁTUM': new Date(animal.szuletesi_datum).toLocaleDateString('hu-HU'),
+                    'ÉLETKOR': calculateAge(animal.szuletesi_datum),
+                    '18 HÓNAPOS EKKOR': calculateTargetDate(animal.szuletesi_datum, 18),
+                    '24 HÓNAPOS EKKOR': calculateTargetDate(animal.szuletesi_datum, 24),
+                    'ALKALMAS ÓVIRA': (() => {
+                        const ageMonths = calculateAgeInMonths(animal.szuletesi_datum);
+                        return (ageMonths >= 12 && ageMonths < 24) ? '✅ Igen' :
+                            ageMonths < 12 ? '❌ Még fiatal' : '❌ Túl idős';
+                    })(),
+                    'HÁREM ALKALMAS': (() => {
+                        const ageMonths = calculateAgeInMonths(animal.szuletesi_datum);
+                        return ageMonths >= 24 ? '✅ Igen' : `⏳ ${24 - ageMonths} hónap múlva`;
+                    })(),
+                    'ANYA ENAR': displayEnar(animal.anya_enar || ''),
+                    'SZÁRMAZÁS': animal.birth_location === 'nálunk' ? 'Nálunk' :
+                        animal.birth_location === 'vásárolt' ? 'Vásárolt' : 'Ismeretlen',
+                    'FELJEGYZÉS': animal.assignment_reason || '-'
+                }));
+
+            } else if (functionType === 'vemhes') {
+                // ⭐ VEMHES EXPORT - MINDEN ÁLLAT vemhes-specifikus oszlopokkal
+                data = allAnimalsInPen.map(animal => ({
+                    'ENAR': displayEnar(animal.enar),
+                    'KATEGÓRIA': animal.kategoria.replace('_', ' '),
+                    'SZÜLETÉSI DÁTUM': new Date(animal.szuletesi_datum).toLocaleDateString('hu-HU'),
+                    'ÉLETKOR': calculateAge(animal.szuletesi_datum),
+                    'VV DÁTUMA': (animal as any).vv_date ? new Date((animal as any).vv_date).toLocaleDateString('hu-HU') : '-',
+                    'VV EREDMÉNY': (animal as any).pregnancy_status === 'vemhes' ? '🤰 Vemhes' :
+                        (animal as any).pregnancy_status === 'ures' ? '❌ Üres' :
+                            (animal as any).pregnancy_status === 'csira' ? '⚠️ Csíra' : '-',
+                    'VÁRHATÓ ELLÉS': (animal as any).expected_birth_date ?
+                        new Date((animal as any).expected_birth_date).toLocaleDateString('hu-HU') : '-',
+                    'NAPOK ELLÉSIG': (animal as any).expected_birth_date ?
+                        Math.ceil((new Date((animal as any).expected_birth_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : '-',
+                    'VEMHES STÁTUSZ': (animal as any).pregnancy_status === 'vemhes' ? '✅ Vemhes' : '❌ Nem vemhes',
+                    'FELJEGYZÉS': animal.assignment_reason || '-'
+                }));
+
+            } else if (functionType === 'ellető') {
+                // ⭐ ELLETŐ EXPORT - MINDEN ÁLLAT ellető-specifikus oszlopokkal
+                data = allAnimalsInPen.map(animal => ({
+                    'ENAR': displayEnar(animal.enar),
+                    'KATEGÓRIA': animal.kategoria.replace('_', ' '),
+                    'SZÜLETÉSI DÁTUM': new Date(animal.szuletesi_datum).toLocaleDateString('hu-HU'),
+                    'ÉLETKOR': calculateAge(animal.szuletesi_datum),
+                    'VÁRHATÓ ELLÉS': (animal as any).expected_birth_date ?
+                        new Date((animal as any).expected_birth_date).toLocaleDateString('hu-HU') : '-',
+                    'NAPOK ELLÉSIG': (animal as any).expected_birth_date ?
+                        Math.ceil((new Date((animal as any).expected_birth_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : '-',
+                    'ELLÉS STÁTUSZ': (() => {
+                        const daysToGo = (animal as any).expected_birth_date ?
+                            Math.ceil((new Date((animal as any).expected_birth_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null;
+                        if (daysToGo === null) return '❓ Nincs adat';
+                        if (daysToGo <= 0) return '🚨 Túl idő';
+                        if (daysToGo <= 7) return '⚠️ 1 héten belül';
+                        if (daysToGo <= 30) return '⏳ 1 hónapon belül';
+                        return '📅 Távoli';
+                    })(),
+                    'VV EREDMÉNY': (animal as any).pregnancy_status === 'vemhes' ? '🤰 Vemhes' : '-',
+                    'FELJEGYZÉS': animal.assignment_reason || '-'
+                }));
+
+            } else if (functionType === 'tehén') {
+                // ⭐ TEHÉN EXPORT - MINDEN ÁLLAT tehén-specifikus oszlopokkal
+                data = allAnimalsInPen.map(animal => ({
+                    'ENAR': displayEnar(animal.enar),
+                    'SZÜLETÉSI DÁTUM': new Date(animal.szuletesi_datum).toLocaleDateString('hu-HU'),
+                    'ÉLETKOR': calculateAge(animal.szuletesi_datum),
+                    'UTOLSÓ ELLÉS': (animal as any).birth_date ? new Date((animal as any).birth_date).toLocaleDateString('hu-HU') : '-',
+                    'BORJÚ ENAR': displayEnar((animal as any).calf_enar || ''),
+                    'BORJÚ IVAR': (animal as any).calf_gender === 'hímivar' ? '🐂 Bika' :
+                        (animal as any).calf_gender === 'nőivar' ? '🐄 Üsző' : '-',
+                    'JELENLEGI SÚLY': (animal as any).current_weight ? `${(animal as any).current_weight} kg` : '-',
+                    'UTOLSÓ MÉRÉS': (animal as any).last_weight_measured_at ?
+                        new Date((animal as any).last_weight_measured_at).toLocaleDateString('hu-HU') : '-',
+                    'TEHÉN STÁTUSZ': animal.kategoria === 'tehén' ? '✅ Igen' : '❓ Más kategória',
+                    'FELJEGYZÉS': animal.assignment_reason || '-'
+                }));
+
+            } else if (functionType === 'hízóbika') {
+                // ⭐ HÍZÓBIKA EXPORT - MINDEN ÁLLAT hízóbika-specifikus oszlopokkal
+                data = allAnimalsInPen.map(animal => ({
+                    'ENAR': displayEnar(animal.enar),
+                    'SZÜLETÉSI DÁTUM': new Date(animal.szuletesi_datum).toLocaleDateString('hu-HU'),
+                    'ÉLETKOR': calculateAge(animal.szuletesi_datum),
+                    'JELENLEGI SÚLY': (animal as any).current_weight ? `${(animal as any).current_weight} kg` : '-',
+                    'UTOLSÓ MÉRÉS': (animal as any).last_weight_measured_at ?
+                        new Date((animal as any).last_weight_measured_at).toLocaleDateString('hu-HU') : '-',
+                    'CÉLSÚLY': '600-700 kg',
+                    'SÚLY HIÁNY': (() => {
+                        const currentWeight = (animal as any).current_weight;
+                        if (!currentWeight) return '-';
+                        const targetWeight = 650; // Átlag célsúly
+                        const deficit = targetWeight - currentWeight;
+                        return deficit > 0 ? `${deficit} kg` : 'Elérte';
+                    })(),
+                    'ANYA ENAR': displayEnar(animal.anya_enar || ''),
+                    'APA ENAR': displayEnar(animal.apa_enar || ''),
+                    'HÍZÓBIKA STÁTUSZ': animal.kategoria === 'hízóbika' ? '✅ Igen' : '❓ Más kategória',
+                    'FELJEGYZÉS': animal.assignment_reason || '-'
+                }));
+
+            } else {
+                // ⭐ ÁLTALÁNOS EXPORT (üres, átmeneti, kórház, karantén, selejt)
+                data = allAnimalsInPen.map(animal => ({
+                    'ENAR': displayEnar(animal.enar),
+                    'KATEGÓRIA': animal.kategoria.replace('_', ' '),
+                    'SZÜLETÉSI DÁTUM': new Date(animal.szuletesi_datum).toLocaleDateString('hu-HU'),
+                    'ÉLETKOR': calculateAge(animal.szuletesi_datum),
+                    'IVAR': animal.ivar === 'hímivar' ? '🐂 Bika' : '🐄 Üsző',
+                    'STATUSZ': animal.statusz,
+                    'SZÁRMAZÁS': animal.birth_location === 'nálunk' ? 'Nálunk' :
+                        animal.birth_location === 'vásárolt' ? 'Vásárolt' : 'Ismeretlen',
+                    'BEKERÜLÉS': animal.assigned_at ? new Date(animal.assigned_at).toLocaleDateString('hu-HU') : '-',
+                    'ANYA ENAR': displayEnar(animal.anya_enar || ''),
+                    'APA ENAR': displayEnar(animal.apa_enar || ''),
+                    'FELJEGYZÉS': animal.assignment_reason || '-'
+                }));
             }
 
-            // Excel fájl létrehozása (változatlan)
+            // Excel fájl létrehozása
             const ws = XLSX.utils.json_to_sheet(data);
             const wb = XLSX.utils.book_new();
 
             // Fájlnév generálása
             const today = new Date().toISOString().split('T')[0];
-            const sheetName = `Karám_${pen?.pen_number}_${functionType}`;
+            const sheetName = `Karam_${pen?.pen_number}_${functionType}`;
             const fileName = `${sheetName}_${today}.xlsx`;
 
             XLSX.utils.book_append_sheet(wb, ws, sheetName);
             XLSX.writeFile(wb, fileName);
 
-            console.log('✅ Excel export sikeres:', fileName);
+            console.log('✅ Funkció-specifikus Excel export sikeres:', fileName);
 
-            // ⭐ SIKERES ÜZENET INTELLIGENS INFORMÁCIÓKKAL
-            const successMessage = functionType === 'hárem'
-                ? `✅ Intelligens Hárem Excel export sikeres!\n\nFájl: ${fileName}\nÁllatok: ${data.length}\n\n🎯 Funkció: Állat-specifikus hárem kezdetek használva\n📅 VV dátumok: Egyedi számítások alapján`
-                : `✅ Excel export sikeres!\n\nFájl: ${fileName}\nÁllatok: ${data.length}`;
+            // Sikeres üzenet
+            const successMessage = `✅ Funkció-specifikus Excel export sikeres!
+
+📊 Adatok:
+• Karám funkció: ${functionType.toUpperCase()}
+• Exportált állatok: ${data.length} db (MINDEN állat)
+• Oszlopok: ${functionType}-specifikus
+
+📁 Fájl: ${fileName}
+
+🎯 Minden állat exportálva a karám funkciójának megfelelő oszlopokkal!`;
 
             alert(successMessage);
 
@@ -842,6 +981,9 @@ export default function PenDetailsPage() {
         }
     };
 
+    // Keresed meg a page.tsx-ben az exportToExcel funkció UTÁN (körülbelül 950. sor környékén)
+    // És add hozzá ezt a teljes exportPenHistory funkciót:
+
     const exportPenHistory = async () => {
         try {
             console.log('📊 Karámtörténet export kezdése...', {
@@ -849,18 +991,23 @@ export default function PenDetailsPage() {
                 penNumber: pen?.pen_number
             });
 
-            // 1. Történeti periódusok lekérdezése
+            if (!pen?.id) {
+                alert('❌ Karám azonosító hiányzik!');
+                return;
+            }
+
+            // 1. ✅ TÖRTÉNETI PERIÓDUSOK LEKÉRDEZÉSE
             const { data: periodsData, error: periodsError } = await supabase
-                .from('pen_history_periods')
+                .from('pen_functions')
                 .select('*')
-                .eq('pen_id', pen?.id)
+                .eq('pen_id', pen.id)
                 .order('start_date', { ascending: false });
 
             if (periodsError) {
                 console.error('❌ Periódusok lekérdezési hiba:', periodsError);
             }
 
-            // 2. Állat események lekérdezése
+            // 2. ✅ ÁLLAT ESEMÉNYEK LEKÉRDEZÉSE
             const { data: eventsData, error: eventsError } = await supabase
                 .from('animal_events')
                 .select(`
@@ -875,6 +1022,7 @@ export default function PenDetailsPage() {
                     ivar
                 )
             `)
+                .eq('pen_id', pen.id)
                 .order('event_date', { ascending: false })
                 .limit(1000);
 
@@ -882,7 +1030,7 @@ export default function PenDetailsPage() {
                 console.error('❌ Események lekérdezési hiba:', eventsError);
             }
 
-            // 3. Mozgatási adatok lekérdezése
+            // 3. ✅ MOZGATÁSI ADATOK LEKÉRDEZÉSE
             const { data: movementsData, error: movementsError } = await supabase
                 .from('animal_pen_assignments')
                 .select(`
@@ -898,7 +1046,7 @@ export default function PenDetailsPage() {
                     pen_number
                 )
             `)
-                .eq('pen_id', pen?.id)
+                .eq('pen_id', pen.id)
                 .order('assigned_at', { ascending: false })
                 .limit(1000);
 
@@ -906,7 +1054,7 @@ export default function PenDetailsPage() {
                 console.error('❌ Mozgatások lekérdezési hiba:', movementsError);
             }
 
-            // EXCEL ADATOK FORMÁZÁSA
+            // ✅ EXCEL ADATOK FORMÁZÁSA
 
             // 1. Történeti periódusok worksheet
             const periodsExportData = periodsData?.map((period: any) => {
@@ -921,8 +1069,17 @@ export default function PenDetailsPage() {
                     'Vég': endDate,
                     'Időtartam (nap)': duration,
                     'Funkció': period.function_type,
-                    'Állatok száma': period.animals_snapshot?.length || 0,
-                    'Tenyészbikák': period.metadata?.bulls?.map((b: any) => b.name).join(', ') || '-',
+                    'Aktív': period.end_date ? 'Nem' : 'Igen',
+                    'Tenyészbikák': (() => {
+                        if (period.metadata?.bulls) {
+                            return period.metadata.bulls.map((b: any) => b.name).join(', ');
+                        }
+                        if (period.metadata?.tenyeszbika_name) {
+                            return period.metadata.tenyeszbika_name;
+                        }
+                        return '-';
+                    })(),
+                    'Állatok száma': period.metadata?.female_count || period.metadata?.animal_count || '-',
                     'Rögzítés': period.historical ? 'Kézi' : 'Automatikus',
                     'Megjegyzések': period.notes || '-'
                 };
@@ -937,10 +1094,12 @@ export default function PenDetailsPage() {
                             event.event_type === 'pen_assignment' ? 'Bekerülés' :
                                 event.event_type === 'health_event' ? 'Egészségügyi esemény' :
                                     event.event_type,
-                    'ENAR': event.animals?.enar || '-',
-                    'Kategória': event.animals?.kategoria || '-',
+                    'ENAR': displayEnar(event.animals?.enar || ''),
+                    'Kategória': event.animals?.kategoria?.replace('_', ' ') || '-',
+                    'Ivar': event.animals?.ivar === 'hímivar' ? '🐂 Bika' : '🐄 Üsző',
                     'Indoklás': event.reason || '-',
-                    'Részletek': event.notes || '-'
+                    'Részletek': event.notes || '-',
+                    'Rögzítés': new Date(event.created_at).toLocaleDateString('hu-HU')
                 };
             }) || [];
 
@@ -953,48 +1112,75 @@ export default function PenDetailsPage() {
                     : Math.ceil((new Date().getTime() - new Date(movement.assigned_at).getTime()) / (1000 * 60 * 60 * 24));
 
                 return {
-                    'ENAR': movement.animals?.enar || '-',
-                    'Kategória': movement.animals?.kategoria || '-',
+                    'ENAR': displayEnar(movement.animals?.enar || ''),
+                    'Kategória': movement.animals?.kategoria?.replace('_', ' ') || '-',
+                    'Ivar': movement.animals?.ivar === 'hímivar' ? '🐂 Bika' : '🐄 Üsző',
                     'Bekerülés': assignedDate,
                     'Távozás': removedDate,
                     'Napok karámban': daysInPen,
-                    'Indoklás': movement.assignment_reason || '-'
+                    'Indoklás': movement.assignment_reason || '-',
+                    'Státusz': movement.removed_at ? 'Elköltözött' : 'Jelenleg itt'
                 };
             }) || [];
 
-            // EXCEL FÁJL LÉTREHOZÁSA
+            // ✅ EXCEL FÁJL LÉTREHOZÁSA
             const wb = XLSX.utils.book_new();
 
-            // Worksheets hozzáadása
+            // Összefoglaló worksheet először
+            const summaryData = [
+                { 'Kategória': 'Export információk', 'Érték': '' },
+                { 'Kategória': 'Karám száma', 'Érték': pen.pen_number },
+                { 'Kategória': 'Jelenlegi funkció', 'Érték': pen.current_function?.function_type || 'üres' },
+                { 'Kategória': 'Export dátuma', 'Érték': new Date().toLocaleDateString('hu-HU') },
+                { 'Kategória': 'Export ideje', 'Érték': new Date().toLocaleTimeString('hu-HU') },
+                { 'Kategória': '', 'Érték': '' },
+                { 'Kategória': 'Adatok összesítése', 'Érték': '' },
+                { 'Kategória': 'Történeti periódusok', 'Érték': periodsExportData.length + ' db' },
+                { 'Kategória': 'Állat események', 'Érték': eventsExportData.length + ' db' },
+                { 'Kategória': 'Mozgatási rekordok', 'Érték': movementsExportData.length + ' db' },
+                { 'Kategória': 'Jelenleg karámban', 'Érték': filteredAnimals.length + ' állat' }
+            ];
+            const summaryWS = XLSX.utils.json_to_sheet(summaryData);
+            XLSX.utils.book_append_sheet(wb, summaryWS, 'Összefoglaló');
+
+            // Történeti periódusok
             if (periodsExportData.length > 0) {
                 const periodsWS = XLSX.utils.json_to_sheet(periodsExportData);
-                XLSX.utils.book_append_sheet(wb, periodsWS, 'Történeti Periódusok');
+                XLSX.utils.book_append_sheet(wb, periodsWS, 'Funkció Történet');
             }
 
+            // Állat események
             if (eventsExportData.length > 0) {
                 const eventsWS = XLSX.utils.json_to_sheet(eventsExportData);
-                XLSX.utils.book_append_sheet(wb, eventsWS, 'Események');
+                XLSX.utils.book_append_sheet(wb, eventsWS, 'Állat Események');
             }
 
+            // Mozgatások
             if (movementsExportData.length > 0) {
                 const movementsWS = XLSX.utils.json_to_sheet(movementsExportData);
                 XLSX.utils.book_append_sheet(wb, movementsWS, 'Mozgatások');
             }
 
-            // Összefoglaló worksheet
-            const summaryData = [
-                { 'Adat típus': 'Történeti periódusok', 'Rekordok száma': periodsExportData.length },
-                { 'Adat típus': 'Események', 'Rekordok száma': eventsExportData.length },
-                { 'Adat típus': 'Mozgatások', 'Rekordok száma': movementsExportData.length },
-                { 'Adat típus': 'Export dátuma', 'Rekordok száma': new Date().toLocaleDateString('hu-HU') },
-                { 'Adat típus': 'Karám', 'Rekordok száma': `Karám ${pen?.pen_number}` }
-            ];
-            const summaryWS = XLSX.utils.json_to_sheet(summaryData);
-            XLSX.utils.book_append_sheet(wb, summaryWS, 'Összefoglaló');
+            // Jelenleg karámban lévő állatok
+            if (filteredAnimals.length > 0) {
+                const currentAnimalsData = filteredAnimals.map(animal => ({
+                    'ENAR': displayEnar(animal.enar),
+                    'Kategória': animal.kategoria.replace('_', ' '),
+                    'Születési dátum': new Date(animal.szuletesi_datum).toLocaleDateString('hu-HU'),
+                    'Életkor': calculateAge(animal.szuletesi_datum),
+                    'Ivar': animal.ivar === 'hímivar' ? '🐂 Bika' : '🐄 Üsző',
+                    'Bekerülés': animal.assigned_at ? new Date(animal.assigned_at).toLocaleDateString('hu-HU') : '-',
+                    'Indoklás': animal.assignment_reason || '-',
+                    'Származás': animal.birth_location === 'nálunk' ? 'Nálunk' :
+                        animal.birth_location === 'vásárolt' ? 'Vásárolt' : 'Ismeretlen'
+                }));
+                const currentAnimalsWS = XLSX.utils.json_to_sheet(currentAnimalsData);
+                XLSX.utils.book_append_sheet(wb, currentAnimalsWS, 'Jelenlegi Állatok');
+            }
 
             // Fájl mentése
             const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
-            const fileName = `Karam_${pen?.pen_number}_tortenet_${timestamp}.xlsx`;
+            const fileName = `Karam_${pen.pen_number}_tortenet_${timestamp}.xlsx`;
 
             XLSX.writeFile(wb, fileName);
 
@@ -1004,11 +1190,15 @@ export default function PenDetailsPage() {
             alert(`✅ Karámtörténet export sikeres!
 
 📊 Adatok:
-• Történeti periódusok: ${periodsExportData.length} db
-• Események: ${eventsExportData.length} db  
-• Mozgatások: ${movementsExportData.length} db
+• Karám: ${pen.pen_number}
+• Funkció történet: ${periodsExportData.length} periódus
+• Állat események: ${eventsExportData.length} esemény  
+• Mozgatások: ${movementsExportData.length} rekord
+• Jelenlegi állatok: ${filteredAnimals.length} db
 
-📁 Fájl: ${fileName}`);
+📁 Fájl: ${fileName}
+
+🎯 Teljes karám történet exportálva!`);
 
         } catch (error) {
             console.error('❌ Karámtörténet export hiba:', error);
