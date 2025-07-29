@@ -928,7 +928,7 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     },
     suggestedActions: [
       'Abrak teljesen megvonása',
-      'Csak szalma etetése',
+      'Csak széna etetése',
       'Vízellátás biztosítása',
       '✅ "Abrak elvéve" esemény rögzítése'
     ],
