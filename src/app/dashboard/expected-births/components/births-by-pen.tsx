@@ -19,62 +19,284 @@ const BirthsByPen: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // 🔍 1. Lekérdezzük a vemhes állatokat
+      // 🔍 1. LEGÚJABB VEMHES VV EREDMÉNYEK LEKÉRDEZÉSE
+      console.log('🔍 Legújabb VV eredmények lekérdezése (karám szerint)...');
+
+      const { data: allVVResults, error: vvError } = await supabase
+        .from('vv_results')
+        .select(`
+        animal_enar,
+        vv_date,
+        pregnancy_status,
+        expected_birth_date,
+        historical
+      `)
+        .eq('pregnancy_status', 'vemhes')
+        .order('vv_date', { ascending: false });
+
+      if (vvError) throw vvError;
+
+      // 🧠 2. CSOPORTOSÍTÁS ÁLLATONKÉNT - CSAK LEGÚJABB VV EREDMÉNYEK
+      console.log('🧠 VV eredmények csoportosítása állatonként...');
+
+      const latestVVMap = new Map<string, any>();
+      (allVVResults || []).forEach(vv => {
+        if (!latestVVMap.has(vv.animal_enar)) {
+          latestVVMap.set(vv.animal_enar, vv);
+        }
+      });
+
+      const latestVVAnimals = Array.from(latestVVMap.keys());
+      console.log('🎯 Állatatok legújabb vemhes VV-vel:', latestVVAnimals.length);
+
+      if (latestVVAnimals.length === 0) {
+        setPenBirths([]);
+        return;
+      }
+
+      // 🔍 3. ANIMALS TÁBLA KIEGÉSZÍTŐ ADATOK (név, kategória, karám)
+      console.log('🔍 Animals tábla kiegészítő adatok lekérdezése...');
+
       const { data: animalsData, error: animalsError } = await supabase
         .from('animals')
         .select(`
-          id,
-          enar,
-          name,
-          kategoria,
-          expected_birth_date,
-          pregnancy_status,
-          animal_pen_assignments!left(
-            pen_id,
-            pens(
-              id,
-              pen_number,
-              pen_type,
-              capacity
-            )
+        enar,
+        name,
+        kategoria,
+        statusz,
+        animal_pen_assignments(
+          pen_id,
+          assigned_at,
+          pens(
+            id,
+            pen_number,
+            pen_type,
+            capacity
           )
-        `)
-        .eq('pregnancy_status', 'vemhes')
-        .eq('statusz', 'aktív')
-        .not('expected_birth_date', 'is', null)
-        .order('expected_birth_date', { ascending: true });
+        )
+      `)
+        .in('enar', latestVVAnimals)
+        .eq('statusz', 'aktív');
 
       if (animalsError) throw animalsError;
 
-      // 🔍 2. Lekérdezzük az összes ellést
-      const { data: birthsData, error: birthsError } = await supabase
-        .from('births')
-        .select('mother_enar');
+      // 🗂️ 4. ANIMALS ADATOK MAPPELÉSE + LEGUTÓBBI KARÁM ASSIGNMENT
+      const animalsMap = new Map<string, any>();
+      (animalsData || []).forEach(animal => {
+        // 🎯 LEGUTÓBBI KARÁM ASSIGNMENT KERESÉSE
+        let latestPenAssignment = null;
+        
+        if (animal.animal_pen_assignments && animal.animal_pen_assignments.length > 0) {
+          // Rendezés assigned_at szerint (legutóbbi első)
+          const sortedAssignments = animal.animal_pen_assignments.sort((a: any, b: any) => 
+            new Date(b.assigned_at).getTime() - new Date(a.assigned_at).getTime()
+          );
+          
+          // Legutóbbi assignment kiválasztása
+          latestPenAssignment = sortedAssignments[0];
+          
+          console.log(`🏠 ${animal.enar}: ${sortedAssignments.length} assignment, legutóbbi: ${(latestPenAssignment as any)?.pens?.pen_number || 'N/A'} (${latestPenAssignment?.assigned_at})`);
+        } else {
+          console.log(`⚠️ ${animal.enar}: Nincs karám assignment`);
+        }
 
-      if (birthsError) throw birthsError;
+        // Állat adatok tárolása a legutóbbi karám assignment-tel
+        animalsMap.set(animal.enar, {
+          ...animal,
+          latest_pen_assignment: latestPenAssignment
+        });
+      });
 
-      // 🚫 3. Kizárjuk azokat az állatokat, akiknek már van ellésük
-      const animalsWithBirths = new Set(birthsData?.map(birth => birth.mother_enar) || []);
+      // 🧠 5. VV + ANIMALS ADATOK KOMBINÁLÁSA
+      console.log('🧠 VV és Animals adatok kombinálása...');
 
-      const filteredAnimals = (animalsData || []).filter(animal => 
+      const combinedAnimals = latestVVAnimals
+        .map(enar => {
+          const vvData = latestVVMap.get(enar);
+          const animalData = animalsMap.get(enar);
+
+          if (!animalData) {
+            console.warn(`⚠️ ${enar}: VV van, de nincs aktív állat adat`);
+            return null;
+          }
+
+          return {
+            enar: enar,
+            name: animalData.name,
+            kategoria: animalData.kategoria,
+            expected_birth_date: vvData.expected_birth_date,
+            pregnancy_status: vvData.pregnancy_status,
+            vv_date: vvData.vv_date,
+            historical: vvData.historical,
+            // 🎯 LEGUTÓBBI KARÁM ASSIGNMENT HASZNÁLATA
+            latest_pen_assignment: animalData.latest_pen_assignment
+          };
+        })
+        .filter(animal => animal !== null);
+
+      console.log('✅ Kombinált állatok száma:', combinedAnimals.length);
+
+      // 🔍 6. BIRTHS ÉS UTÓDOK LEKÉRDEZÉSE (változatlan logika)
+      const [birthsResponse, calvesResponse, offspringResponse] = await Promise.all([
+        // 6a. Births tábla
+        supabase
+          .from('births')
+          .select('mother_enar, birth_date, birth_type, complications, notes'),
+
+        // 6b. Calves tábla
+        supabase
+          .from('calves')
+          .select(`
+          temp_id, 
+          birth_id,
+          births!inner(mother_enar)
+        `)
+          .not('temp_id', 'is', null),
+
+        // 6c. Animals tábla - utódok
+        supabase
+          .from('animals')
+          .select('anya_enar')
+          .not('anya_enar', 'is', null)
+          .eq('statusz', 'aktív')
+      ]);
+
+      if (birthsResponse.error) throw birthsResponse.error;
+      if (calvesResponse.error) throw calvesResponse.error;
+      if (offspringResponse.error) throw offspringResponse.error;
+
+      // 🧠 7. INTELLIGENS KIZÁRÁSI LOGIKA (VV Map alapú + Expected Date ellenőrzés)
+      const animalsWithBirths = new Set<string>();
+      const todayTimestamp = new Date().getTime(); // Mai dátum timestamp
+
+      // 7a. Births rekordok intelligens elemzése + Expected Date ellenőrzés
+      (birthsResponse.data || []).forEach(birth => {
+        if (!birth.mother_enar) return;
+
+        const birthDate = birth.birth_date;
+        const latestVV = latestVVMap.get(birth.mother_enar);
+        const latestVVDate = latestVV?.vv_date;
+        const expectedBirthDate = latestVV?.expected_birth_date;
+
+        if (latestVVDate && birthDate) {
+          const birthDateTime = new Date(birthDate).getTime();
+          const vvDateTime = new Date(latestVVDate).getTime();
+
+          if (vvDateTime > birthDateTime) {
+            // ✅ VV ÚJABB mint az ellés
+            // 🆕 DE ELLENŐRIZZÜK: Az expected_birth_date még jövőbeli-e?
+            if (expectedBirthDate) {
+              const expectedDateTime = new Date(expectedBirthDate).getTime();
+              
+              if (expectedDateTime > todayTimestamp) {
+                // ✅ Expected birth date jövőbeli → VÁRHATÓ ELLÉS
+                console.log(`✅ ${birth.mother_enar}: VV (${latestVVDate}) újabb mint ellés (${birthDate}) ÉS expected birth jövőbeli (${expectedBirthDate}) → VÁRHATÓ ELLÉS`);
+                return; // NEM adjuk hozzá a kizárt listához
+              } else {
+                // ❌ Expected birth date múltbeli/túllépett → KIZÁRVA
+                console.log(`❌ ${birth.mother_enar}: VV újabb DE expected birth TÚLLÉPETT (${expectedBirthDate}) → KIZÁRVA`);
+                animalsWithBirths.add(birth.mother_enar);
+              }
+            } else {
+              // ❌ Nincs expected birth date → biztonsági kizárás
+              console.log(`❌ ${birth.mother_enar}: VV újabb DE nincs expected birth date → KIZÁRVA`);
+              animalsWithBirths.add(birth.mother_enar);
+            }
+          } else {
+            // ❌ Ellés újabb mint VV → kizárjuk
+            console.log(`❌ ${birth.mother_enar}: Ellés (${birthDate}) újabb mint VV (${latestVVDate}) → KIZÁRVA`);
+            animalsWithBirths.add(birth.mother_enar);
+          }
+        } else if (!latestVVDate) {
+          console.log(`❌ ${birth.mother_enar}: Van ellés de nincs legújabb VV → KIZÁRVA`);
+          animalsWithBirths.add(birth.mother_enar);
+        } else {
+          console.log(`⚠️ ${birth.mother_enar}: Nincs ellés dátum → KIZÁRVA`);
+          animalsWithBirths.add(birth.mother_enar);
+        }
+      });
+
+      // 7b. Temp ID-s borjak anyái - INTELLIGENS VV + Expected Date ellenőrzés
+      (calvesResponse.data || []).forEach((calf: any) => {
+        if (calf.births?.mother_enar) {
+          const motherEnar = calf.births.mother_enar;
+          const latestVV = latestVVMap.get(motherEnar);
+          const latestVVDate = latestVV?.vv_date;
+          const expectedBirthDate = latestVV?.expected_birth_date;
+
+          const relatedBirth = (birthsResponse.data || []).find(birth =>
+            birth.mother_enar === motherEnar
+          );
+
+          if (relatedBirth && latestVVDate && relatedBirth.birth_date) {
+            const birthDateTime = new Date(relatedBirth.birth_date).getTime();
+            const vvDateTime = new Date(latestVVDate).getTime();
+
+            if (vvDateTime > birthDateTime) {
+              // ✅ VV ÚJABB mint a temp borjak ellése
+              // 🆕 DE ELLENŐRIZZÜK: Az expected_birth_date még jövőbeli-e?
+              if (expectedBirthDate) {
+                const expectedDateTime = new Date(expectedBirthDate).getTime();
+                
+                if (expectedDateTime > todayTimestamp) {
+                  // ✅ Expected birth date jövőbeli → VÁRHATÓ ELLÉS
+                  console.log(`✅ ${motherEnar}: Van temp borjú DE VV (${latestVVDate}) újabb mint ellés (${relatedBirth.birth_date}) ÉS expected birth jövőbeli (${expectedBirthDate}) → VÁRHATÓ ELLÉS`);
+                  return; // NEM adjuk hozzá a kizárt listához
+                } else {
+                  // ❌ Expected birth date múltbeli/túllépett → KIZÁRVA
+                  console.log(`❌ ${motherEnar}: Van temp borjú, VV újabb DE expected birth TÚLLÉPETT (${expectedBirthDate}) → KIZÁRVA`);
+                  animalsWithBirths.add(motherEnar);
+                }
+              } else {
+                // ❌ Nincs expected birth date → biztonsági kizárás
+                console.log(`❌ ${motherEnar}: Van temp borjú, VV újabb DE nincs expected birth date → KIZÁRVA`);
+                animalsWithBirths.add(motherEnar);
+              }
+            } else {
+              // ❌ Temp borjú ellése újabb → kizárjuk
+              console.log(`❌ ${motherEnar}: Van temp borjú ÉS ellés (${relatedBirth.birth_date}) újabb mint VV (${latestVVDate}) → KIZÁRVA`);
+              animalsWithBirths.add(motherEnar);
+            }
+          } else {
+            console.log(`❌ ${motherEnar}: Van temp borjú de nincs VV vagy birth_date → KIZÁRVA`);
+            animalsWithBirths.add(motherEnar);
+          }
+        }
+      });
+
+      // 7c. Önálló ENAR-os utódok
+      (offspringResponse.data || []).forEach(animal => {
+        if (animal.anya_enar) {
+          animalsWithBirths.add(animal.anya_enar);
+          console.log(`❌ ${animal.anya_enar}: Van ENAR-os utód → KIZÁRVA`);
+        }
+      });
+
+      // 🔍 8. VÉGSŐ SZŰRÉS ÉS DEBUG
+      const filteredAnimals = combinedAnimals.filter(animal =>
         !animalsWithBirths.has(animal.enar)
       );
 
-      console.log('💡 Összes vemhes állat (karám szerint):', animalsData?.length || 0);
-      console.log('🚫 Már ellettek (kizárva):', (animalsData?.length || 0) - filteredAnimals.length);
+      console.log('🔍 === KARÁM SZERINTI VÁRHATÓ ELLÉSEK DEBUG ===');
+      console.log('💡 Összes legújabb vemhes VV:', latestVVMap.size);
+      console.log('🐮 Aktív állatok VV-vel:', combinedAnimals.length);
+      console.log('📋 Births rekordok száma:', birthsResponse.data?.length || 0);
+      console.log('🐮 Temp ID-s borjak száma:', calvesResponse.data?.length || 0);
+      console.log('👶 Önálló utódok száma:', offspringResponse.data?.length || 0);
+      console.log('🚫 Végleg kizárt anyák:', animalsWithBirths.size);
       console.log('✅ Valóban várható ellések:', filteredAnimals.length);
 
-      // 📊 4. Adatok feldolgozása karám szerint
+      // 📊 9. ADATOK FELDOLGOZÁSA KARÁM SZERINT (javított karám logikával)
       const today = new Date();
       const penMap = new Map<string, PenBirths>();
 
       filteredAnimals.forEach((animal: any) => {
         const birthDate = new Date(animal.expected_birth_date);
-        const daysRemaining = Math.ceil((birthDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        const daysRemaining = Math.ceil((birthDate.getTime() - todayTimestamp) / (1000 * 60 * 60 * 24));
 
-        // Karám információ kinyerése
-        const assignment = animal.animal_pen_assignments?.[0];
-        const pen = assignment?.pens;
+        // 🎯 LEGUTÓBBI KARÁM ASSIGNMENT HASZNÁLATA
+        const latestAssignment = animal.latest_pen_assignment;
+        const pen = (latestAssignment as any)?.pens;
 
         let penId: string;
         let penNumber: string;
@@ -85,7 +307,7 @@ const BirthsByPen: React.FC = () => {
           penId = pen.id;
           penNumber = pen.pen_number;
           penType = pen.pen_type;
-          capacity = pen.capacity;
+          capacity = pen.capacity || 999;
         } else {
           // Nincs karám hozzárendelés
           penId = 'no-pen';
@@ -216,7 +438,7 @@ const BirthsByPen: React.FC = () => {
           ✅ Minden ellés már rögzítve van! 🎉
         </p>
         <p className="text-sm text-gray-500 mt-2">
-          (Temp ID-s borjak és történeti ellések is figyelembe véve)
+          (VV Results alapú intelligens szűréssel)
         </p>
       </div>
     );
