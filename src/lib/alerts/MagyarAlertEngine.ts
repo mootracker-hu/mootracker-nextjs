@@ -33,7 +33,7 @@ export interface Alert {
   };
 }
 
-export type AlertType = 
+export type AlertType =
   | 'vakcinazas_esedékes'
   | 'valasztas_ideje'
   | 'karam_valtas_szukseges'
@@ -50,9 +50,10 @@ export type AlertType =
   | 'selejtezesi_javaslat'
   | 'kapacitas_tullepes'
   | 'kapacitas_alulhasznaltsag'
+  | 'kategoria_valtas_szukseges'
   // ÚJ FOKOZATOS ALERT TÍPUSOK:
   | 'fulszam_idealis' | 'fulszam_ajanlott' | 'fulszam_surgos'
-  | 'valasztas_idoszak_kezdete' | 'valasztas_ajanlott' | 'valasztas_surgos'  
+  | 'valasztas_idoszak_kezdete' | 'valasztas_ajanlott' | 'valasztas_surgos'
   | 'vv_idoszak_kezdete' | 'vv_ajanlott' | 'vv_surgos'
   | 'karam_valtas_ovi_kezdete'
   | 'karam_valtas_ovi_ajanlott'
@@ -68,7 +69,7 @@ export type AlertType =
   | 'fulszam_idealis'            // ← ÚJ
   | 'fulszam_ajanlott'           // ← ÚJ
   | 'fulszam_surgos';            // ← ÚJ  
-  
+
 
 export type AlertPriority = 'surgos' | 'kritikus' | 'magas' | 'kozepes' | 'alacsony';
 
@@ -79,7 +80,7 @@ export const ALERT_EVENT_TYPES = {
   BOVIPAST_VACCINE_GIVEN: 'bovipast_vaccine_given',
   FEED_WITHDRAWN: 'feed_withdrawn',
   MOVED_TO_BIRTHING_PEN: 'moved_to_birthing_pen',
-  
+
   // Fokozatos riasztások eseményei
   WEANING_COMPLETED: 'weaning_completed',
   VV_EXAMINATION_DONE: 'vv_examination_done',
@@ -130,7 +131,7 @@ export interface Animal {
   acquisition_date?: string;
   current_pen_function?: string;
   weaning_date?: string;  // ← ÚJ MEZŐ HOZZÁADÁSA
-  
+
   // ✅ ÚJ: ESEMÉNYEK LISTÁJA
   events?: AnimalEvent[];
 }
@@ -170,7 +171,7 @@ function hasAnimalEvent(animal: Animal, eventType: string): boolean {
   if (!animal.events || animal.events.length === 0) {
     return false;
   }
-  
+
   return animal.events.some(event => event.event_type === eventType);
 }
 
@@ -181,11 +182,11 @@ function getLatestEventDate(animal: Animal, eventType: string): Date | null {
   if (!animal.events || animal.events.length === 0) {
     return null;
   }
-  
+
   const events = animal.events
     .filter(event => event.event_type === eventType)
     .sort((a, b) => new Date(b.event_date).getTime() - new Date(a.event_date).getTime());
-    
+
   return events.length > 0 ? new Date(events[0].event_date) : null;
 }
 
@@ -266,12 +267,18 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     title: 'Választás időszak kezdete',
     description: 'Választási időszak közeledik - ENAR: {enar}',
     checkCondition: (animal) => {
+      // ✅ Ha már bölcsi/óvi karámban van, nincs választás riasztás
+      if (animal.current_pen_function === 'bölcsi' ||
+        animal.current_pen_function === 'óvi') {
+        return false;
+      }
+
       const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-      return ageInMonths >= 6 && ageInMonths <= 6.5 && 
-             (animal.kategoria.includes('borjú') || 
-              animal.kategoria === 'szűz_üsző' || 
-              animal.kategoria === 'hízóbika') && 
-             animal.statusz === 'aktív';
+      return ageInMonths >= 6 && ageInMonths <= 6.5 &&
+        (animal.kategoria.includes('borjú') ||
+          animal.kategoria === 'szűz_üsző' ||
+          animal.kategoria === 'hízóbika') &&
+        animal.statusz === 'aktív';
     },
     suggestedActions: [
       'Választási előkészületek megkezdése',
@@ -289,12 +296,18 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     title: 'Választás ajánlott',
     description: 'Választás optimális időszakban - ENAR: {enar}',
     checkCondition: (animal) => {
+      // ✅ Ha már bölcsi/óvi karámban van, nincs választás riasztás
+      if (animal.current_pen_function === 'bölcsi' ||
+        animal.current_pen_function === 'óvi') {
+        return false;
+      }
+
       const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-      return ageInMonths >= 7 && ageInMonths <= 7.5 && 
-             (animal.kategoria.includes('borjú') || 
-              animal.kategoria === 'szűz_üsző' || 
-              animal.kategoria === 'hízóbika') && 
-             animal.statusz === 'aktív';
+      return ageInMonths >= 7 && ageInMonths <= 7.5 &&
+        (animal.kategoria.includes('borjú') ||
+          animal.kategoria === 'szűz_üsző' ||
+          animal.kategoria === 'hízóbika') &&
+        animal.statusz === 'aktív';
     },
     suggestedActions: [
       'Borjú leválasztása anyjáról',
@@ -313,25 +326,32 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     title: 'Választás sürgős!',
     description: 'Választás túllépte az optimális időpontot - ENAR: {enar}',
     checkCondition: (animal) => {
+
       // ✅ 1. Esemény ellenőrzés - ha választás megtörtént
       if (hasAnimalEvent(animal, ALERT_EVENT_TYPES.WEANING_COMPLETED)) {
         return false;
       }
-      
+
       // ✅ 2. Régi mező is ellenőrzés (kompatibilitás)
       if (animal.weaning_date) {
         return false;
       }
-      
+
+      // ✅ 2.5. Karám funkció ellenőrzés - ha már bölcsi/óvi karámban van
+      if (animal.current_pen_function === 'bölcsi' ||
+        animal.current_pen_function === 'óvi') {
+        return false;
+      }
+
       // ✅ 3. Alapfeltételek
       const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-      const isRealCalf = animal.kategoria === 'nőivarú_borjú' || 
-                         animal.kategoria === 'hímivarú_borjú';
-      
+      const isRealCalf = animal.kategoria === 'nőivarú_borjú' ||
+        animal.kategoria === 'hímivarú_borjú';
+
       // ✅ 4. ÖRÖKRE AKTÍV 8 hónaptól (felső limit törölve)
-      return ageInMonths >= 8 && ageInMonths <= 9 && 
-       isRealCalf &&
-       animal.statusz === 'aktív';
+      return ageInMonths >= 8 && ageInMonths <= 9 &&
+        isRealCalf &&
+        animal.statusz === 'aktív';
     },
     suggestedActions: [
       'AZONNALI választás szükséges',
@@ -346,6 +366,36 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
   },
 
   // ============================================
+  // KATEGÓRIA VÁLTÁS RIASZTÁSOK - ÚJ!
+  // ============================================
+
+  // 📝 KATEGÓRIA VÁLTÁS (8+ hónapos nőivarú borjú → szűz üsző)
+  {
+    type: 'kategoria_valtas_szukseges',
+    priority: 'magas',
+    title: 'Kategória váltás szükséges',
+    description: 'Nőivarú borjú már szűz üsző kategóriába tartozik - ENAR: {enar}',
+    checkCondition: (animal) => {
+      const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+
+      return ageInMonths >= 8 &&
+        animal.ivar === 'nő' &&
+        animal.kategoria === 'nőivarú_borjú' && // HIBÁS kategória!
+        animal.statusz === 'aktív';
+    },
+    daysFromBirth: 240, // 8 hónap
+    suggestedActions: [
+      'Kategória frissítése: szűz_üsző',
+      'Adatbázis rekord módosítása',
+      'Életkor ellenőrzése',
+      'Karám funkció megfelelőségének ellenőrzése'
+    ],
+    canCreateTask: true,
+    canPostpone: false,
+    appliesTo: ['nőivarú_borjú']
+  },
+
+  // ============================================
   // VV VIZSGÁLAT FOKOZATOS (3 db) - JAVÍTOTT VERZIÓ
   // ============================================
 
@@ -356,13 +406,13 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     description: 'VV vizsgálat időszaka közeledik - ENAR: {enar}',
     checkCondition: (animal) => {
       if (!animal.pairing_date || animal.vv_date) return false;
-      
+
       const pairingDate = new Date(animal.pairing_date);
       const daysSincePairing = Math.floor((Date.now() - pairingDate.getTime()) / (1000 * 60 * 60 * 24));
-      
-      return daysSincePairing >= 60 && daysSincePairing <= 74 && 
-             (animal.kategoria.includes('tehén') || animal.kategoria.includes('üsző')) && 
-             animal.statusz === 'aktív';
+
+      return daysSincePairing >= 60 && daysSincePairing <= 74 &&
+        (animal.kategoria.includes('tehén') || animal.kategoria.includes('üsző')) &&
+        animal.statusz === 'aktív';
     },
     suggestedActions: [
       'VV vizsgálat időpont előzetes egyeztetése',
@@ -381,13 +431,13 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     description: 'VV vizsgálat optimális időszakban - ENAR: {enar}',
     checkCondition: (animal) => {
       if (!animal.pairing_date || animal.vv_date) return false;
-      
+
       const pairingDate = new Date(animal.pairing_date);
       const daysSincePairing = Math.floor((Date.now() - pairingDate.getTime()) / (1000 * 60 * 60 * 24));
-      
-      return daysSincePairing >= 75 && daysSincePairing <= 89 && 
-             (animal.kategoria.includes('tehén') || animal.kategoria.includes('üsző')) && 
-             animal.statusz === 'aktív';
+
+      return daysSincePairing >= 75 && daysSincePairing <= 89 &&
+        (animal.kategoria.includes('tehén') || animal.kategoria.includes('üsző')) &&
+        animal.statusz === 'aktív';
     },
     suggestedActions: [
       'Állatorvos meghívása VV vizsgálatra',
@@ -409,25 +459,25 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
       if (hasAnimalEvent(animal, ALERT_EVENT_TYPES.VV_EXAMINATION_DONE)) {
         return false;
       }
-      
+
       // ✅ 2. Régi mező is ellenőrzés (kompatibilitás)
       if (animal.vv_date) {
         return false;
       }
-      
+
       // ✅ 3. Alapfeltételek
       if (!animal.pairing_date) {
         return false;
       }
-      
+
       // ✅ 4. Dátum számítás
       const pairingDate = new Date(animal.pairing_date);
       const daysSincePairing = Math.floor((Date.now() - pairingDate.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       // ✅ 5. ÖRÖKRE AKTÍV 90 naptól (felső limit törölve)
-      return daysSincePairing >= 90 && daysSincePairing <= 120 && 
-       (animal.kategoria.includes('tehén') || animal.kategoria.includes('üsző')) && 
-       animal.statusz === 'aktív';
+      return daysSincePairing >= 90 && daysSincePairing <= 120 &&
+        (animal.kategoria.includes('tehén') || animal.kategoria.includes('üsző')) &&
+        animal.statusz === 'aktív';
     },
     suggestedActions: [
       'AZONNALI állatorvosi vizsgálat szükséges',
@@ -451,15 +501,20 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     title: 'Óvi karámba áthelyezés időszak kezdete',
     description: '12 hónapos szűz üsző - óvi karámba költöztetés előkészítése - ENAR: {enar}',
     checkCondition: (animal) => {
-  const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-  
-  return ageInMonths >= 11 && 
-         ageInMonths < 12 && 
-         animal.ivar === 'nő' &&
-         animal.has_given_birth === false && // ✅ CSAK akik még nem ellettek!
-         (animal.kategoria === 'nőivarú_borjú' || animal.kategoria === 'szűz_üsző') && // ✅ SPECIFIKUS KATEGÓRIÁK
-         animal.statusz === 'aktív';
-},
+      // ✅ Ha már óvi karámban van, nincs óvi riasztás
+      if (animal.current_pen_function === 'óvi') {
+        return false;
+      }
+
+      const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+
+      return ageInMonths >= 11 &&
+        ageInMonths < 12 &&
+        animal.ivar === 'nő' &&
+        animal.has_given_birth === false && // ✅ CSAK akik még nem ellettek!
+        (animal.kategoria === 'nőivarú_borjú' || animal.kategoria === 'szűz_üsző') && // ✅ SPECIFIKUS KATEGÓRIÁK
+        animal.statusz === 'aktív';
+    },
     daysFromBirth: 335, // 11 hónap
     suggestedActions: [
       'Óvi karám kapacitás ellenőrzése',
@@ -477,15 +532,20 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     title: 'Óvi karámba áthelyezés ajánlott',
     description: '12-13 hónapos szűz üsző - óvi karámba költöztetés ajánlott - ENAR: {enar}',
     checkCondition: (animal) => {
-  const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-  
-  return ageInMonths >= 13 && 
-         ageInMonths < 14 && 
-         animal.ivar === 'nő' &&
-         animal.has_given_birth === false && // ✅ CSAK akik még nem ellettek!
-         (animal.kategoria === 'nőivarú_borjú' || animal.kategoria === 'szűz_üsző') && // ✅ SPECIFIKUS KATEGÓRIÁK
-         animal.statusz === 'aktív';
-},
+      // ✅ Ha már óvi karámban van, nincs óvi riasztás
+      if (animal.current_pen_function === 'óvi') {
+        return false;
+      }
+
+      const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+
+      return ageInMonths >= 13 &&
+        ageInMonths < 14 &&
+        animal.ivar === 'nő' &&
+        animal.has_given_birth === false && // ✅ CSAK akik még nem ellettek!
+        (animal.kategoria === 'nőivarú_borjú' || animal.kategoria === 'szűz_üsző') && // ✅ SPECIFIKUS KATEGÓRIÁK
+        animal.statusz === 'aktív';
+    },
     daysFromBirth: 365, // 12 hónap
     suggestedActions: [
       'Bölcsi karámból óvi karámba költöztetés',
@@ -507,23 +567,23 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
       if (hasAnimalEvent(animal, ALERT_EVENT_TYPES.MOVED_TO_OVI_PEN)) {
         return false;
       }
-      
+
       // ✅ 2. Jelenlegi karám funkció ellenőrzés
       if (animal.current_pen_function === 'óvi') {
         return false;
       }
-      
+
       // ✅ 3. Alapfeltételek
       const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-      
+
       // ✅ 4. ÖRÖKRE AKTÍV 14 hónaptól (felső limit törölve)
-      return ageInMonths >= 14 && ageInMonths <= 15 && 
-       animal.ivar === 'nő' &&
-       animal.has_given_birth === false && 
-       (animal.kategoria === 'nőivarú_borjú' || animal.kategoria === 'szűz_üsző') && 
-       animal.statusz === 'aktív';
+      return ageInMonths >= 14 && ageInMonths <= 15 &&
+        animal.ivar === 'nő' &&
+        animal.has_given_birth === false &&
+        (animal.kategoria === 'nőivarú_borjú' || animal.kategoria === 'szűz_üsző') &&
+        animal.statusz === 'aktív';
     },
-    
+
     daysFromBirth: 425, // 14 hónap
     suggestedActions: [
       'AZONNALI óvi karámba költöztetés',
@@ -547,15 +607,20 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     title: 'Hárem karám alkalmasság időszak kezdete',
     description: '22 hónapos szűz üsző - hárem karámba költöztetés előkészítése - ENAR: {enar}',
     checkCondition: (animal) => {
-  const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-  return ageInMonths >= 22 && ageInMonths < 23 && 
-         animal.ivar === 'nő' && 
-         animal.has_given_birth === false && // ✅ Még nem ellett
-         !animal.vv_date && // ✅ Még nem volt háremben
-         animal.kategoria === 'szűz_üsző' && // ✅ Specifikus kategória
-         !animal.kategoria.includes('tehén') &&
-         animal.statusz === 'aktív';
-},
+      // ✅ Ha már hárem karámban van, nincs hárem riasztás
+      if (animal.current_pen_function === 'hárem') {
+        return false;
+      }
+
+      const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+      return ageInMonths >= 22 && ageInMonths < 23 &&
+        animal.ivar === 'nő' &&
+        animal.has_given_birth === false && // ✅ Még nem ellett
+        !animal.vv_date && // ✅ Még nem volt háremben
+        animal.kategoria === 'szűz_üsző' && // ✅ Specifikus kategória
+        !animal.kategoria.includes('tehén') &&
+        animal.statusz === 'aktív';
+    },
     daysFromBirth: 670, // 22 hónap
     suggestedActions: [
       'Hárem karám kapacitás ellenőrzése',
@@ -573,15 +638,20 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     title: 'Hárem karám alkalmasság ajánlott',
     description: '23-24 hónapos szűz üsző - hárem karámba költöztetés ajánlott - ENAR: {enar}',
     checkCondition: (animal) => {
-  const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-  return ageInMonths >= 23 && ageInMonths < 25 && 
-         animal.ivar === 'nő' && 
-         animal.has_given_birth === false && // ✅ Még nem ellett
-         !animal.vv_date && // ✅ Még nem volt háremben
-         animal.kategoria === 'szűz_üsző' && // ✅ Specifikus kategória
-         !animal.kategoria.includes('tehén') &&
-         animal.statusz === 'aktív';
-},
+      // ✅ Ha már hárem karámban van, nincs hárem riasztás
+      if (animal.current_pen_function === 'hárem') {
+        return false;
+      }
+
+      const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
+      return ageInMonths >= 23 && ageInMonths < 25 &&
+        animal.ivar === 'nő' &&
+        animal.has_given_birth === false && // ✅ Még nem ellett
+        !animal.vv_date && // ✅ Még nem volt háremben
+        animal.kategoria === 'szűz_üsző' && // ✅ Specifikus kategória
+        !animal.kategoria.includes('tehén') &&
+        animal.statusz === 'aktív';
+    },
     daysFromBirth: 700, // 23 hónap
     suggestedActions: [
       'Hárem karámba költöztetés',
@@ -604,27 +674,27 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
       if (hasAnimalEvent(animal, ALERT_EVENT_TYPES.MOVED_TO_HAREM_PEN)) {
         return false;
       }
-      
+
       // ✅ 2. Jelenlegi karám funkció ellenőrzés
       if (animal.current_pen_function === 'hárem') {
         return false;
       }
-      
+
       // ✅ 3. VV már volt ellenőrzés
       if (animal.vv_date) {
         return false;
       }
-      
+
       // ✅ 4. Alapfeltételek
       const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-      
+
       // ✅ 5. ÖRÖKRE AKTÍV 25 hónaptól (felső limit törölve)
-      return ageInMonths >= 25 && ageInMonths <= 26 && 
-       animal.ivar === 'nő' && 
-       animal.has_given_birth === false && 
-       animal.kategoria === 'szűz_üsző' && 
-       !animal.kategoria.includes('tehén') &&
-       animal.statusz === 'aktív';
+      return ageInMonths >= 25 && ageInMonths <= 26 &&
+        animal.ivar === 'nő' &&
+        animal.has_given_birth === false &&
+        animal.kategoria === 'szűz_üsző' &&
+        !animal.kategoria.includes('tehén') &&
+        animal.statusz === 'aktív';
     },
     daysFromBirth: 760, // 25 hónap
     suggestedActions: [
@@ -651,11 +721,11 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     description: '18 hónapos hízóbika - értékesítési lehetőség előkészítése - ENAR: {enar}',
     checkCondition: (animal) => {
       const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-      return ageInMonths >= 18 && ageInMonths < 20 && 
-             animal.ivar === 'hím' && 
-             animal.kategoria === 'hízóbika' && 
-             !animal.kplsz && // NINCS KPLSZ = nem tenyészbika
-             animal.statusz === 'aktív';
+      return ageInMonths >= 18 && ageInMonths < 20 &&
+        animal.ivar === 'hím' &&
+        animal.kategoria === 'hízóbika' &&
+        !animal.kplsz && // NINCS KPLSZ = nem tenyészbika
+        animal.statusz === 'aktív';
     },
     daysFromBirth: 550, // 18 hónap
     suggestedActions: [
@@ -675,11 +745,11 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     description: '20-22 hónapos hízóbika - értékesítés ajánlott időszak - ENAR: {enar}',
     checkCondition: (animal) => {
       const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-      return ageInMonths >= 20 && ageInMonths < 23 && 
-             animal.ivar === 'hím' && 
-             animal.kategoria === 'hízóbika' && 
-             !animal.kplsz && // NINCS KPLSZ = nem tenyészbika
-             animal.statusz === 'aktív';
+      return ageInMonths >= 20 && ageInMonths < 23 &&
+        animal.ivar === 'hím' &&
+        animal.kategoria === 'hízóbika' &&
+        !animal.kplsz && // NINCS KPLSZ = nem tenyészbika
+        animal.statusz === 'aktív';
     },
     daysFromBirth: 610, // 20 hónap
     suggestedActions: [
@@ -703,21 +773,21 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
       if (hasAnimalEvent(animal, ALERT_EVENT_TYPES.ANIMAL_SOLD)) {
         return false;
       }
-      
+
       // ✅ 2. Státusz ellenőrzés
       if (animal.statusz === 'eladva' || animal.statusz === 'selejtezett') {
         return false;
       }
-      
+
       // ✅ 3. Alapfeltételek
       const ageInMonths = calculateAgeInMonths(animal.szuletesi_datum);
-      
+
       // ✅ 4. ÖRÖKRE AKTÍV 23 hónaptól (felső limit törölve)
-      return ageInMonths >= 23 && ageInMonths <= 24 && 
-       animal.ivar === 'hím' && 
-       animal.kategoria === 'hízóbika' && 
-       !animal.kplsz && // NINCS KPLSZ = nem tenyészbika
-       animal.statusz === 'aktív';
+      return ageInMonths >= 23 && ageInMonths <= 24 &&
+        animal.ivar === 'hím' &&
+        animal.kategoria === 'hízóbika' &&
+        !animal.kplsz && // NINCS KPLSZ = nem tenyészbika
+        animal.statusz === 'aktív';
     },
     daysFromBirth: 700, // 23 hónap
     suggestedActions: [
@@ -770,17 +840,17 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
       if (hasAnimalEvent(animal, ALERT_EVENT_TYPES.RCC_VACCINE_GIVEN)) {
         return false;
       }
-      
+
       // ✅ 2. Alapfeltételek
       if (!animal.expected_birth_date || animal.pregnancy_status !== 'vemhes') {
         return false;
       }
-      
+
       // ✅ 3. Dátum számítás
       const expectedBirth = new Date(animal.expected_birth_date);
       const rccDueDate = new Date(expectedBirth.getTime() - (60 * 24 * 60 * 60 * 1000));
       const today = new Date();
-      
+
       // ✅ 4. ÖRÖKRE AKTÍV az esedékes naptól
       return today >= rccDueDate && today <= new Date(rccDueDate.getTime() + (30 * 24 * 60 * 60 * 1000));
     },
@@ -806,17 +876,17 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
       if (hasAnimalEvent(animal, ALERT_EVENT_TYPES.BOVIPAST_VACCINE_GIVEN)) {
         return false;
       }
-      
+
       // ✅ 2. Alapfeltételek
       if (!animal.expected_birth_date || animal.pregnancy_status !== 'vemhes') {
         return false;
       }
-      
+
       // ✅ 3. Dátum számítás
       const expectedBirth = new Date(animal.expected_birth_date);
       const boviDueDate = new Date(expectedBirth.getTime() - (28 * 24 * 60 * 60 * 1000));
       const today = new Date();
-      
+
       // ✅ 4. ÖRÖKRE AKTÍV az esedékes naptól
       return today >= boviDueDate && today <= new Date(boviDueDate.getTime() + (30 * 24 * 60 * 60 * 1000));
     },
@@ -842,17 +912,17 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
       if (hasAnimalEvent(animal, ALERT_EVENT_TYPES.FEED_WITHDRAWN)) {
         return false;
       }
-      
+
       // ✅ 2. Alapfeltételek
       if (!animal.expected_birth_date || animal.pregnancy_status !== 'vemhes') {
         return false;
       }
-      
+
       // ✅ 3. Dátum számítás
       const expectedBirth = new Date(animal.expected_birth_date);
       const feedStopDate = new Date(expectedBirth.getTime() - (60 * 24 * 60 * 60 * 1000));
       const today = new Date();
-      
+
       // ✅ 4. ÖRÖKRE AKTÍV az esedékes naptól
       return today >= feedStopDate && today <= new Date(feedStopDate.getTime() + (30 * 24 * 60 * 60 * 1000));
     },
@@ -874,27 +944,27 @@ export const MAGYAR_ALERT_SZABALYOK: AlertRule[] = [
     title: 'Ellető karámba áthelyezés',
     description: 'Állat ellető karámba mozgatása ellés előtt 1 héttel - ENAR: {enar}',
     // ✅ ÚJ:
-checkCondition: (animal) => {
-  // ✅ 1. Ha már ellett → nincs riasztás
-  if (animal.has_given_birth === true) {
-    return false;
-  }
-  
-  // ✅ 2. Ha áthelyezés esemény van → nincs riasztás  
-  if (hasAnimalEvent(animal, ALERT_EVENT_TYPES.MOVED_TO_BIRTHING_PEN)) {
-    return false;
-  }
-  
-  // ✅ 3. Alapfeltételek
-  if (!animal.expected_birth_date || animal.pregnancy_status !== 'vemhes') {
-    return false;
-  }
-      
+    checkCondition: (animal) => {
+      // ✅ 1. Ha már ellett → nincs riasztás
+      if (animal.has_given_birth === true) {
+        return false;
+      }
+
+      // ✅ 2. Ha áthelyezés esemény van → nincs riasztás  
+      if (hasAnimalEvent(animal, ALERT_EVENT_TYPES.MOVED_TO_BIRTHING_PEN)) {
+        return false;
+      }
+
+      // ✅ 3. Alapfeltételek
+      if (!animal.expected_birth_date || animal.pregnancy_status !== 'vemhes') {
+        return false;
+      }
+
       // ✅ 3. Dátum számítás
       const expectedBirth = new Date(animal.expected_birth_date);
       const moveDate = new Date(expectedBirth.getTime() - (7 * 24 * 60 * 60 * 1000));
       const today = new Date();
-      
+
       // ✅ 4. ÖRÖKRE AKTÍV az esedékes naptól
       return today >= moveDate && today <= new Date(moveDate.getTime() + (30 * 24 * 60 * 60 * 1000));
     },
@@ -917,11 +987,11 @@ checkCondition: (animal) => {
     description: 'Állat ellése napokban várható - ENAR: {enar}',
     checkCondition: (animal) => {
       if (!animal.expected_birth_date || animal.pregnancy_status !== 'vemhes') return false;
-      
+
       const expectedBirth = new Date(animal.expected_birth_date);
       const today = new Date();
       const daysUntilBirth = Math.ceil((expectedBirth.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       return daysUntilBirth >= 0 && daysUntilBirth <= 3;
     },
     suggestedActions: [
@@ -942,14 +1012,14 @@ checkCondition: (animal) => {
     description: 'Ellés határideje túllépve - azonnali vizsgálat - ENAR: {enar}',
     checkCondition: (animal) => {
       if (!animal.expected_birth_date || animal.pregnancy_status !== 'vemhes') return false;
-      
+
       // ✅ MEGTARTVA: Ez itt marad, mert a túlhordásnál fontos!
       if (animal.has_given_birth === true) return false;
-      
+
       const expectedBirth = new Date(animal.expected_birth_date);
       const today = new Date();
       const daysOverdue = Math.floor((today.getTime() - expectedBirth.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       return daysOverdue >= 7; // 1 hét túlhordás
     },
     suggestedActions: [
@@ -970,10 +1040,10 @@ checkCondition: (animal) => {
     description: 'Üres állat újbóli vemhességvizsgálata 2 hónap után - ENAR: {enar}',
     checkCondition: (animal) => {
       if (!animal.vv_date || animal.pregnancy_status !== 'ures') return false;
-      
+
       const vvDate = new Date(animal.vv_date);
       const daysSinceVV = Math.floor((Date.now() - vvDate.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       return daysSinceVV >= 60 && daysSinceVV <= 70; // 2 hónap után
     },
     suggestedActions: [
@@ -1055,11 +1125,11 @@ function calculateAgeInDays(birthDate: string): number {
 function calculateAgeInMonths(birthDate: string): number {
   const birth = new Date(birthDate);
   const today = new Date();
-  
+
   let months = (today.getFullYear() - birth.getFullYear()) * 12;
   months -= birth.getMonth();
   months += today.getMonth();
-  
+
   return months;
 }
 
@@ -1118,7 +1188,7 @@ export async function markAlertCompleted(
   notes?: string
 ) {
   let eventType: string;
-  
+
   // Alert típus → esemény típus mapping
   switch (alertType) {
     case 'rcc_vakcina_esedékes':
@@ -1151,7 +1221,7 @@ export async function markAlertCompleted(
     default:
       throw new Error(`Ismeretlen riasztás típus: ${alertType}`);
   }
-  
+
   return await recordAnimalEvent(supabase, animalId, eventType, notes);
 }
 
@@ -1180,9 +1250,9 @@ export class MagyarAlertEngine {
           animal_id: animal.id,
           enar: animal.enar,
           pen_id: (animal as any).jelenlegi_karam || null,
-          pen_number: (animal as any).jelenlegi_karam || null,  
+          pen_number: (animal as any).jelenlegi_karam || null,
           animal: {
-            id: parseInt(animal.id) || 0,  
+            id: parseInt(animal.id) || 0,
             enar: animal.enar
           },
           created_at: new Date().toISOString(),
@@ -1196,7 +1266,7 @@ export class MagyarAlertEngine {
           is_resolved: false,
           is_snoozed: false,
           metadata: {
-            animal_age_days: rule.daysFromBirth ? 
+            animal_age_days: rule.daysFromBirth ?
               calculateAgeInDays(animal.szuletesi_datum) : undefined,
             animal_age_months: calculateAgeInMonths(animal.szuletesi_datum),
             rule_type: rule.type,
@@ -1222,7 +1292,7 @@ export class MagyarAlertEngine {
    */
   generateAlertsForAnimals(animals: Animal[]): Alert[] {
     const allAlerts: Alert[] = [];
-    
+
     for (const animal of animals) {
       const animalAlerts = this.generateAlertsForAnimal(animal);
       allAlerts.push(...animalAlerts);
@@ -1230,7 +1300,7 @@ export class MagyarAlertEngine {
 
     // Prioritás szerinti rendezés (surgos -> kritikus -> magas -> kozepes -> alacsony)
     const priorityOrder: AlertPriority[] = ['surgos', 'kritikus', 'magas', 'kozepes', 'alacsony'];
-    
+
     return allAlerts.sort((a, b) => {
       const aIndex = priorityOrder.indexOf(a.priority);
       const bIndex = priorityOrder.indexOf(b.priority);
@@ -1243,11 +1313,11 @@ export class MagyarAlertEngine {
    */
   generateAllAlerts(animals: Animal[], pens: PenInfo[]): Alert[] {
     const alerts: Alert[] = [];
-    
+
     // Állat alertek
     const animalAlerts = this.generateAlertsForAnimals(animals);
     alerts.push(...animalAlerts);
-    
+
     // Karám alertek
     for (const pen of pens) {
       for (const rule of KARAM_ALERT_SZABALYOK) {
@@ -1278,12 +1348,12 @@ export class MagyarAlertEngine {
               animal_count: pen.current_count
             }
           };
-          
+
           alerts.push(alert);
         }
       }
     }
-    
+
     return alerts.sort((a, b) => {
       const priorityOrder: AlertPriority[] = ['surgos', 'kritikus', 'magas', 'kozepes', 'alacsony'];
       const aIndex = priorityOrder.indexOf(a.priority);
@@ -1299,7 +1369,7 @@ export class MagyarAlertEngine {
     // VV protokoll alertek pontos dátumokkal
     if (animal.expected_birth_date) {
       const expectedBirth = new Date(animal.expected_birth_date);
-      
+
       switch (rule.type) {
         case 'rcc_vakcina_esedékes':
           return new Date(expectedBirth.getTime() - (60 * 24 * 60 * 60 * 1000)).toISOString(); // 2 hónap
@@ -1313,18 +1383,18 @@ export class MagyarAlertEngine {
           return expectedBirth.toISOString();
       }
     }
-    
+
     // VV esedékesség (75 nap párzás után)
     if (rule.type === 'vemhessegvizsgalat' && animal.pairing_date) {
       const pairingDate = new Date(animal.pairing_date);
       return addDays(pairingDate, 75).toISOString();
     }
-    
+
     // Sürgős riasztások
     if (rule.type === 'vakcinazas_esedékes' || rule.type === 'elles_kesesben') {
       return new Date(Date.now() + (3 * 24 * 60 * 60 * 1000)).toISOString();
     }
-    
+
     // Alapértelmezett esedékesség
     return new Date(Date.now() + (14 * 24 * 60 * 60 * 1000)).toISOString();
   }
@@ -1338,9 +1408,9 @@ export class MagyarAlertEngine {
       aktiv: alerts.filter(a => !a.is_resolved && !a.is_snoozed).length,
       megoldott: alerts.filter(a => a.is_resolved).length,
       halasztott: alerts.filter(a => a.is_snoozed).length,
-      lejart: alerts.filter(a => 
-        a.due_date && 
-        new Date(a.due_date) < new Date() && 
+      lejart: alerts.filter(a =>
+        a.due_date &&
+        new Date(a.due_date) < new Date() &&
         !a.is_resolved
       ).length,
       surgos: alerts.filter(a => a.priority === 'surgos').length,
@@ -1421,8 +1491,8 @@ export class MagyarAlertEngine {
   }
 
   static getCapacityAlerts(alerts: Alert[]): Alert[] {
-    return alerts.filter(alert => 
-      alert.type === 'kapacitas_tullepes' || 
+    return alerts.filter(alert =>
+      alert.type === 'kapacitas_tullepes' ||
       alert.type === 'kapacitas_alulhasznaltsag'
     );
   }

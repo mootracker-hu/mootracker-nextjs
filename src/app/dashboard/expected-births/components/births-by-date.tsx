@@ -80,16 +80,16 @@ const BirthsByDate: React.FC = () => {
       (animalsData || []).forEach(animal => {
         // 🎯 LEGUTÓBBI KARÁM ASSIGNMENT KERESÉSE
         let latestPenAssignment = null;
-        
+
         if (animal.animal_pen_assignments && animal.animal_pen_assignments.length > 0) {
           // Rendezés assigned_at szerint (legutóbbi első)
-          const sortedAssignments = animal.animal_pen_assignments.sort((a: any, b: any) => 
+          const sortedAssignments = animal.animal_pen_assignments.sort((a: any, b: any) =>
             new Date(b.assigned_at).getTime() - new Date(a.assigned_at).getTime()
           );
-          
+
           // Legutóbbi assignment kiválasztása
           latestPenAssignment = sortedAssignments[0];
-          
+
           console.log(`🏠 ${animal.enar}: ${sortedAssignments.length} assignment, legutóbbi: ${(latestPenAssignment as any)?.pens?.pen_number || 'N/A'} (${latestPenAssignment?.assigned_at})`);
         } else {
           console.log(`⚠️ ${animal.enar}: Nincs karám assignment`);
@@ -182,7 +182,7 @@ const BirthsByDate: React.FC = () => {
             // 🆕 DE ELLENŐRIZZÜK: Az expected_birth_date még jövőbeli-e?
             if (expectedBirthDate) {
               const expectedDateTime = new Date(expectedBirthDate).getTime();
-              
+
               if (expectedDateTime > today) {
                 // ✅ Expected birth date jövőbeli → VÁRHATÓ ELLÉS
                 console.log(`✅ ${birth.mother_enar}: VV (${latestVVDate}) újabb mint ellés (${birthDate}) ÉS expected birth jövőbeli (${expectedBirthDate}) → VÁRHATÓ ELLÉS`);
@@ -232,7 +232,7 @@ const BirthsByDate: React.FC = () => {
               // 🆕 DE ELLENŐRIZZÜK: Az expected_birth_date még jövőbeli-e?
               if (expectedBirthDate) {
                 const expectedDateTime = new Date(expectedBirthDate).getTime();
-                
+
                 if (expectedDateTime > today) {
                   // ✅ Expected birth date jövőbeli → VÁRHATÓ ELLÉS
                   console.log(`✅ ${motherEnar}: Van temp borjú DE VV (${latestVVDate}) újabb mint ellés (${relatedBirth.birth_date}) ÉS expected birth jövőbeli (${expectedBirthDate}) → VÁRHATÓ ELLÉS`);

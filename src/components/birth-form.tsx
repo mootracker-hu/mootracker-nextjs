@@ -175,7 +175,7 @@ export default function BirthForm({
           {
             calf_number: 1,
             gender: 'male',
-            is_alive: false,  // ← JAVÍTOTT: Default halott
+            is_alive: true,  //// Alapértelmezetten élő borjú
             birth_weight: undefined,
             temp_id: generateTempId(motherEnar, 1)
           }

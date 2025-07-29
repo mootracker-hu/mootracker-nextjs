@@ -85,16 +85,16 @@ const BirthsByPen: React.FC = () => {
       (animalsData || []).forEach(animal => {
         // 🎯 LEGUTÓBBI KARÁM ASSIGNMENT KERESÉSE
         let latestPenAssignment = null;
-        
+
         if (animal.animal_pen_assignments && animal.animal_pen_assignments.length > 0) {
           // Rendezés assigned_at szerint (legutóbbi első)
-          const sortedAssignments = animal.animal_pen_assignments.sort((a: any, b: any) => 
+          const sortedAssignments = animal.animal_pen_assignments.sort((a: any, b: any) =>
             new Date(b.assigned_at).getTime() - new Date(a.assigned_at).getTime()
           );
-          
+
           // Legutóbbi assignment kiválasztása
           latestPenAssignment = sortedAssignments[0];
-          
+
           console.log(`🏠 ${animal.enar}: ${sortedAssignments.length} assignment, legutóbbi: ${(latestPenAssignment as any)?.pens?.pen_number || 'N/A'} (${latestPenAssignment?.assigned_at})`);
         } else {
           console.log(`⚠️ ${animal.enar}: Nincs karám assignment`);
@@ -187,7 +187,7 @@ const BirthsByPen: React.FC = () => {
             // 🆕 DE ELLENŐRIZZÜK: Az expected_birth_date még jövőbeli-e?
             if (expectedBirthDate) {
               const expectedDateTime = new Date(expectedBirthDate).getTime();
-              
+
               if (expectedDateTime > todayTimestamp) {
                 // ✅ Expected birth date jövőbeli → VÁRHATÓ ELLÉS
                 console.log(`✅ ${birth.mother_enar}: VV (${latestVVDate}) újabb mint ellés (${birthDate}) ÉS expected birth jövőbeli (${expectedBirthDate}) → VÁRHATÓ ELLÉS`);
@@ -237,7 +237,7 @@ const BirthsByPen: React.FC = () => {
               // 🆕 DE ELLENŐRIZZÜK: Az expected_birth_date még jövőbeli-e?
               if (expectedBirthDate) {
                 const expectedDateTime = new Date(expectedBirthDate).getTime();
-                
+
                 if (expectedDateTime > todayTimestamp) {
                   // ✅ Expected birth date jövőbeli → VÁRHATÓ ELLÉS
                   console.log(`✅ ${motherEnar}: Van temp borjú DE VV (${latestVVDate}) újabb mint ellés (${relatedBirth.birth_date}) ÉS expected birth jövőbeli (${expectedBirthDate}) → VÁRHATÓ ELLÉS`);
@@ -357,7 +357,7 @@ const BirthsByPen: React.FC = () => {
       const sortedPens = Array.from(penMap.values())
         .filter(pen => pen.pregnant_count > 0)
         .map(pen => {
-          pen.animals.sort((a, b) => 
+          pen.animals.sort((a, b) =>
             new Date(a.expected_birth_date).getTime() - new Date(b.expected_birth_date).getTime()
           );
           return pen;
@@ -489,11 +489,10 @@ const BirthsByPen: React.FC = () => {
               {/* Kapacitás mutató */}
               <div className="text-right">
                 <div className="w-32 bg-gray-200 rounded-full h-2">
-                  <div 
-                    className={`h-2 rounded-full ${
-                      (pen.pregnant_count / pen.capacity) > 0.8 ? 'bg-red-500' :
-                      (pen.pregnant_count / pen.capacity) > 0.6 ? 'bg-yellow-500' : 'bg-green-500'
-                    }`}
+                  <div
+                    className={`h-2 rounded-full ${(pen.pregnant_count / pen.capacity) > 0.8 ? 'bg-red-500' :
+                        (pen.pregnant_count / pen.capacity) > 0.6 ? 'bg-yellow-500' : 'bg-green-500'
+                      }`}
                     style={{ width: `${Math.min((pen.pregnant_count / pen.capacity) * 100, 100)}%` }}
                   ></div>
                 </div>
