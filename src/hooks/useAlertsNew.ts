@@ -87,54 +87,54 @@ export const useAlertsNew = (): UseAlertsReturn => {
       console.log('🔄 Loading unified alerts...');
 
       // ✅ STEP 1: ÁLLATOK LEKÉRDEZÉSE - JAVÍTOTT VERZIÓ
-const animalsData = await loadAnimalsWithPenFunction();
-const pensData = await getPensWithCounts();
+      const animalsData = await loadAnimalsWithPenFunction();
+      const pensData = await getPensWithCounts();
 
-// ✅ STEP 1.5: ASSIGNMENT ADATOK BETÖLTÉSE ÉS FELDOLGOZÁSA (RIASZTÁS ELŐTT!)
-console.log('🔄 Loading assignment history...');
+      // ✅ STEP 1.5: ASSIGNMENT ADATOK BETÖLTÉSE ÉS FELDOLGOZÁSA (RIASZTÁS ELŐTT!)
+      console.log('🔄 Loading assignment history...');
 
-try {
-  // Animal pen assignments betöltése
-  const { data: penAssignments } = await supabase
-    .from('animal_pen_assignments')
-    .select(`
+      try {
+        // Animal pen assignments betöltése
+        const { data: penAssignments } = await supabase
+          .from('animal_pen_assignments')
+          .select(`
       animal_id,
       pen_id,
       assigned_at,
       assignment_reason,
       pen:pens!inner(pen_number, pen_functions!inner(function_type))
     `)
-    .is('removed_at', null)
-    .is('pen.pen_functions.end_date', null);
+          .is('removed_at', null)
+          .is('pen.pen_functions.end_date', null);
 
-  console.log(`✅ Loaded ${penAssignments?.length || 0} active pen assignments`);
-  
-  if (penAssignments) {
-    // Állatok kiegészítése assignment adatokkal
-    animalsData.animals = animalsData.animals.map((animal: any) => {
+        console.log(`✅ Loaded ${penAssignments?.length || 0} active pen assignments`);
 
-const assignment = penAssignments.find((a: any) => a.animal_id === animal.id);
-      
-      return {
-        ...animal,
-       current_pen_function: animal.current_pen_function, // Megtartjuk az eredeti értéket
-jelenlegi_karam: animal.jelenlegi_karam, // Megtartjuk az eredeti értéket  
-has_age_separation: assignment ? true : false, // Ha van assignment, akkor életkor szerinti elválasztás történt
-        assignment_count: assignment ? 1 : 0
-      };
-    });
-    
-    console.log('✅ Animals enhanced with assignment data BEFORE alert generation');
-  }
-} catch (assignmentError) {
-  console.error('❌ Error loading assignment history:', assignmentError);
-}
+        if (penAssignments) {
+          // Állatok kiegészítése assignment adatokkal
+          animalsData.animals = animalsData.animals.map((animal: any) => {
 
-// ✅ STEP 2: RIASZTÁSOK GENERÁLÁSA - MagyarAlertEngine (MOST MÁR JOBB ADATOKKAL!)
-const generatedAlerts = magyarAlertEngine.generateAllAlerts(
-  animalsData.animals as any[],
-  pensData as any[]
-);
+            const assignment = penAssignments.find((a: any) => a.animal_id === animal.id);
+
+            return {
+              ...animal,
+              current_pen_function: animal.current_pen_function, // Megtartjuk az eredeti értéket
+              jelenlegi_karam: animal.jelenlegi_karam, // Megtartjuk az eredeti értéket  
+              has_age_separation: assignment ? true : false, // Ha van assignment, akkor életkor szerinti elválasztás történt
+              assignment_count: assignment ? 1 : 0
+            };
+          });
+
+          console.log('✅ Animals enhanced with assignment data BEFORE alert generation');
+        }
+      } catch (assignmentError) {
+        console.error('❌ Error loading assignment history:', assignmentError);
+      }
+
+      // ✅ STEP 2: RIASZTÁSOK GENERÁLÁSA - MagyarAlertEngine (MOST MÁR JOBB ADATOKKAL!)
+      const generatedAlerts = magyarAlertEngine.generateAllAlerts(
+        animalsData.animals as any[],
+        pensData as any[]
+      );
 
       // ✅ STEP 3: DEBUG - Első pár riasztás részletei
       if (generatedAlerts.length > 0) {

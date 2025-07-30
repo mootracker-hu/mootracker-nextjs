@@ -693,7 +693,7 @@ export default function AnimalMovementPanel({
             ) : (
               <>
                 <span className="mr-2">{isHaremMode ? '💕' : '🔄'}</span>
-                {isHaremMode ? 'Hárem Beállítása' : (isHistorical ? '📚 Történeti Mozgatás' : '🔄 Mozgatás Végrehajtása')}
+                {isHaremMode ? 'Hárem Beállítása' : (isHistorical ? '📚 Történeti Mozgatás' : ' Mozgatás Végrehajtása')}
               </>
             )}
           </button>

@@ -814,9 +814,9 @@ export default function PenFunctionManager({
 
     // Standard karamok funkció szerint
     switch (functionType) {
-      case 'hárem': return 27; // 25 nőivar + 2 tenyészbika
+      case 'hárem': return 42; // 25 nőivar + 2 tenyészbika - 20 tehén + borjak+ 2 tenyészbika
       case 'vemhes': return 30;
-      case 'tehén': return 40; // 20 tehén + borjak + 2 tenyészbika
+      case 'tehén': return 42; // 20 tehén + borjak + 2 tenyészbika
       case 'bölcsi': return 25;
       case 'óvi': return 25;
       case 'hízóbika': return 20;

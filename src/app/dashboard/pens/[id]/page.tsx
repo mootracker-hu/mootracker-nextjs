@@ -660,6 +660,40 @@ export default function PenDetailsPage() {
         return emojiMap[functionType] || '❓';
     };
 
+    // ✅ RUGALMAS KAPACITÁS SZÁMÍTÁS
+const calculateNewCapacity = (functionType: string): number => {
+  // Ellető istálló kapacitások
+  if (pen?.pen_number?.startsWith('E')) {
+    if (['E1', 'E2', 'E7', 'E8'].includes(pen.pen_number)) return 25;
+    return 2; // EB boxok: 1 mama + 1 borjú = 2 kapacitás
+  }
+
+  // Külső karamok funkció-alapú kapacitása
+  const isLargePen = ['14', '15'].includes(pen?.pen_number || '');
+  const isContainerPen = ['12A', '12B'].includes(pen?.pen_number || '');
+
+  if (isLargePen) return 50;
+  if (isContainerPen) return 15;
+
+  // Standard karamok funkció szerint
+  switch (functionType) {
+    case 'hárem': return 42; // 25 nőivar + 2 tenyészbika
+    case 'vemhes': return 42; // Vemhes állatok + tenyészbika
+    case 'tehén': return 42; // 20 tehén + borjak + 2 tenyészbika
+    case 'bölcsi': return 25;
+    case 'óvi': return 25;
+    case 'hízóbika': return 20;
+
+    // ✅ ÚJ TÍPUSOK - RUGALMAS KAPACITÁS
+    case 'kórház': return Math.min(5, pen?.capacity || 25); // Max 5, de alkalmazkodik
+    case 'átmeneti': return pen?.capacity || 25; // Rugalmas, eredeti kapacitás
+    case 'karantén': return Math.min(10, pen?.capacity || 25); // Max 10 elkülönítésre
+    case 'selejt': return pen?.capacity || 25; // Rugalmas
+
+    default: return 25;
+  }
+};
+
     // ✅ JAVÍTOTT SZÍNPALETTA - MINDEN FUNKCIÓ EGYSÉGESEN MINT A TÖBBI FÁJLBAN!
     const getFunctionColor = (functionType: string): string => {
         return ColorHelpers.getPenFunctionColor(functionType as any);
@@ -885,7 +919,7 @@ export default function PenDetailsPage() {
                         if (daysToGo <= 30) return '⏳ 1 hónapon belül';
                         return '📅 Távoli';
                     })(),
-                    'VV EREDMÉNY': (animal as any).pregnancy_status === 'vemhes' ? '🤰 Vemhes' : '-',
+                    'VV EREDMÉNY': (animal as any).pregnancy_status === 'vemhes' ? '🐄💕 Vemhes' : '-',
                     'FELJEGYZÉS': animal.assignment_reason || '-'
                 }));
 
@@ -1352,9 +1386,14 @@ export default function PenDetailsPage() {
                                     </div>
                                     <div className="flex items-center">
                                         <span className="text-lg mr-2">🐄</span>
-                                        <span className={`text-sm font-medium ${getCapacityColor(pen.animal_count, pen.capacity)}`}>
-                                            {pen.animal_count} / {pen.capacity} állat
-                                        </span>
+                                        <span className={`text-sm font-medium ${getCapacityColor(pen.animal_count, calculateNewCapacity(pen.current_function?.function_type || 'üres'))}`}>
+    {pen.animal_count} / {calculateNewCapacity(pen.current_function?.function_type || 'üres')} állat
+    {pen.capacity !== calculateNewCapacity(pen.current_function?.function_type || 'üres') && (
+        <span className="text-xs text-gray-500 ml-1">
+            (DB: {pen.capacity})
+        </span>
+    )}
+</span>
                                     </div>
                                     <div className="flex items-center">
                                         <span className="text-lg mr-2">📅</span>
@@ -1385,22 +1424,29 @@ export default function PenDetailsPage() {
                         </div>
 
                         {/* Kapacitás kihasználtság */}
-                        <div>
-                            <div className="bg-gray-50 rounded-lg p-6">
-                                <h3 className="text-lg font-medium text-gray-900 mb-3">Kihasználtság</h3>
-                                <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
-                                    <div
-                                        className={`h-3 rounded-full transition-all ${pen.animal_count / pen.capacity > 0.8 ? 'bg-red-500' :
-                                            pen.animal_count / pen.capacity > 0.6 ? 'bg-orange-500' : 'bg-green-500'
-                                            }`}
-                                        style={{ width: `${Math.min((pen.animal_count / pen.capacity) * 100, 100)}%` }}
-                                    />
-                                </div>
-                                <p className="text-sm text-gray-600">
-                                    {pen.capacity > 0 ? ((pen.animal_count / pen.capacity) * 100).toFixed(1) : 0}%
-                                </p>
-                            </div>
-                        </div>
+<div>
+    <div className="bg-gray-50 rounded-lg p-6">
+        <h3 className="text-lg font-medium text-gray-900 mb-3">Kihasználtság</h3>
+        <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+            <div
+                className={`h-3 rounded-full transition-all ${
+                    pen.animal_count / calculateNewCapacity(pen.current_function?.function_type || 'üres') > 0.8 ? 'bg-red-500' :
+                    pen.animal_count / calculateNewCapacity(pen.current_function?.function_type || 'üres') > 0.6 ? 'bg-orange-500' : 'bg-green-500'
+                }`}
+                style={{ width: `${Math.min((pen.animal_count / calculateNewCapacity(pen.current_function?.function_type || 'üres')) * 100, 100)}%` }}
+            />
+        </div>
+        <p className="text-sm text-gray-600">
+            {calculateNewCapacity(pen.current_function?.function_type || 'üres') > 0 ? 
+                ((pen.animal_count / calculateNewCapacity(pen.current_function?.function_type || 'üres')) * 100).toFixed(1) : 0}%
+            {pen.capacity !== calculateNewCapacity(pen.current_function?.function_type || 'üres') && (
+                <span className="text-xs text-gray-400 ml-2">
+                    (DB: {((pen.animal_count / pen.capacity) * 100).toFixed(1)}%)
+                </span>
+            )}
+        </p>
+    </div>
+</div>
                     </div>
 
                     {/* Hárem extra információk */}

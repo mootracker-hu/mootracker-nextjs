@@ -109,9 +109,9 @@ export default function PensPage() {
 
         // Standard karamok funkció szerint
         switch (functionType) {
-          case 'hárem': return 27;
-          case 'vemhes': return 30;
-          case 'tehén': return 40;
+          case 'hárem': return 42;
+          case 'vemhes': return 42;
+          case 'tehén': return 42;
           case 'bölcsi': return 25;
           case 'óvi': return 25;
           case 'hízóbika': return 20;
