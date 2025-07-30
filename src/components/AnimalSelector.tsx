@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Search, User, Calendar, MapPin, AlertCircle } from 'lucide-react';
+import { displayEnar } from '@/constants/enar-formatter'; // ✅ HOZZÁADVA!
 
 interface Animal {
   id: number;
@@ -315,7 +316,8 @@ const AnimalSelector: React.FC<AnimalSelectorProps> = ({
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center space-x-2">
                           <span className="font-medium text-gray-900">
-                            {animal.enar}
+                            {/* ✅ JAVÍTVA: displayEnar használata! */}
+                            {displayEnar(animal.enar)}
                             {animal.name && ` - ${animal.name}`}
                           </span>
                           <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-full">
@@ -372,17 +374,19 @@ const AnimalSelector: React.FC<AnimalSelectorProps> = ({
                     </div>
                   </div>
 
-                  {/* 👨‍👩‍👧‍👦 Család információk (ha van) */}
+                  {/* 🐄💕🐂Család információk (ha van) */}
                   {(animal.anya_enar || animal.apa_enar) && (
                     <div className="mt-2 text-xs text-gray-500">
                       {animal.anya_enar && (
                         <span className="mr-3">
-                          👩 Anya: {animal.anya_enar}
+                          {/* ✅ JAVÍTVA: displayEnar használata anyánál is! */}
+                          🐄 Anya: {displayEnar(animal.anya_enar)}
                         </span>
                       )}
                       {animal.apa_enar && (
                         <span>
-                          👨 Apa: {animal.apa_enar}
+                          {/* ✅ JAVÍTVA: displayEnar használata apánál is! */}
+                          🐂 Apa: {displayEnar(animal.apa_enar)}
                         </span>
                       )}
                     </div>

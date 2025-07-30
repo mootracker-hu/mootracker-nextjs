@@ -185,7 +185,6 @@ export default function AnimalMovementPanel({
   // Mozgatás végrehajtása
   const handleMove = async () => {
     if (!targetPenId || !movementReason) return;
-    if (isHistorical && !historicalDate) return;
 
     // Hárem validáció
     if (functionType === 'hárem' && (selectedBulls.length === 0 || !paringStartDate)) {
@@ -209,7 +208,13 @@ export default function AnimalMovementPanel({
       });
 
       // Dátum formázás
-      const moveDate = isHistorical ? historicalDate : new Date().toISOString().split('T')[0];
+      const moveDate = historicalDate || new Date().toISOString().split('T')[0];
+      console.log('📅 moveDate DEBUG:', {
+  isHistorical,
+  historicalDate,
+  moveDate,
+  'new Date()': new Date().toISOString().split('T')[0]
+});
 
       // Metadata készítése hárem esetén
       let metadata = null;
@@ -232,7 +237,7 @@ export default function AnimalMovementPanel({
         };
       }
 
-      await onMove(targetPenId, movementReason, notes, isHistorical, moveDate, functionType, metadata);
+      await onMove(targetPenId, movementReason, notes, false, moveDate, functionType, metadata);
 
       // ✅ ÚJ: AUTOMATIKUS ESEMÉNY RÖGZÍTÉS
       if (!isHistorical && functionType) {
@@ -295,6 +300,20 @@ export default function AnimalMovementPanel({
           }
 
           // 2. CÉLKARAM: Állatok hozzáadása miatti periódus kezelés
+          console.log('🔧 closeCurrentPeriodAndStartNew hívás DEBUG:', {
+  targetPenId,
+  changeType: 'animals_added',
+  selectedAnimals,
+  moveDate,  // ← Ez a kulcs!
+  functionType,
+  metadata
+});
+
+console.log('🔧 AnimalMovementPanel closeCurrentPeriodAndStartNew hívás:', {
+    targetPenId,
+    moveDate,
+    functionType
+});
           await closeCurrentPeriodAndStartNew(targetPenId, 'animals_added', selectedAnimals, moveDate, functionType, metadata);
 
           console.log('✅ Automatikus periódus kezelés befejezve');
@@ -400,7 +419,7 @@ export default function AnimalMovementPanel({
                 <option value="bölcsi">🐮 Bölcsi (0-12 hónapos borjak)</option>
                 <option value="óvi">🐄 Óvi (12-24 hónapos üszők)</option>
                 <option value="hárem">💕 Hárem (tenyésztésben lévő állatok)</option>
-                <option value="vemhes">🤰 Vemhes (vemhes állatok)</option>
+                <option value="vemhes">🐄💕 Vemhes (vemhes állatok)</option>
                 <option value="ellető">🍼 Ellető (ellés körüli állatok)</option>
                 <option value="tehén">🐄🍼 Tehén (borjas tehenek)</option>
                 <option value="hízóbika">🐂 Hízóbika (hústermelés)</option>
@@ -489,7 +508,7 @@ export default function AnimalMovementPanel({
               >
                 <option value="">Válassz okot...</option>
                 <option value="age_separation">🎂 Életkor alapú válogatás</option>
-                <option value="breeding">💕 Tenyésztésbe állítás</option>
+                <option value="breeding">💕 Vemhesítés</option>
                 <option value="pregnancy">🐄💖 Vemhesség</option>
                 <option value="birthing">🍼 Ellés előkészítés</option>
                 <option value="health">🏥 Egészségügyi ok</option>
@@ -604,9 +623,9 @@ export default function AnimalMovementPanel({
                 {/* Mozgatás dátuma */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
-                    <span className="text-lg mr-2">📅</span>
-                    Mozgatás dátuma:
-                  </label>
+  <span className="text-lg mr-2">📅</span>
+  Mozgatás dátuma (opcionális):
+</label>
                   <input
                     type="date"
                     value={historicalDate}
@@ -619,37 +638,22 @@ export default function AnimalMovementPanel({
                   </p>
                 </div>
 
-                {/* Történeti mozgatás */}
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <label className="flex items-center space-x-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isHistorical}
-                      onChange={(e) => setIsHistorical(e.target.checked)}
-                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-sm font-medium text-blue-900 flex items-center">
-                      <span className="text-lg mr-2">📚</span>
-                      Történeti állat mozgatás
-                    </span>
-                  </label>
-
-                  <div className="mt-3 ml-7 text-xs text-blue-700 bg-blue-100 p-3 rounded border-l-4 border-blue-400">
-                    <div className="font-medium mb-1">ℹ️ Mit jelent ez?</div>
-                    <div className="space-y-1">
-                      <div>• <strong>Fizikai mozgatás:</strong> Az állatok ténylegesen átkerülnek a másik karámba</div>
-                      <div>• <strong>Múltbéli dátum:</strong> A mozgatás a megadott korábbi dátummal lesz rögzítve</div>
-                      <div>• <strong>Jelenlegi állapot:</strong> Az állatok jelenleg a célkarámban lesznek</div>
-                    </div>
-                    <div className="mt-2 pt-2 border-t border-blue-300 text-blue-600">
-                      <strong>Példa:</strong> "Múlt héten elfelejtettem rögzíteni, hogy 3 állatot áttettem a 2-es karámba"
-                    </div>
-                  </div>
-
-                  <div className="mt-2 ml-7 text-xs text-gray-600">
-                    💡 <strong>Tipp:</strong> Ha csak dokumentálni szeretnél (fizikai mozgatás nélkül), használd a <strong>Karám Történet</strong> funkciót
-                  </div>
-                </div>
+                {/* Egyszerű magyarázó szöveg */}
+<div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+  <h4 className="font-medium text-blue-800 mb-2 flex items-center">
+    <span className="text-xl mr-2">ℹ️</span>
+    Mit jelent ez?
+  </h4>
+  <ul className="text-sm text-blue-700 space-y-1">
+    <li>• <strong>Fizikai mozgatás:</strong> Az állatok ténylegesen átkerülnek a másik karámba</li>
+    <li>• <strong>Mozgatás dátuma:</strong> Ha korábbi dátumot adsz meg, akkor azzal a dátummal lesz rögzítve</li>
+    <li>• <strong>Alapértelmezett:</strong> Ha nem adsz meg dátumot, akkor a mai dátummal lesz rögzítve</li>
+  </ul>
+  
+  <div className="mt-3 text-xs text-blue-600">
+    💡 <strong>Tipp:</strong> Ha csak dokumentálni szeretnél (fizikai mozgatás nélkül), használd a Karám Történet funkciót
+  </div>
+</div>
               </>
             )}
 
@@ -752,8 +756,7 @@ const closeCurrentPeriodAndStartNew = async (
 
     // 3. Új periódus indítása (ha van új funkció vagy maradnak állatok)
     if (changeType === 'animals_added' || (changeType === 'animals_removed' && await hasRemainingAnimals(penId, affectedAnimals))) {
-      const startDate = new Date(eventDate);
-      startDate.setHours(0, 0, 0); // Nap eleje
+      const startDate = eventDate;
 
       // Jelenlegi állatok lekérdezése a karámban (a mozgatás után)
       const { data: currentAnimals, error: animalsError } = await supabase
@@ -789,7 +792,7 @@ const closeCurrentPeriodAndStartNew = async (
         .insert({
           pen_id: penId,
           function_type: functionType,
-          start_date: startDate.toISOString().split('T')[0],
+          start_date: startDate,
           end_date: null, // Folyamatban
           animals_snapshot: animalsSnapshot,
           metadata: periodMetadata,

@@ -1751,6 +1751,12 @@ const calculateNewCapacity = (functionType: string): number => {
                 // Keresd meg ezt a részt a fájlban (787. sor környékén) és cseréld le:
 
                 onMove={async (targetPenId, reason, notes, isHistorical, moveDate, functionType, metadata) => {
+                     console.log('📅 PAGE.TSX ELSŐ onMove DÁTUM DEBUG:', {
+        moveDate,
+        isHistorical,
+        functionType,
+        'new Date()': new Date().toISOString().split('T')[0]
+    });
                     try {
                         console.log('🔄 ÁLLATOK MOZGATÁSA DEBUG:', {
                             from: pen?.id,
@@ -1786,7 +1792,8 @@ const calculateNewCapacity = (functionType: string): number => {
                         }
 
                         // Dátum kezelés
-                        const actualMoveDate = isHistorical && moveDate ? moveDate : new Date().toISOString();
+                        const actualMoveDate = moveDate || new Date().toISOString().split('T')[0];
+const actualMoveDateTime = `${actualMoveDate}T12:00:00.000Z`;
 
                         // 🔥 DUPLIKÁCIÓ ELLENŐRZÉSE ELŐBB
                         console.log('🔍 Duplikáció ellenőrzése...');
@@ -1824,7 +1831,7 @@ const calculateNewCapacity = (functionType: string): number => {
 
                             const { error: removeError } = await supabase
                                 .from('animal_pen_assignments')
-                                .update({ removed_at: actualMoveDate })
+                                .update({ removed_at: actualMoveDateTime })
                                 .in('animal_id', finalAnimalsToMove)
                                 .is('removed_at', null);
 
@@ -1846,7 +1853,7 @@ const calculateNewCapacity = (functionType: string): number => {
                             const newAssignments = finalAnimalsToMove.map(animalId => ({
                                 animal_id: animalId,
                                 pen_id: targetPenId,
-                                assigned_at: actualMoveDate,
+                                assigned_at: actualMoveDateTime,
                                 assignment_reason: reason,
                                 notes: notes || null
                             }));
@@ -1908,8 +1915,8 @@ const calculateNewCapacity = (functionType: string): number => {
                         const events = finalAnimalsToMove.map(animalId => ({
                             animal_id: animalId,
                             event_type: 'pen_movement',
-                            event_date: actualMoveDate.split('T')[0],
-                            event_time: actualMoveDate.split('T')[1]?.substring(0, 8) || '12:00:00',
+                            event_date: actualMoveDateTime.split('T')[0],
+                            event_time: actualMoveDateTime.split('T')[1]?.substring(0, 8) || '12:00:00',
                             pen_id: targetPenId,
                             previous_pen_id: pen?.id || penId,
                             pen_function: functionType || null,
@@ -2018,7 +2025,15 @@ const calculateNewCapacity = (functionType: string): number => {
                 // CSERÉLD LE a második AnimalMovementPanel onMove callback-jét TELJESEN erre:
 
                 onMove={async (targetPenId, reason, notes, isHistorical, moveDate, functionType, metadata) => {
+                     console.log('📅 PAGE.TSX MÁSODIK onMove DÁTUM DEBUG:', {
+        moveDate,
+        isHistorical,
+        functionType,
+        'new Date()': new Date().toISOString().split('T')[0]
+    });
                     try {
+                        // ✅ ADD HOZZÁ EZT A SORT IDE:
+        console.log('📅 ADD MODE DÁTUM:', { moveDate, isHistorical });
                         console.log('🔄 ADD MODE ÁLLATOK MOZGATÁSA:', {
                             from: penId,
                             to: targetPenId,
@@ -2038,11 +2053,10 @@ const calculateNewCapacity = (functionType: string): number => {
                         }
 
                         // ⏰ MOZGATÁSI IDŐPONT
-                        const actualMoveDate = isHistorical && moveDate
-                            ? moveDate
-                            : new Date().toISOString();
-
-                        console.log('⏰ Mozgatási időpont:', actualMoveDate);
+                        // ⏰ MOZGATÁSI IDŐPONT - JAVÍTOTT
+const actualMoveDate = moveDate || new Date().toISOString().split('T')[0];
+const actualMoveDateTime = `${actualMoveDate}T12:00:00.000Z`;
+                        console.log('⏰ Mozgatási időpont:', actualMoveDateTime);
 
                         // 🔍 DUPLIKÁCIÓ ELLENŐRZÉS
                         console.log('🔍 Duplikáció ellenőrzés...');
@@ -2085,7 +2099,7 @@ const calculateNewCapacity = (functionType: string): number => {
 
                             const { error: removeError } = await supabase
                                 .from('animal_pen_assignments')
-                                .update({ removed_at: actualMoveDate })
+                                .update({ removed_at: actualMoveDateTime })
                                 .in('animal_id', finalAnimalsToMove)
                                 .is('removed_at', null);
 
@@ -2104,7 +2118,7 @@ const calculateNewCapacity = (functionType: string): number => {
                             const newAssignments = finalAnimalsToMove.map(animalId => ({
                                 animal_id: animalId,
                                 pen_id: targetPenId,
-                                assigned_at: actualMoveDate,
+                                assigned_at: actualMoveDateTime,
                                 assignment_reason: reason,
                                 notes: notes || null
                             }));
@@ -2166,8 +2180,8 @@ const calculateNewCapacity = (functionType: string): number => {
                         const events = finalAnimalsToMove.map(animalId => ({
                             animal_id: animalId,
                             event_type: 'pen_movement',
-                            event_date: actualMoveDate.split('T')[0],
-                            event_time: actualMoveDate.split('T')[1]?.substring(0, 8) || '12:00:00',
+                            event_date: actualMoveDateTime.split('T')[0],
+                            event_time: actualMoveDateTime.split('T')[1]?.substring(0, 8) || '12:00:00',
                             pen_id: targetPenId,
                             previous_pen_id: penId, // Add Mode esetén a jelenlegi karám az előző
                             pen_function: functionType || null,
