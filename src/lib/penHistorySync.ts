@@ -14,8 +14,15 @@ export type PenHistoryEvent =
 const eventBus = new EventTarget();
 
 // 📡 BROADCAST FÜGGVÉNYEK
-export const broadcastPenHistoryUpdate = (penId: string, event: PenHistoryEvent, data?: any) => {
-  console.log(`🔄 Broadcasting pen history update: ${penId} - ${event}`);
+export const broadcastPenHistoryUpdate = async (penId: string, event: PenHistoryEvent, data?: any) => {
+  console.log(`🔄 Broadcasting pen history update: ${penId} - ${event}`, data); // ← Ez a debug sor
+  
+  // ÚJ: moveDate kezelés
+  if (event === 'animals_moved' && data?.moveDate) {
+    console.log('🗓️ Using moveDate for period:', data.moveDate);
+    await closePreviousPeriodWithDate(penId, data.moveDate);
+  }
+  
   eventBus.dispatchEvent(new CustomEvent('pen-history-update', {
     detail: { penId, event, data, timestamp: Date.now() }
   }));
@@ -142,7 +149,7 @@ export const createAutomaticPeriodSnapshot = async (
       .insert({
         pen_id: penId,
         function_type: currentFunction,
-        start_date: new Date().toISOString().split('T')[0],
+        start_date: new Date().toISOString().split('T')[0], // Eredeti logika
         animals_snapshot: animals || [],
         metadata: {
           trigger,
@@ -291,5 +298,91 @@ export const removeDuplicatePeriods = async (penId: string) => {
     }
   } catch (error) {
     console.error('❌ Error removing duplicates:', error);
+  }
+};
+// ÚJ: Periódus lezárás és új indítás moveDate-tel
+const closePreviousPeriodWithDate = async (penId: string, moveDate: string) => {
+  try {
+    console.log(`🔚 Closing period with moveDate: ${moveDate}`);
+    
+    // 1. Előző periódus lezárása moveDate-tel
+    const { error: closeError } = await supabase
+      .from('pen_history_periods')
+      .update({ 
+        end_date: moveDate // ← A beállított dátum!
+      })
+      .eq('pen_id', penId)
+      .is('end_date', null);
+
+    if (closeError) {
+      console.error('❌ Error closing period:', closeError);
+    }
+
+    // 2. Új periódus indítása moveDate + 1 nap
+    const nextDay = new Date(moveDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    const nextDayString = nextDay.toISOString().split('T')[0];
+    
+    await createNewPeriodWithDate(penId, nextDayString);
+    
+  } catch (error) {
+    console.error('❌ Error in closePreviousPeriodWithDate:', error);
+  }
+};
+
+// ÚJ: Új periódus létrehozása adott dátummal
+const createNewPeriodWithDate = async (penId: string, startDate: string) => {
+  try {
+    console.log(`📸 Creating new period starting: ${startDate}`);
+    
+    // Pen adatok
+    const { data: penData } = await supabase
+      .from('pens')
+      .select('pen_number')
+      .eq('id', penId)
+      .single();
+
+    if (!penData) return;
+
+    // Állatok lekérdezése
+    const { data: animals } = await supabase
+      .from('animals')
+      .select('id, enar, kategoria, name')
+      .eq('jelenlegi_karam', penData.pen_number)
+      .eq('statusz', 'aktív');
+
+    // Funkció lekérdezése
+    const { data: penFunction } = await supabase
+      .from('pen_functions')
+      .select('function_type')
+      .eq('pen_id', penId)
+      .is('end_date', null)
+      .order('start_date', { ascending: false })
+      .limit(1)
+      .single();
+
+    // Új periódus létrehozása
+    const { data: newPeriod } = await supabase
+      .from('pen_history_periods')
+      .insert({
+        pen_id: penId,
+        function_type: penFunction?.function_type || 'üres',
+        start_date: startDate, // ← A moveDate + 1 nap!
+        animals_snapshot: animals || [],
+        metadata: {
+          trigger: 'animals_moved',
+          animal_count: animals?.length || 0,
+          created_by: 'system'
+        },
+        historical: false
+      })
+      .select()
+      .single();
+
+    console.log(`✅ New period created starting: ${startDate}`);
+    return newPeriod;
+    
+  } catch (error) {
+    console.error('❌ Error creating new period:', error);
   }
 };
