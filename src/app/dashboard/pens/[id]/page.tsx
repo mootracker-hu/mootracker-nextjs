@@ -2095,35 +2095,59 @@ export default function PenDetailsPage() {
                         setShowAddAnimalsPanel(false);
                         setSelectedAnimalsForAdd([]);
 
-                        // ✅ BROADCAST KARÁMTÖRTÉNET FRISSÍTÉS
-                        try {
-                            console.log('🚀 ABOUT TO CALL broadcastPenHistoryUpdate'); // ← ÚJ DEBUG
-                            console.log('📊 Parameters:', { targetPenId, actualMoveDate, reason }); // ← ÚJ DEBUG
+// ✅ BROADCAST KARÁMTÖRTÉNET FRISSÍTÉS
+try {
+    // ✅ MENTÉS - mielőtt bármi törölné
+    const animalsToProcess = [...finalAnimalsToMove]; // Másolat készítése!
+    console.log('🔍 DEBUG animalsToProcess:', animalsToProcess);
+    
+    // 1. FORRÁS KARÁM ID - EGYSZERŰ MEGOLDÁS
+    const sourceKaramIds = new Set<string>();
 
-                            await broadcastPenHistoryUpdate(targetPenId, 'animals_moved', {
-                                movedAnimals: finalAnimalsToMove,
-                                fromPen: penId,
-                                reason: reason,
-                                moveDate: actualMoveDate,
-                                timestamp: new Date().toISOString()
-                            });
+    // Ha van penId (eredeti karám), használjuk
+    if (penId && penId !== targetPenId) {
+        sourceKaramIds.add(penId); // ← Az eredeti karám ID (EB4)!
+        console.log('✅ Found source karam ID from penId:', penId);
+    }
 
-                            console.log('✅ broadcastPenHistoryUpdate COMPLETED'); // ← ÚJ DEBUG
-                        } catch (broadcastError) {
-                            console.warn('⚠️ Add mode broadcast hiba:', broadcastError);
-                        }
+    console.log('🔍 sourceKaramIds final:', Array.from(sourceKaramIds));
 
-                        // OLDAL FRISSÍTÉS
-                        if (!isHistorical) {
-                            setTimeout(() => {
-                                window.location.reload();
-                            }, 1000);
-                        }
+    // 2. MINDEN FORRÁS KARÁM LEZÁRÁSA
+    for (const sourceKaramId of sourceKaramIds) {
+        console.log('🔍 Closing source karam:', sourceKaramId);
+        await broadcastPenHistoryUpdate(sourceKaramId, 'animals_moved', {
+            movedAnimals: animalsToProcess,
+            toPen: targetPenId,
+            reason: reason,
+            moveDate: moveDate,
+            timestamp: new Date().toISOString()
+        });
+    }
 
-                    } catch (error) {
-                        console.error('❌ ADD MODE HIBA:', error);
-                        alert(`❌ Hiba: ${error instanceof Error ? error.message : 'Ismeretlen hiba'}`);
-                    }
+    // 3. CÉLKARAM FRISSÍTÉSE
+    await broadcastPenHistoryUpdate(targetPenId, 'animals_moved', {
+        movedAnimals: animalsToProcess,
+        fromPen: Array.from(sourceKaramIds).join(','),
+        reason: reason,
+        moveDate: moveDate,
+        functionType: functionType,
+        timestamp: new Date().toISOString()
+    });
+
+} catch (broadcastError) {
+    console.warn('⚠️ Add mode broadcast hiba:', broadcastError);
+}
+// OLDAL FRISSÍTÉS
+if (!isHistorical) {
+   setTimeout(() => {
+       window.location.reload();
+   }, 1000);
+}
+
+} catch (error) {
+   console.error('❌ ADD MODE HIBA:', error);
+   alert(`❌ Hiba: ${error instanceof Error ? error.message : 'Ismeretlen hiba'}`);
+}
                 }}
             />
 

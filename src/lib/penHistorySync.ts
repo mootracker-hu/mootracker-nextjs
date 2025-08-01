@@ -15,13 +15,21 @@ const eventBus = new EventTarget();
 
 // 📡 BROADCAST FÜGGVÉNYEK
 export const broadcastPenHistoryUpdate = async (penId: string, event: PenHistoryEvent, data?: any) => {
-  console.log(`🔄 Broadcasting pen history update: ${penId} - ${event}`, data); // ← Ez a debug sor
+  console.log(`🔄 Broadcasting pen history update: ${penId} - ${event}`, data);
   
-  // ÚJ: moveDate kezelés
-  if (event === 'animals_moved' && data?.moveDate) {
+  // ✅ ÚJ - intelligens döntés:
+if (event === 'animals_moved' && data?.moveDate) {
     console.log('🗓️ Using moveDate for period:', data.moveDate);
-    await closePreviousPeriodWithDate(penId, data.moveDate);
-  }
+    console.log('🏗️ Using functionType:', data.functionType);
+    
+    if (data.functionType) {
+        console.log('🏗️ Full update: close + new period');
+        await closePreviousPeriodWithDate(penId, data.moveDate, data.functionType);
+    } else {
+        console.log('🔚 Close only: no new period');
+        await closeOnlyPeriod(penId, data.moveDate);
+    }
+}
   
   eventBus.dispatchEvent(new CustomEvent('pen-history-update', {
     detail: { penId, event, data, timestamp: Date.now() }
@@ -100,6 +108,12 @@ export const createAutomaticPeriodSnapshot = async (
 ) => {
   try {
     console.log(`📸 Creating automatic snapshot for pen ${penId}, trigger: ${trigger}`);
+
+    // ✅ ADD EZT A RÉSZT IDE:
+    if (trigger === 'animals_moved') {
+      console.log('🚫 Add Mode: Using broadcastPenHistoryUpdate instead');
+      return null;
+    }
     
     // ✅ JAVÍTOTT: Jelenlegi állatok lekérdezése a helyes oszlopnevek alapján
     const { data: penData } = await supabase
@@ -301,9 +315,10 @@ export const removeDuplicatePeriods = async (penId: string) => {
   }
 };
 // ÚJ: Periódus lezárás és új indítás moveDate-tel
-const closePreviousPeriodWithDate = async (penId: string, moveDate: string) => {
+const closePreviousPeriodWithDate = async (penId: string, moveDate: string, functionType?: string) => {
   try {
     console.log(`🔚 Closing period with moveDate: ${moveDate}`);
+    console.log(`🔧 Using functionType: ${functionType}`); // ← ÚJ DEBUG
     
     // 1. Előző periódus lezárása moveDate-tel
     const { error: closeError } = await supabase
@@ -323,7 +338,8 @@ const closePreviousPeriodWithDate = async (penId: string, moveDate: string) => {
     nextDay.setDate(nextDay.getDate() + 1);
     const nextDayString = nextDay.toISOString().split('T')[0];
     
-    await createNewPeriodWithDate(penId, nextDayString);
+    // ✅ JAVÍTÁS: functionType átadása
+    await createNewPeriodWithDate(penId, nextDayString, functionType);
     
   } catch (error) {
     console.error('❌ Error in closePreviousPeriodWithDate:', error);
@@ -331,9 +347,10 @@ const closePreviousPeriodWithDate = async (penId: string, moveDate: string) => {
 };
 
 // ÚJ: Új periódus létrehozása adott dátummal
-const createNewPeriodWithDate = async (penId: string, startDate: string) => {
+const createNewPeriodWithDate = async (penId: string, startDate: string, functionType?: string) => {
   try {
     console.log(`📸 Creating new period starting: ${startDate}`);
+    console.log(`🏗️ With functionType: ${functionType}`); // ← ÚJ DEBUG
     
     // Pen adatok
     const { data: penData } = await supabase
@@ -361,13 +378,17 @@ const createNewPeriodWithDate = async (penId: string, startDate: string) => {
       .limit(1)
       .single();
 
+    // ✅ JAVÍTÁS: functionType használata
+    const finalFunctionType = functionType || penFunction?.function_type || 'üres';
+    console.log(`🎯 Final function type: ${finalFunctionType}`); // ← ÚJ DEBUG
+
     // Új periódus létrehozása
     const { data: newPeriod } = await supabase
       .from('pen_history_periods')
       .insert({
         pen_id: penId,
-        function_type: penFunction?.function_type || 'üres',
-        start_date: startDate, // ← A moveDate + 1 nap!
+        function_type: finalFunctionType, // ← FONTOS JAVÍTÁS!
+        start_date: startDate,
         animals_snapshot: animals || [],
         metadata: {
           trigger: 'animals_moved',
@@ -379,10 +400,31 @@ const createNewPeriodWithDate = async (penId: string, startDate: string) => {
       .select()
       .single();
 
-    console.log(`✅ New period created starting: ${startDate}`);
+    console.log(`✅ New period created starting: ${startDate} with function: ${finalFunctionType}`);
     return newPeriod;
     
   } catch (error) {
     console.error('❌ Error creating new period:', error);
+  }
+};
+// ✅ ITT ADD HOZZÁ AZ ÚJ FÜGGVÉNYT:
+// ÚJ függvény - csak lezárás
+const closeOnlyPeriod = async (penId: string, moveDate: string) => {
+  try {
+    console.log(`🔚 Closing period only with moveDate: ${moveDate}`);
+    
+    const { error } = await supabase
+      .from('pen_history_periods')
+      .update({ end_date: moveDate })
+      .eq('pen_id', penId)
+      .is('end_date', null);
+
+    if (error) {
+      console.error('❌ Error closing period:', error);
+    } else {
+      console.log('✅ Period closed successfully');
+    }
+  } catch (error) {
+    console.error('❌ Error in closeOnlyPeriod:', error);
   }
 };

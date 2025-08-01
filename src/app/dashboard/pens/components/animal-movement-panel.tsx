@@ -4,7 +4,7 @@
 import React from 'react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { createAutomaticPeriodSnapshot } from '@/lib/penHistorySync';
+import { createAutomaticPeriodSnapshot, broadcastPenHistoryUpdate } from '@/lib/penHistorySync';
 import { recordAnimalEvent, ALERT_EVENT_TYPES } from '@/lib/alerts/MagyarAlertEngine';
 import { displayEnar } from '@/constants/enar-formatter';
 import AnimalSelector from '@/components/AnimalSelector';
@@ -242,35 +242,61 @@ export default function AnimalMovementPanel({
         }
       }
 
-      // Automatikus snapshot állat mozgatás után
-      if (!isHistorical) {
-        try {
-          await createAutomaticPeriodSnapshot(targetPenId, 'animals_moved', 'állat_mozgatás');
+    // ✅ BROADCAST KARÁMTÖRTÉNET FRISSÍTÉS
+try {
+    // Forráskaram lezárása (ha különböző)
+    if (currentPenId !== targetPenId) {
+        await broadcastPenHistoryUpdate(currentPenId, 'animals_moved', {
+            movedAnimals: selectedAnimals,
+            toPen: targetPenId,
+            reason: movementReason, // ← JAVÍTÁS!
+            moveDate: moveDate, // ← JAVÍTÁS!
+            timestamp: new Date().toISOString()
+        });
+    }
+    
+    // Célkaram frissítése
+    await broadcastPenHistoryUpdate(targetPenId, 'animals_moved', {
+        movedAnimals: selectedAnimals,
+        fromPen: currentPenId,
+        reason: movementReason, // ← JAVÍTÁS!
+        moveDate: moveDate, // ← JAVÍTÁS!
+        functionType: functionType,
+        timestamp: new Date().toISOString()
+    });
+} catch (broadcastError) {
+    console.error('⚠️ Broadcast hiba:', broadcastError);
+}
 
-          // Ha más karámból érkeztek állatok, ott is snapshot
-          if (currentPenId !== targetPenId) {
-            await createAutomaticPeriodSnapshot(currentPenId, 'animals_moved', 'állat_mozgatás');
-          }
-        } catch (snapshotError) {
-          console.error('Állat mozgatás snapshot hiba:', snapshotError);
-        }
-      }
+    //  // Automatikus snapshot állat mozgatás után
+    //  if (!isHistorical) {
+    //    try {
+    //      await createAutomaticPeriodSnapshot(targetPenId, 'animals_moved', 'állat_mozgatás');
+
+    //      // Ha más karámból érkeztek állatok, ott is snapshot
+    //      if (currentPenId !== targetPenId) {
+    //        await createAutomaticPeriodSnapshot(currentPenId, 'animals_moved', 'állat_mozgatás');
+    //      }
+    //    } catch (snapshotError) {
+    //      console.error('Állat mozgatás snapshot hiba:', snapshotError);
+    //    }
+    //  }
 
       // Automatikus periódus lezárás és új indítás
-      if (!isHistorical && !isHaremMode) {
-        try {
-          // 1. Forráskaram: Állatok eltávolítása miatti periódus lezárás
-          if (currentPenId !== targetPenId) {
-            await closeCurrentPeriodAndStartNew(currentPenId, 'animals_removed', selectedAnimals, moveDate);
-          }
+    //  if (!isHistorical && !isHaremMode) {
+    //    try {
+    //      // 1. Forráskaram: Állatok eltávolítása miatti periódus lezárás
+    //     if (currentPenId !== targetPenId) {
+    //        await closeCurrentPeriodAndStartNew(currentPenId, 'animals_removed', selectedAnimals, moveDate);
+    //     }
 
-          // 2. Célkaram: Állatok hozzáadása miatti periódus kezelés
-          await closeCurrentPeriodAndStartNew(targetPenId, 'animals_added', selectedAnimals, moveDate, functionType, metadata);
-        } catch (periodError) {
-          console.error('Automatikus periódus kezelés hiba:', periodError);
-          // Ne állítsuk le a mozgatást emiatt, csak logolunk
-        }
-      }
+    //      // 2. Célkaram: Állatok hozzáadása miatti periódus kezelés
+    //      await closeCurrentPeriodAndStartNew(targetPenId, 'animals_added', selectedAnimals, moveDate, functionType, metadata);
+    //    } catch (periodError) {
+    //      console.error('Automatikus periódus kezelés hiba:', periodError);
+    //      // Ne állítsuk le a mozgatást emiatt, csak logolunk
+    //    }
+     // }
 
       // Reset form
       setTargetPenId('');
